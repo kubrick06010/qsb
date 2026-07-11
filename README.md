@@ -11,18 +11,10 @@ installer payload, help files, manual, or bundled examples.
 
 ## Repository Safety
 
-Original WinQSB files are copyrighted third-party artifacts and must remain
-local. They are intentionally ignored under:
+Public commits and remotes must contain only clean-room source code, tests,
+documentation, and non-proprietary fixtures.
 
-```sh
-reference/winqsb/
-```
-
-Use that path only for private compatibility testing on machines where the
-files are already legally available. Public commits and remotes must contain
-only clean-room source code, tests, documentation, and non-proprietary fixtures.
-
-See [docs/LEGACY_REFERENCE_POLICY.md](docs/LEGACY_REFERENCE_POLICY.md) for the
+See [docs/LEGACY_REFERENCE_POLICY.md](https://github.com/kubrick06010/qsb/blob/main/docs/LEGACY_REFERENCE_POLICY.md) for the
 working policy before creating or pushing a remote repository.
 
 ## Build
@@ -38,8 +30,8 @@ swift test
 ```
 
 Some compatibility tests expect private local fixtures in `reference/winqsb/`.
-If those files are absent, run the source-level and generated-fixture tests that
-do not require the private reference payload.
+If those files are absent, run the tests that do not require local-only
+compatibility fixtures.
 
 ## CLI
 

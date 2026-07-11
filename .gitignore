@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# SwiftPM and local toolchains
+.build/
+.swift-home/
+
+# Codex local workspace configuration
+.codex/
+
+# Local build outputs
+dist/
+
+# Local strategy documents not intended for the public remote yet
+goal.md
+docs/ui_ux.md
+docs/PORTING_ROADMAP.md
+
+# Proprietary legacy reference payload.
+# Keep these files local only; do not publish WinQSB binaries, help files,
+# installer resources, manuals, or bundled sample files to a remote repo.
+reference/winqsb/

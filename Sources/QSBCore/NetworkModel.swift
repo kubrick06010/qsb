@@ -147,6 +147,41 @@ public struct TransportationSolution: Codable, Equatable, Sendable {
     public let shipments: [TransportationShipment]
 }
 
+public struct MinimumCostNetworkFlowProblem: Codable, Equatable, Sendable {
+    public let title: String
+    public let nodes: [String]
+    public let arcs: [NetworkArc]
+    public let supply: [Double]
+    public let demand: [Double]
+
+    public init(title: String, nodes: [String], arcs: [NetworkArc], supply: [Double], demand: [Double]) {
+        self.title = title
+        self.nodes = nodes
+        self.arcs = arcs
+        self.supply = supply
+        self.demand = demand
+    }
+}
+
+public struct MinimumCostNetworkFlowArc: Codable, Equatable, Sendable {
+    public let from: String
+    public let to: String
+    public let quantity: Double
+    public let unitCost: Double
+}
+
+public struct NetworkBalanceAdjustment: Codable, Equatable, Sendable {
+    public let node: String
+    public let quantity: Double
+    public let kind: String
+}
+
+public struct MinimumCostNetworkFlowSolution: Codable, Equatable, Sendable {
+    public let totalCost: Double
+    public let arcFlows: [MinimumCostNetworkFlowArc]
+    public let balanceAdjustments: [NetworkBalanceAdjustment]
+}
+
 public enum TransportationValidator {
     public static func diagnostics(for problem: TransportationProblem) -> [ValidationDiagnostic] {
         var diagnostics: [ValidationDiagnostic] = []
@@ -294,6 +329,7 @@ public enum TransportationValidator {
 }
 
 public enum NetworkProblemKind: String, Codable, Sendable {
+    case minimumCostFlow = "CNF"
     case shortestPath = "SPP"
     case minimumSpanningTree = "MST"
     case maxFlow = "MFP"
@@ -303,6 +339,7 @@ public enum NetworkProblemKind: String, Codable, Sendable {
 }
 
 public enum NetworkModelEnvelope: Equatable, Sendable {
+    case minimumCostFlow(MinimumCostNetworkFlowProblem)
     case shortestPath(ShortestPathNetwork)
     case minimumSpanningTree(MinimumSpanningTreeNetwork)
     case maxFlow(MaxFlowNetwork)
@@ -312,6 +349,8 @@ public enum NetworkModelEnvelope: Equatable, Sendable {
 
     public var kind: NetworkProblemKind {
         switch self {
+        case .minimumCostFlow:
+            .minimumCostFlow
         case .shortestPath:
             .shortestPath
         case .minimumSpanningTree:
@@ -329,6 +368,7 @@ public enum NetworkModelEnvelope: Equatable, Sendable {
 }
 
 public enum NetworkSolutionEnvelope: Equatable, Sendable {
+    case minimumCostFlow(MinimumCostNetworkFlowSolution)
     case shortestPath(ShortestPathSolution)
     case minimumSpanningTree(MinimumSpanningTreeSolution)
     case maxFlow(MaxFlowSolution)
@@ -338,6 +378,8 @@ public enum NetworkSolutionEnvelope: Equatable, Sendable {
 
     public var kind: NetworkProblemKind {
         switch self {
+        case .minimumCostFlow:
+            .minimumCostFlow
         case .shortestPath:
             .shortestPath
         case .minimumSpanningTree:
@@ -364,6 +406,8 @@ extension NetworkModelEnvelope: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let kind = try container.decode(NetworkProblemKind.self, forKey: .kind)
         switch kind {
+        case .minimumCostFlow:
+            self = .minimumCostFlow(try container.decode(MinimumCostNetworkFlowProblem.self, forKey: .model))
         case .shortestPath:
             self = .shortestPath(try container.decode(ShortestPathNetwork.self, forKey: .model))
         case .minimumSpanningTree:
@@ -383,6 +427,8 @@ extension NetworkModelEnvelope: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(kind, forKey: .kind)
         switch self {
+        case .minimumCostFlow(let model):
+            try container.encode(model, forKey: .model)
         case .shortestPath(let model):
             try container.encode(model, forKey: .model)
         case .minimumSpanningTree(let model):
@@ -409,6 +455,8 @@ extension NetworkSolutionEnvelope: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let kind = try container.decode(NetworkProblemKind.self, forKey: .kind)
         switch kind {
+        case .minimumCostFlow:
+            self = .minimumCostFlow(try container.decode(MinimumCostNetworkFlowSolution.self, forKey: .solution))
         case .shortestPath:
             self = .shortestPath(try container.decode(ShortestPathSolution.self, forKey: .solution))
         case .minimumSpanningTree:
@@ -428,6 +476,8 @@ extension NetworkSolutionEnvelope: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(kind, forKey: .kind)
         switch self {
+        case .minimumCostFlow(let solution):
+            try container.encode(solution, forKey: .solution)
         case .shortestPath(let solution):
             try container.encode(solution, forKey: .solution)
         case .minimumSpanningTree(let solution):
@@ -504,6 +554,8 @@ public enum WinQSBNetworkParser {
 
     public static func parseModelEnvelope(from data: Data) throws -> NetworkModelEnvelope {
         switch try problemKind(from: data) {
+        case .minimumCostFlow:
+            return .minimumCostFlow(try parseMinimumCostFlow(from: data))
         case .shortestPath:
             return .shortestPath(try parseShortestPath(from: data))
         case .minimumSpanningTree:
@@ -561,6 +613,38 @@ public enum WinQSBNetworkParser {
         )
     }
 
+    public static func parseMinimumCostFlow(from data: Data) throws -> MinimumCostNetworkFlowProblem {
+        guard let text = data.legacyLatin1String else { throw NetworkModelError.unsupportedFormat }
+        let lines = text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map { $0.split(separator: "\t", omittingEmptySubsequences: false).map(clean) }
+        guard lines.count >= 4,
+              lines[0].count >= 3, lines[0][0] == "NET", lines[0][2] == "CNF",
+              let nodeCount = lines[1].first.flatMap(Int.init), nodeCount > 1,
+              lines[2].count >= nodeCount + 2,
+              lines.count >= nodeCount + 4
+        else { throw NetworkModelError.unsupportedFormat }
+
+        let nodes = Array(lines[2][1...nodeCount])
+        var arcs: [NetworkArc] = []
+        var supply: [Double] = []
+        for rowIndex in 0..<nodeCount {
+            let row = lines[3 + rowIndex]
+            guard row.count >= nodeCount + 2, row[0] == nodes[rowIndex] else { throw NetworkModelError.unsupportedFormat }
+            for columnIndex in 0..<nodeCount where !row[columnIndex + 1].isEmpty {
+                let cost = try parseFiniteDouble(row[columnIndex + 1])
+                arcs.append(NetworkArc(from: nodes[rowIndex], to: nodes[columnIndex], cost: cost))
+            }
+            supply.append(try parseFiniteDouble(row[nodeCount + 1]))
+        }
+        let demandRow = lines[3 + nodeCount]
+        guard demandRow.count >= nodeCount + 1, demandRow[0].lowercased() == "demand" else { throw NetworkModelError.unsupportedFormat }
+        let demand = try demandRow[1...nodeCount].map(parseFiniteDouble)
+        return MinimumCostNetworkFlowProblem(title: "CNF", nodes: nodes, arcs: arcs, supply: supply, demand: demand)
+    }
+
     private struct ParsedNetworkMatrix {
         let problemType: String
         let nodes: [String]
@@ -587,7 +671,7 @@ public enum WinQSBNetworkParser {
         from data: Data,
         expectedProblemType: String
     ) throws -> ParsedNetworkMatrix {
-        guard let text = String(data: data, encoding: .isoLatin1) else {
+        guard let text = data.legacyLatin1String else {
             throw NetworkModelError.unsupportedFormat
         }
 
@@ -650,7 +734,7 @@ public enum WinQSBNetworkParser {
     }
 
     private static func metadata(from data: Data) -> [String]? {
-        guard let text = String(data: data, encoding: .isoLatin1),
+        guard let text = data.legacyLatin1String,
               let firstLine = text
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
@@ -674,7 +758,7 @@ public enum WinQSBNetworkParser {
         from data: Data,
         expectedProblemType: String
     ) throws -> ParsedRectangularCostMatrix {
-        guard let text = String(data: data, encoding: .isoLatin1) else {
+        guard let text = data.legacyLatin1String else {
             throw NetworkModelError.unsupportedFormat
         }
 
@@ -744,7 +828,7 @@ public enum WinQSBNetworkParser {
     }
 
     private static func parseTransportationMatrix(from data: Data) throws -> ParsedTransportationMatrix {
-        guard let text = String(data: data, encoding: .isoLatin1) else {
+        guard let text = data.legacyLatin1String else {
             throw NetworkModelError.unsupportedFormat
         }
 
@@ -821,6 +905,52 @@ public enum WinQSBNetworkParser {
             throw NetworkModelError.invalidNumericValue(value)
         }
         return number
+    }
+}
+
+public enum MinimumCostNetworkFlowSolver {
+    public static func solve(
+        _ problem: MinimumCostNetworkFlowProblem,
+        linearProgrammingBackend: any LinearProgrammingBackend = NativeEducationalLinearProgrammingBackend()
+    ) throws -> MinimumCostNetworkFlowSolution {
+        try NetworkValidator.validate(.minimumCostFlow(problem))
+        let imbalance = problem.demand.reduce(0, +) - problem.supply.reduce(0, +)
+        let addsSupply = imbalance > 1e-8
+        let adjustmentCount = abs(imbalance) > 1e-8 ? problem.nodes.count : 0
+        let variableNames = problem.arcs.indices.map { "flow_\($0)_\(problem.arcs[$0].from)_to_\(problem.arcs[$0].to)" }
+            + (0..<adjustmentCount).map { "balance_\($0)_\(problem.nodes[$0])" }
+        let objective = problem.arcs.map(\.cost) + Array(repeating: 0, count: adjustmentCount)
+        var constraints: [LinearConstraint] = []
+        for (nodeIndex, node) in problem.nodes.enumerated() {
+            var coefficients = Array(repeating: 0.0, count: variableNames.count)
+            for (arcIndex, arc) in problem.arcs.enumerated() {
+                if arc.from == node { coefficients[arcIndex] += 1 }
+                if arc.to == node { coefficients[arcIndex] -= 1 }
+            }
+            if adjustmentCount > 0 { coefficients[problem.arcs.count + nodeIndex] = addsSupply ? -1 : 1 }
+            constraints.append(LinearConstraint(
+                name: "Balance_\(node)", coefficients: coefficients, relation: .equal,
+                rhs: problem.supply[nodeIndex] - problem.demand[nodeIndex]
+            ))
+        }
+        if adjustmentCount > 0 {
+            let coefficients = Array(repeating: 0.0, count: problem.arcs.count) + Array(repeating: 1.0, count: adjustmentCount)
+            constraints.append(LinearConstraint(name: "AutomaticBalance", coefficients: coefficients, relation: .equal, rhs: abs(imbalance)))
+        }
+        let program = LinearProgram(title: problem.title, sense: .minimize, variableNames: variableNames, objectiveCoefficients: objective, constraints: constraints)
+        let solution = try linearProgrammingBackend.solve(program, mode: .continuous)
+        let flows = problem.arcs.indices.compactMap { index -> MinimumCostNetworkFlowArc? in
+            let quantity = solution.variableValues[variableNames[index]] ?? 0
+            guard quantity > 1e-8 else { return nil }
+            let arc = problem.arcs[index]
+            return MinimumCostNetworkFlowArc(from: arc.from, to: arc.to, quantity: quantity, unitCost: arc.cost)
+        }
+        let adjustments = (0..<adjustmentCount).compactMap { index -> NetworkBalanceAdjustment? in
+            let quantity = solution.variableValues[variableNames[problem.arcs.count + index]] ?? 0
+            guard quantity > 1e-8 else { return nil }
+            return NetworkBalanceAdjustment(node: problem.nodes[index], quantity: quantity, kind: addsSupply ? "dummySupply" : "dummyDemand")
+        }
+        return MinimumCostNetworkFlowSolution(totalCost: solution.objectiveValue, arcFlows: flows, balanceAdjustments: adjustments)
     }
 }
 

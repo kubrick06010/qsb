@@ -1,7 +1,9 @@
 # Inventory
 
 The inventory module supports legacy WinQSB economic order quantity (EOQ),
-all-units quantity discount EOQ, newsboy, and finite-horizon lot-sizing files.
+all-units quantity discount EOQ, newsboy, finite-horizon lot sizing, and four
+stochastic continuous/periodic review policies. All eight variants use the same `InventoryBackend` seam and normalized
+`InventoryModelEnvelope` / `InventorySolutionDocument` JSON contracts.
 
 Supported input:
 
@@ -17,6 +19,14 @@ Run:
 
 ```sh
 qsb solve-eoq reference/winqsb/EOQ.IT_
+```
+
+Select the native educational or validation-only backend explicitly:
+
+```sh
+qsb solve-eoq reference/winqsb/EOQ.IT_ --backend native
+qsb solve-eoq reference/winqsb/EOQ.IT_ --backend validate
+qsb validate-eoq reference/winqsb/EOQ.IT_
 ```
 
 Example output:
@@ -123,3 +133,75 @@ totalCost: 907.500000
 ...
 6: demand 35, produce 35, endingInventory 0, setup 30, variable 157.500000, holding 0, backorder 0, cost 187.500000
 ```
+
+## Stochastic Review Systems
+
+The preserved modes 4 through 7 are supported:
+
+- `CRSQ.IT_`: continuous review fixed-order-quantity `(Q,r)`;
+- `CRSS.IT_`: continuous review order-up-to with supplied average order size;
+- `PRRS.IT_`: periodic review with an optimized fixed review interval;
+- `PRRSS.IT_`: periodic review with optional replenishment `(s,S)`.
+
+The educational solver uses normal-demand loss functions, constant lead time,
+continuous quantities, and expected shortage costs. It reports order quantity,
+reorder/order-up-to levels, review interval where applicable, protection-period
+demand, safety stock, service level, expected shortage, and annual costs.
+These results are explicitly marked `approximate`.
+
+```sh
+qsb solve-stochastic-inventory reference/winqsb/CRSQ.IT_ --backend native
+qsb validate-stochastic-inventory reference/winqsb/CRSQ.IT_
+qsb export-inventory-json reference/winqsb/CRSQ.IT_ > stochastic.json
+qsb solve-inventory-json stochastic.json --backend native
+```
+
+## Backend and Validation
+
+`NativeEducationalInventoryBackend` preserves the existing fixture-scale
+solvers and reports their character in `SolverRunMetadata`:
+
+- EOQ/EPQ: closed-form economic order or production quantity.
+- Quantity discount EOQ: exact enumeration of all-units discount tiers.
+- Newsboy: closed-form normal-demand critical fractile.
+- Lot sizing: exact finite-horizon dynamic programming within the current
+  fixture-scale state bounds.
+- Stochastic review: normal-loss approximations for continuous and periodic
+  review policies with constant lead time.
+
+`ValidateOnlyInventoryBackend` runs the same public validators used by the
+solvers and does not solve. Diagnostics cover demand, rates, costs, discount
+breaks, normal-demand assumptions, service levels, period labels, and period
+costs. All legacy solve commands accept `--backend native|validate`, and each
+variant also has an explicit validation command:
+
+```sh
+qsb validate-eoq reference/winqsb/EOQ.IT_
+qsb validate-discount-eoq reference/winqsb/DISCOUNT.IT_
+qsb validate-newsboy reference/winqsb/NEWSBOY.IT_
+qsb validate-lot-sizing reference/winqsb/LOTSIZE.IT_
+qsb validate-stochastic-inventory reference/winqsb/CRSQ.IT_
+```
+
+The `externalHighPerformance` kind remains an intentional extension point; no
+external inventory backend is bundled yet.
+
+## Normalized JSON
+
+The generic inventory model envelope contains `kind` and `model`. Supported
+kind values are `eoq`, `quantityDiscountEOQ`, `newsboy`, `lotSizing`, and
+`stochasticReview`; the latter carries its policy as a second discriminator.
+
+```sh
+qsb export-inventory-json reference/winqsb/LOTSIZE.IT_ > inventory.json
+qsb validate-inventory-json inventory.json
+qsb solve-inventory-json inventory.json --backend native > inventory-solution.json
+qsb solve-inventory-json inventory.json --backend validate
+```
+
+Native solution documents contain the model kind, title, time unit,
+assumptions, backend algorithm/exactness metadata, and the typed solution.
+Validation documents contain the kind, `validateOnly` backend, `isValid`, and
+structured diagnostics. The same envelope works for all eight legacy fixtures,
+so future CLI and GUI routing does not need to infer a type from arbitrary JSON
+fields.

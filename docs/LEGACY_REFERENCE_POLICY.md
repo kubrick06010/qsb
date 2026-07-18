@@ -42,3 +42,14 @@ Compatibility tests may read private local fixtures from `reference/winqsb/`.
 That is acceptable for local development, but remote CI should either provide
 licensed private fixtures through a secure channel or skip fixture-dependent
 tests.
+
+Use `qsb inspect <file>` for metadata and a bounded preview. Use
+`qsb expand <file>` to stream the complete clean-room SZDD expansion to standard
+output when format analysis needs fields beyond that preview. Neither command
+modifies the source fixture.
+
+Use `qsb import-legacy-json <file>` to parse a supported legacy model and stream
+its normalized JSON. The shared importer reads fixtures in place and never
+renames, rewrites, expands beside, or otherwise mutates files under
+`reference/winqsb/`. Executables, help, installer, manual, and runtime files are
+classified and rejected as reference-only artifacts.

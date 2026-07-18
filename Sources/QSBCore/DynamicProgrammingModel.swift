@@ -141,7 +141,7 @@ public enum DynamicProgrammingModelError: Error, CustomStringConvertible {
 
 public enum WinQSBDynamicProgrammingParser {
     public static func parseProductionInventory(from data: Data) throws -> ProductionInventoryProblem {
-        guard let text = String(data: data, encoding: .isoLatin1) else {
+        guard let text = data.legacyLatin1String else {
             throw DynamicProgrammingModelError.unsupportedFormat
         }
 
@@ -187,7 +187,7 @@ public enum WinQSBDynamicProgrammingParser {
     }
 
     public static func parseStagecoach(from data: Data) throws -> StagecoachProblem {
-        guard let text = String(data: data, encoding: .isoLatin1) else {
+        guard let text = data.legacyLatin1String else {
             throw DynamicProgrammingModelError.unsupportedFormat
         }
 
@@ -236,7 +236,7 @@ public enum WinQSBDynamicProgrammingParser {
     }
 
     public static func parseKnapsack(from data: Data) throws -> KnapsackProblem {
-        guard let text = String(data: data, encoding: .isoLatin1) else {
+        guard let text = data.legacyLatin1String else {
             throw DynamicProgrammingModelError.unsupportedFormat
         }
 

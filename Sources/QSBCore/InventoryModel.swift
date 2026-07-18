@@ -227,6 +227,292 @@ public struct LotSizingSolution: Codable, Equatable, Sendable {
     public let decisions: [LotSizingDecision]
 }
 
+public enum InventoryProblemKind: String, Codable, CaseIterable, Sendable {
+    case eoq
+    case quantityDiscountEOQ
+    case newsboy
+    case lotSizing
+    case stochasticReview
+}
+
+public enum InventoryModelEnvelope: Equatable, Sendable {
+    case eoq(EOQModel)
+    case quantityDiscountEOQ(QuantityDiscountEOQModel)
+    case newsboy(NewsboyModel)
+    case lotSizing(LotSizingModel)
+    case stochasticReview(StochasticInventoryModel)
+
+    public var kind: InventoryProblemKind {
+        switch self {
+        case .eoq: .eoq
+        case .quantityDiscountEOQ: .quantityDiscountEOQ
+        case .newsboy: .newsboy
+        case .lotSizing: .lotSizing
+        case .stochasticReview: .stochasticReview
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .eoq(let model): model.title
+        case .quantityDiscountEOQ(let model): model.title
+        case .newsboy(let model): model.title
+        case .lotSizing(let model): model.title
+        case .stochasticReview(let model): model.title
+        }
+    }
+
+    public var timeUnit: String {
+        switch self {
+        case .eoq(let model): model.timeUnit
+        case .quantityDiscountEOQ(let model): model.timeUnit
+        case .newsboy(let model): model.timeUnit
+        case .lotSizing(let model): model.timeUnit
+        case .stochasticReview(let model): model.timeUnit
+        }
+    }
+}
+
+public enum InventorySolutionEnvelope: Equatable, Sendable {
+    case eoq(EOQSolution)
+    case quantityDiscountEOQ(QuantityDiscountEOQSolution)
+    case newsboy(NewsboySolution)
+    case lotSizing(LotSizingSolution)
+    case stochasticReview(StochasticInventorySolution)
+
+    public var kind: InventoryProblemKind {
+        switch self {
+        case .eoq: .eoq
+        case .quantityDiscountEOQ: .quantityDiscountEOQ
+        case .newsboy: .newsboy
+        case .lotSizing: .lotSizing
+        case .stochasticReview: .stochasticReview
+        }
+    }
+}
+
+public struct InventorySolutionDocument: Equatable, Sendable {
+    public let backend: SolverRunMetadata
+    public let title: String
+    public let timeUnit: String
+    public let assumptions: [String]
+    public let solution: InventorySolutionEnvelope
+
+    public init(
+        backend: SolverRunMetadata,
+        title: String,
+        timeUnit: String,
+        assumptions: [String],
+        solution: InventorySolutionEnvelope
+    ) {
+        self.backend = backend
+        self.title = title
+        self.timeUnit = timeUnit
+        self.assumptions = assumptions
+        self.solution = solution
+    }
+
+    public var kind: InventoryProblemKind { solution.kind }
+}
+
+public struct InventoryValidationDocument: Codable, Equatable, Sendable {
+    public let kind: InventoryProblemKind
+    public let backend: SolverBackendKind
+    public let isValid: Bool
+    public let diagnostics: [ValidationDiagnostic]
+
+    public init(
+        kind: InventoryProblemKind,
+        backend: SolverBackendKind = .validateOnly,
+        diagnostics: [ValidationDiagnostic]
+    ) {
+        self.kind = kind
+        self.backend = backend
+        self.isValid = !diagnostics.contains { $0.severity == .error }
+        self.diagnostics = diagnostics
+    }
+}
+
+extension InventoryModelEnvelope: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case kind
+        case model
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(InventoryProblemKind.self, forKey: .kind) {
+        case .eoq:
+            self = .eoq(try container.decode(EOQModel.self, forKey: .model))
+        case .quantityDiscountEOQ:
+            self = .quantityDiscountEOQ(try container.decode(QuantityDiscountEOQModel.self, forKey: .model))
+        case .newsboy:
+            self = .newsboy(try container.decode(NewsboyModel.self, forKey: .model))
+        case .lotSizing:
+            self = .lotSizing(try container.decode(LotSizingModel.self, forKey: .model))
+        case .stochasticReview:
+            self = .stochasticReview(try container.decode(StochasticInventoryModel.self, forKey: .model))
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(kind, forKey: .kind)
+        switch self {
+        case .eoq(let model):
+            try container.encode(model, forKey: .model)
+        case .quantityDiscountEOQ(let model):
+            try container.encode(model, forKey: .model)
+        case .newsboy(let model):
+            try container.encode(model, forKey: .model)
+        case .lotSizing(let model):
+            try container.encode(model, forKey: .model)
+        case .stochasticReview(let model):
+            try container.encode(model, forKey: .model)
+        }
+    }
+}
+
+extension InventorySolutionEnvelope: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case kind
+        case solution
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(InventoryProblemKind.self, forKey: .kind) {
+        case .eoq:
+            self = .eoq(try container.decode(EOQSolution.self, forKey: .solution))
+        case .quantityDiscountEOQ:
+            self = .quantityDiscountEOQ(try container.decode(QuantityDiscountEOQSolution.self, forKey: .solution))
+        case .newsboy:
+            self = .newsboy(try container.decode(NewsboySolution.self, forKey: .solution))
+        case .lotSizing:
+            self = .lotSizing(try container.decode(LotSizingSolution.self, forKey: .solution))
+        case .stochasticReview:
+            self = .stochasticReview(try container.decode(StochasticInventorySolution.self, forKey: .solution))
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(kind, forKey: .kind)
+        switch self {
+        case .eoq(let solution):
+            try container.encode(solution, forKey: .solution)
+        case .quantityDiscountEOQ(let solution):
+            try container.encode(solution, forKey: .solution)
+        case .newsboy(let solution):
+            try container.encode(solution, forKey: .solution)
+        case .lotSizing(let solution):
+            try container.encode(solution, forKey: .solution)
+        case .stochasticReview(let solution):
+            try container.encode(solution, forKey: .solution)
+        }
+    }
+}
+
+extension InventorySolutionDocument: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case kind
+        case backend
+        case title
+        case timeUnit
+        case assumptions
+        case solution
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let kind = try container.decode(InventoryProblemKind.self, forKey: .kind)
+        backend = try container.decode(SolverRunMetadata.self, forKey: .backend)
+        title = try container.decode(String.self, forKey: .title)
+        timeUnit = try container.decode(String.self, forKey: .timeUnit)
+        assumptions = try container.decode([String].self, forKey: .assumptions)
+        switch kind {
+        case .eoq:
+            solution = .eoq(try container.decode(EOQSolution.self, forKey: .solution))
+        case .quantityDiscountEOQ:
+            solution = .quantityDiscountEOQ(try container.decode(QuantityDiscountEOQSolution.self, forKey: .solution))
+        case .newsboy:
+            solution = .newsboy(try container.decode(NewsboySolution.self, forKey: .solution))
+        case .lotSizing:
+            solution = .lotSizing(try container.decode(LotSizingSolution.self, forKey: .solution))
+        case .stochasticReview:
+            solution = .stochasticReview(try container.decode(StochasticInventorySolution.self, forKey: .solution))
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(kind, forKey: .kind)
+        try container.encode(backend, forKey: .backend)
+        try container.encode(title, forKey: .title)
+        try container.encode(timeUnit, forKey: .timeUnit)
+        try container.encode(assumptions, forKey: .assumptions)
+        switch solution {
+        case .eoq(let solution):
+            try container.encode(solution, forKey: .solution)
+        case .quantityDiscountEOQ(let solution):
+            try container.encode(solution, forKey: .solution)
+        case .newsboy(let solution):
+            try container.encode(solution, forKey: .solution)
+        case .lotSizing(let solution):
+            try container.encode(solution, forKey: .solution)
+        case .stochasticReview(let solution):
+            try container.encode(solution, forKey: .solution)
+        }
+    }
+}
+
+public enum InventoryModelJSON {
+    public static func decodeUncheckedModel(from data: Data) throws -> InventoryModelEnvelope {
+        try decoder.decode(InventoryModelEnvelope.self, from: data)
+    }
+
+    public static func decodeModel(from data: Data) throws -> InventoryModelEnvelope {
+        let envelope = try decodeUncheckedModel(from: data)
+        try InventoryValidator.validate(envelope)
+        return envelope
+    }
+
+    public static func encodeModel(_ envelope: InventoryModelEnvelope) throws -> Data {
+        try encoder.encode(envelope)
+    }
+
+    public static func encodeSolutionDocument(_ document: InventorySolutionDocument) throws -> Data {
+        try encoder.encode(document)
+    }
+
+    public static func decodeSolutionDocument(from data: Data) throws -> InventorySolutionDocument {
+        try decoder.decode(InventorySolutionDocument.self, from: data)
+    }
+
+    public static func validationDocument(
+        for envelope: InventoryModelEnvelope,
+        backend: SolverBackendKind = .validateOnly
+    ) -> InventoryValidationDocument {
+        InventoryValidationDocument(
+            kind: envelope.kind,
+            backend: backend,
+            diagnostics: InventoryValidator.diagnostics(for: envelope)
+        )
+    }
+
+    public static func encodeValidation(_ document: InventoryValidationDocument) throws -> Data {
+        try encoder.encode(document)
+    }
+
+    private static var encoder: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return encoder
+    }
+
+    private static var decoder: JSONDecoder { JSONDecoder() }
+}
+
 public enum InventoryModelError: Error, CustomStringConvertible {
     case unsupportedFormat
     case unsupportedModel(String)
@@ -247,9 +533,622 @@ public enum InventoryModelError: Error, CustomStringConvertible {
     }
 }
 
+public enum EOQValidator {
+    public static func diagnostics(for model: EOQModel) -> [ValidationDiagnostic] {
+        var diagnostics = commonInventoryDiagnostics(
+            title: model.title,
+            timeUnit: model.timeUnit,
+            codePrefix: "inventory.eoq"
+        )
+        appendPositiveError(model.demand, name: "demand", path: "model.demand", codePrefix: "inventory.eoq", to: &diagnostics)
+        appendPositiveError(model.setupCost, name: "setup cost", path: "model.setupCost", codePrefix: "inventory.eoq", to: &diagnostics)
+        appendPositiveError(model.holdingCost, name: "holding cost", path: "model.holdingCost", codePrefix: "inventory.eoq", to: &diagnostics)
+
+        for (name, path, value) in [
+            ("shortage cost", "model.shortageCost", model.shortageCost),
+            ("replenishment rate", "model.replenishmentRate", model.replenishmentRate),
+            ("lead time", "model.leadTime", model.leadTime),
+            ("acquisition cost", "model.acquisitionCost", model.acquisitionCost),
+            ("known order quantity", "model.knownOrderQuantity", model.knownOrderQuantity)
+        ] {
+            if let value {
+                appendNonnegativeError(value, name: name, path: path, codePrefix: "inventory.eoq", to: &diagnostics)
+            }
+        }
+        if let quantity = model.knownOrderQuantity, quantity == 0 {
+            diagnostics.append(errorDiagnostic(
+                code: "inventory.eoq.knownQuantity.nonpositive",
+                message: "Known order quantity must be positive.",
+                path: "model.knownOrderQuantity"
+            ))
+        }
+        if let rate = model.replenishmentRate, rate <= model.demand {
+            diagnostics.append(errorDiagnostic(
+                code: "inventory.eoq.replenishmentRate.insufficient",
+                message: "Replenishment rate must be greater than demand.",
+                path: "model.replenishmentRate"
+            ))
+        }
+        if model.shortageCost != nil {
+            diagnostics.append(ValidationDiagnostic(
+                severity: .warning,
+                code: "inventory.eoq.shortageCost.unused",
+                message: "The current native EOQ formula reports shortage cost but does not optimize planned shortages.",
+                path: "model.shortageCost"
+            ))
+        }
+        return diagnostics
+    }
+
+    public static func validate(_ model: EOQModel) throws {
+        try throwFirstInventoryValidationError(diagnostics(for: model))
+    }
+}
+
+public enum QuantityDiscountEOQValidator {
+    public static func diagnostics(for model: QuantityDiscountEOQModel) -> [ValidationDiagnostic] {
+        var diagnostics = commonInventoryDiagnostics(
+            title: model.title,
+            timeUnit: model.timeUnit,
+            codePrefix: "inventory.quantityDiscountEOQ"
+        )
+        let prefix = "inventory.quantityDiscountEOQ"
+        appendPositiveError(model.demand, name: "demand", path: "model.demand", codePrefix: prefix, to: &diagnostics)
+        appendPositiveError(model.setupCost, name: "setup cost", path: "model.setupCost", codePrefix: prefix, to: &diagnostics)
+        appendPositiveError(model.holdingCost, name: "holding cost", path: "model.holdingCost", codePrefix: prefix, to: &diagnostics)
+        appendNonnegativeError(model.acquisitionCost, name: "acquisition cost", path: "model.acquisitionCost", codePrefix: prefix, to: &diagnostics)
+
+        var seenMinimums: Set<Double> = []
+        for (index, discountBreak) in model.discountBreaks.enumerated() {
+            let path = "model.discountBreaks[\(index)]"
+            appendPositiveError(
+                discountBreak.minimumQuantity,
+                name: "discount minimum quantity",
+                path: "\(path).minimumQuantity",
+                codePrefix: prefix,
+                to: &diagnostics
+            )
+            guard discountBreak.discountPercent.isFinite,
+                  discountBreak.discountPercent >= 0,
+                  discountBreak.discountPercent < 100
+            else {
+                diagnostics.append(errorDiagnostic(
+                    code: "\(prefix).discountPercent.invalid",
+                    message: "Discount percentages must be finite and in the range [0, 100).",
+                    path: "\(path).discountPercent"
+                ))
+                continue
+            }
+            if !seenMinimums.insert(discountBreak.minimumQuantity).inserted {
+                diagnostics.append(errorDiagnostic(
+                    code: "\(prefix).minimumQuantity.duplicate",
+                    message: "Discount minimum quantities must be unique.",
+                    path: "\(path).minimumQuantity"
+                ))
+            }
+        }
+        if model.discountBreaks.map(\.minimumQuantity) != model.discountBreaks.map(\.minimumQuantity).sorted() {
+            diagnostics.append(ValidationDiagnostic(
+                severity: .warning,
+                code: "\(prefix).breaks.unsorted",
+                message: "Discount breaks will be evaluated in ascending minimum-quantity order.",
+                path: "model.discountBreaks"
+            ))
+        }
+        if let quantity = model.knownOrderQuantity {
+            appendPositiveError(quantity, name: "known order quantity", path: "model.knownOrderQuantity", codePrefix: prefix, to: &diagnostics)
+        }
+        return diagnostics
+    }
+
+    public static func validate(_ model: QuantityDiscountEOQModel) throws {
+        try throwFirstInventoryValidationError(diagnostics(for: model))
+    }
+}
+
+public enum NewsboyValidator {
+    public static func diagnostics(for model: NewsboyModel) -> [ValidationDiagnostic] {
+        var diagnostics = commonInventoryDiagnostics(
+            title: model.title,
+            timeUnit: model.timeUnit,
+            codePrefix: "inventory.newsboy"
+        )
+        let prefix = "inventory.newsboy"
+        if model.demandDistribution.lowercased() != "normal" {
+            diagnostics.append(errorDiagnostic(
+                code: "\(prefix).distribution.unsupported",
+                message: "The native newsboy backend currently supports only normal demand.",
+                path: "model.demandDistribution"
+            ))
+        }
+        appendPositiveError(model.meanDemand, name: "mean demand", path: "model.meanDemand", codePrefix: prefix, to: &diagnostics)
+        appendPositiveError(model.standardDeviation, name: "standard deviation", path: "model.standardDeviation", codePrefix: prefix, to: &diagnostics)
+        appendNonnegativeError(model.setupCost, name: "setup cost", path: "model.setupCost", codePrefix: prefix, to: &diagnostics)
+        appendNonnegativeError(model.acquisitionCost, name: "acquisition cost", path: "model.acquisitionCost", codePrefix: prefix, to: &diagnostics)
+        appendNonnegativeError(model.sellingPrice, name: "selling price", path: "model.sellingPrice", codePrefix: prefix, to: &diagnostics)
+        appendNonnegativeError(model.shortageCost, name: "shortage cost", path: "model.shortageCost", codePrefix: prefix, to: &diagnostics)
+        appendNonnegativeError(model.salvageValue, name: "salvage value", path: "model.salvageValue", codePrefix: prefix, to: &diagnostics)
+        if model.sellingPrice < model.acquisitionCost {
+            diagnostics.append(errorDiagnostic(
+                code: "\(prefix).sellingPrice.belowAcquisition",
+                message: "Selling price must be at least the acquisition cost.",
+                path: "model.sellingPrice"
+            ))
+        }
+        if model.acquisitionCost <= model.salvageValue {
+            diagnostics.append(errorDiagnostic(
+                code: "\(prefix).salvageValue.tooHigh",
+                message: "Acquisition cost must be greater than salvage value.",
+                path: "model.salvageValue"
+            ))
+        }
+        if model.sellingPrice - model.acquisitionCost + model.shortageCost <= 0 {
+            diagnostics.append(errorDiagnostic(
+                code: "\(prefix).underageCost.nonpositive",
+                message: "Selling margin plus shortage cost must be positive.",
+                path: "model.sellingPrice"
+            ))
+        }
+        for (name, path, value) in [
+            ("initial inventory", "model.initialInventory", model.initialInventory),
+            ("known order quantity", "model.knownOrderQuantity", model.knownOrderQuantity)
+        ] {
+            if let value {
+                appendNonnegativeError(value, name: name, path: path, codePrefix: prefix, to: &diagnostics)
+            }
+        }
+        if let percent = model.desiredServiceLevelPercent,
+           !percent.isFinite || percent <= 0 || percent >= 100 {
+            diagnostics.append(errorDiagnostic(
+                code: "\(prefix).serviceLevel.invalid",
+                message: "Desired service level must be finite and between 0 and 100 percent.",
+                path: "model.desiredServiceLevelPercent"
+            ))
+        }
+        return diagnostics
+    }
+
+    public static func validate(_ model: NewsboyModel) throws {
+        try throwFirstInventoryValidationError(diagnostics(for: model))
+    }
+}
+
+public enum LotSizingValidator {
+    public static func diagnostics(for model: LotSizingModel) -> [ValidationDiagnostic] {
+        var diagnostics = commonInventoryDiagnostics(
+            title: model.title,
+            timeUnit: model.timeUnit,
+            codePrefix: "inventory.lotSizing"
+        )
+        let prefix = "inventory.lotSizing"
+        if model.periods.isEmpty {
+            diagnostics.append(errorDiagnostic(
+                code: "\(prefix).periods.empty",
+                message: "Lot sizing requires at least one period.",
+                path: "model.periods"
+            ))
+            return diagnostics
+        }
+
+        var labels: Set<String> = []
+        for (index, period) in model.periods.enumerated() {
+            let path = "model.periods[\(index)]"
+            if period.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                diagnostics.append(errorDiagnostic(
+                    code: "\(prefix).period.name.empty",
+                    message: "Every lot-sizing period needs a label.",
+                    path: "\(path).name"
+                ))
+            } else if !labels.insert(period.name).inserted {
+                diagnostics.append(ValidationDiagnostic(
+                    severity: .warning,
+                    code: "\(prefix).period.name.duplicate",
+                    message: "Period labels should be unique for unambiguous solution output.",
+                    path: "\(path).name"
+                ))
+            }
+            if period.demand < 0 {
+                diagnostics.append(errorDiagnostic(
+                    code: "\(prefix).period.demand.negative",
+                    message: "Period demand must be nonnegative.",
+                    path: "\(path).demand"
+                ))
+            }
+            for (name, keyPath, value) in [
+                ("setup cost", "setupCost", period.setupCost),
+                ("unit variable cost", "unitVariableCost", period.unitVariableCost),
+                ("unit holding cost", "unitHoldingCost", period.unitHoldingCost),
+                ("unit backorder cost", "unitBackorderCost", period.unitBackorderCost)
+            ] {
+                appendNonnegativeError(value, name: name, path: "\(path).\(keyPath)", codePrefix: prefix, to: &diagnostics)
+            }
+        }
+        return diagnostics
+    }
+
+    public static func validate(_ model: LotSizingModel) throws {
+        try throwFirstInventoryValidationError(diagnostics(for: model))
+    }
+}
+
+public enum InventoryValidator {
+    public static func diagnostics(for envelope: InventoryModelEnvelope) -> [ValidationDiagnostic] {
+        switch envelope {
+        case .eoq(let model): EOQValidator.diagnostics(for: model)
+        case .quantityDiscountEOQ(let model): QuantityDiscountEOQValidator.diagnostics(for: model)
+        case .newsboy(let model): NewsboyValidator.diagnostics(for: model)
+        case .lotSizing(let model): LotSizingValidator.diagnostics(for: model)
+        case .stochasticReview(let model): StochasticInventoryValidator.diagnostics(for: model)
+        }
+    }
+
+    public static func validate(_ envelope: InventoryModelEnvelope) throws {
+        try throwFirstInventoryValidationError(diagnostics(for: envelope))
+    }
+}
+
+public protocol InventoryBackend: Sendable {
+    var capabilities: SolverCapabilities { get }
+
+    func validationReport(for model: EOQModel) -> ValidationReport
+    func validationReport(for model: QuantityDiscountEOQModel) -> ValidationReport
+    func validationReport(for model: NewsboyModel) -> ValidationReport
+    func validationReport(for model: LotSizingModel) -> ValidationReport
+    func validationReport(for model: StochasticInventoryModel) -> ValidationReport
+
+    func solve(_ model: EOQModel, options: SolverOptions) throws -> EOQSolution
+    func solve(_ model: QuantityDiscountEOQModel, options: SolverOptions) throws -> QuantityDiscountEOQSolution
+    func solve(_ model: NewsboyModel, options: SolverOptions) throws -> NewsboySolution
+    func solve(_ model: LotSizingModel, options: SolverOptions) throws -> LotSizingSolution
+    func solve(_ model: StochasticInventoryModel, options: SolverOptions) throws -> StochasticInventorySolution
+
+    func runMetadata(for model: EOQModel) -> SolverRunMetadata
+    func runMetadata(for model: QuantityDiscountEOQModel) -> SolverRunMetadata
+    func runMetadata(for model: NewsboyModel) -> SolverRunMetadata
+    func runMetadata(for model: LotSizingModel) -> SolverRunMetadata
+    func runMetadata(for model: StochasticInventoryModel) -> SolverRunMetadata
+}
+
+public extension InventoryBackend {
+    func validationReport(for model: EOQModel) -> ValidationReport {
+        ValidationReport(backend: capabilities.backendKind, diagnostics: EOQValidator.diagnostics(for: model))
+    }
+
+    func validationReport(for model: QuantityDiscountEOQModel) -> ValidationReport {
+        ValidationReport(backend: capabilities.backendKind, diagnostics: QuantityDiscountEOQValidator.diagnostics(for: model))
+    }
+
+    func validationReport(for model: NewsboyModel) -> ValidationReport {
+        ValidationReport(backend: capabilities.backendKind, diagnostics: NewsboyValidator.diagnostics(for: model))
+    }
+
+    func validationReport(for model: LotSizingModel) -> ValidationReport {
+        ValidationReport(backend: capabilities.backendKind, diagnostics: LotSizingValidator.diagnostics(for: model))
+    }
+
+    func validationReport(for model: StochasticInventoryModel) -> ValidationReport {
+        ValidationReport(backend: capabilities.backendKind, diagnostics: StochasticInventoryValidator.diagnostics(for: model))
+    }
+
+    func validationReport(for envelope: InventoryModelEnvelope) -> ValidationReport {
+        switch envelope {
+        case .eoq(let model): validationReport(for: model)
+        case .quantityDiscountEOQ(let model): validationReport(for: model)
+        case .newsboy(let model): validationReport(for: model)
+        case .lotSizing(let model): validationReport(for: model)
+        case .stochasticReview(let model): validationReport(for: model)
+        }
+    }
+
+    func solve(_ model: EOQModel) throws -> EOQSolution { try solve(model, options: SolverOptions()) }
+    func solve(_ model: QuantityDiscountEOQModel) throws -> QuantityDiscountEOQSolution { try solve(model, options: SolverOptions()) }
+    func solve(_ model: NewsboyModel) throws -> NewsboySolution { try solve(model, options: SolverOptions()) }
+    func solve(_ model: LotSizingModel) throws -> LotSizingSolution { try solve(model, options: SolverOptions()) }
+    func solve(_ model: StochasticInventoryModel) throws -> StochasticInventorySolution { try solve(model, options: SolverOptions()) }
+
+    func solve(
+        _ envelope: InventoryModelEnvelope,
+        options: SolverOptions = SolverOptions()
+    ) throws -> InventorySolutionEnvelope {
+        switch envelope {
+        case .eoq(let model): .eoq(try solve(model, options: options))
+        case .quantityDiscountEOQ(let model): .quantityDiscountEOQ(try solve(model, options: options))
+        case .newsboy(let model): .newsboy(try solve(model, options: options))
+        case .lotSizing(let model): .lotSizing(try solve(model, options: options))
+        case .stochasticReview(let model): .stochasticReview(try solve(model, options: options))
+        }
+    }
+
+    func runMetadata(for envelope: InventoryModelEnvelope) -> SolverRunMetadata {
+        switch envelope {
+        case .eoq(let model): runMetadata(for: model)
+        case .quantityDiscountEOQ(let model): runMetadata(for: model)
+        case .newsboy(let model): runMetadata(for: model)
+        case .lotSizing(let model): runMetadata(for: model)
+        case .stochasticReview(let model): runMetadata(for: model)
+        }
+    }
+
+    func solutionDocument(
+        for model: InventoryModelEnvelope,
+        solution: InventorySolutionEnvelope
+    ) -> InventorySolutionDocument {
+        InventorySolutionDocument(
+            backend: runMetadata(for: model),
+            title: model.title,
+            timeUnit: model.timeUnit,
+            assumptions: inventoryAssumptions(for: model.kind),
+            solution: solution
+        )
+    }
+}
+
+public struct NativeEducationalInventoryBackend: InventoryBackend {
+    public init() {}
+
+    public var capabilities: SolverCapabilities {
+        SolverCapabilities(
+            backendKind: .nativeEducational,
+            solves: true,
+            validates: true,
+            exportsStructuredSolution: true,
+            notes: [
+                "Uses closed-form EOQ and normal-demand newsvendor methods.",
+                "Uses exact tier enumeration for all-units discounts.",
+                "Uses fixture-scale dynamic programming for finite-horizon lot sizing."
+            ]
+        )
+    }
+
+    public func solve(_ model: EOQModel, options _: SolverOptions = SolverOptions()) throws -> EOQSolution {
+        try EOQSolver.solve(model)
+    }
+
+    public func solve(_ model: QuantityDiscountEOQModel, options _: SolverOptions = SolverOptions()) throws -> QuantityDiscountEOQSolution {
+        try QuantityDiscountEOQSolver.solve(model)
+    }
+
+    public func solve(_ model: NewsboyModel, options _: SolverOptions = SolverOptions()) throws -> NewsboySolution {
+        try NewsboySolver.solve(model)
+    }
+
+    public func solve(_ model: LotSizingModel, options _: SolverOptions = SolverOptions()) throws -> LotSizingSolution {
+        try LotSizingSolver.solve(model)
+    }
+
+    public func solve(_ model: StochasticInventoryModel, options _: SolverOptions = SolverOptions()) throws -> StochasticInventorySolution {
+        try StochasticInventorySolver.solve(model)
+    }
+
+    public func runMetadata(for model: EOQModel) -> SolverRunMetadata {
+        SolverRunMetadata(
+            backendKind: .nativeEducational,
+            algorithm: model.replenishmentRate == nil ? "economicOrderQuantityClosedForm" : "economicProductionQuantityClosedForm",
+            exactness: .closedForm,
+            notes: inventoryAssumptions(for: .eoq)
+        )
+    }
+
+    public func runMetadata(for model: QuantityDiscountEOQModel) -> SolverRunMetadata {
+        SolverRunMetadata(
+            backendKind: .nativeEducational,
+            algorithm: "allUnitsDiscountTierEnumeration",
+            exactness: .exact,
+            notes: inventoryAssumptions(for: .quantityDiscountEOQ)
+        )
+    }
+
+    public func runMetadata(for model: NewsboyModel) -> SolverRunMetadata {
+        SolverRunMetadata(
+            backendKind: .nativeEducational,
+            algorithm: "normalDemandCriticalFractile",
+            exactness: .closedForm,
+            notes: inventoryAssumptions(for: .newsboy)
+        )
+    }
+
+    public func runMetadata(for model: LotSizingModel) -> SolverRunMetadata {
+        SolverRunMetadata(
+            backendKind: .nativeEducational,
+            algorithm: "finiteHorizonInventoryDynamicProgramming",
+            exactness: .fixtureScale,
+            notes: inventoryAssumptions(for: .lotSizing)
+        )
+    }
+
+    public func runMetadata(for model: StochasticInventoryModel) -> SolverRunMetadata {
+        SolverRunMetadata(
+            backendKind: .nativeEducational,
+            algorithm: "normalDemand\(model.policy.rawValue.prefix(1).uppercased())\(model.policy.rawValue.dropFirst())Approximation",
+            exactness: .approximate,
+            notes: inventoryAssumptions(for: .stochasticReview)
+        )
+    }
+}
+
+public struct ValidateOnlyInventoryBackend: InventoryBackend {
+    public init() {}
+
+    public var capabilities: SolverCapabilities {
+        SolverCapabilities(
+            backendKind: .validateOnly,
+            solves: false,
+            validates: true,
+            exportsStructuredSolution: false,
+            notes: ["Runs inventory validation without solving the model."]
+        )
+    }
+
+    public func solve(_ model: EOQModel, options _: SolverOptions = SolverOptions()) throws -> EOQSolution {
+        throw validationOnlyInventoryError(for: .eoq)
+    }
+
+    public func solve(_ model: QuantityDiscountEOQModel, options _: SolverOptions = SolverOptions()) throws -> QuantityDiscountEOQSolution {
+        throw validationOnlyInventoryError(for: .quantityDiscountEOQ)
+    }
+
+    public func solve(_ model: NewsboyModel, options _: SolverOptions = SolverOptions()) throws -> NewsboySolution {
+        throw validationOnlyInventoryError(for: .newsboy)
+    }
+
+    public func solve(_ model: LotSizingModel, options _: SolverOptions = SolverOptions()) throws -> LotSizingSolution {
+        throw validationOnlyInventoryError(for: .lotSizing)
+    }
+
+    public func solve(_ model: StochasticInventoryModel, options _: SolverOptions = SolverOptions()) throws -> StochasticInventorySolution {
+        throw validationOnlyInventoryError(for: .stochasticReview)
+    }
+
+    public func runMetadata(for model: EOQModel) -> SolverRunMetadata { validationMetadata(for: .eoq) }
+    public func runMetadata(for model: QuantityDiscountEOQModel) -> SolverRunMetadata { validationMetadata(for: .quantityDiscountEOQ) }
+    public func runMetadata(for model: NewsboyModel) -> SolverRunMetadata { validationMetadata(for: .newsboy) }
+    public func runMetadata(for model: LotSizingModel) -> SolverRunMetadata { validationMetadata(for: .lotSizing) }
+    public func runMetadata(for model: StochasticInventoryModel) -> SolverRunMetadata { validationMetadata(for: .stochasticReview) }
+
+    private func validationMetadata(for kind: InventoryProblemKind) -> SolverRunMetadata {
+        SolverRunMetadata(
+            backendKind: .validateOnly,
+            algorithm: "validationOnly",
+            exactness: .exact,
+            notes: ["Validates the \(kind.rawValue) model without solving it."]
+        )
+    }
+}
+
+public enum InventoryBackends {
+    public static func backend(for kind: SolverBackendKind) -> (any InventoryBackend)? {
+        switch kind {
+        case .nativeEducational: NativeEducationalInventoryBackend()
+        case .validateOnly: ValidateOnlyInventoryBackend()
+        case .externalHighPerformance: nil
+        }
+    }
+}
+
+private func inventoryAssumptions(for kind: InventoryProblemKind) -> [String] {
+    switch kind {
+    case .eoq:
+        ["Constant deterministic demand and instantaneous replenishment unless a production rate is supplied."]
+    case .quantityDiscountEOQ:
+        ["All-units percentage discounts with constant deterministic demand and holding cost independent of unit price."]
+    case .newsboy:
+        ["Single-period normal demand with linear underage and overage economics."]
+    case .lotSizing:
+        ["Integer production, zero initial inventory, and a balanced zero-inventory final state."]
+    case .stochasticReview:
+        ["Normal independent demand, constant lead time, expected-shortage loss functions, and continuous decision quantities.", "Periodic capacity constraints and empirical demand distributions are not modeled."]
+    }
+}
+
+private func validationOnlyInventoryError(for kind: InventoryProblemKind) -> InventoryModelError {
+    .invalidModel("validateOnly backend does not solve \(kind.rawValue) models")
+}
+
+func commonInventoryDiagnostics(
+    title: String,
+    timeUnit: String,
+    codePrefix: String
+) -> [ValidationDiagnostic] {
+    var diagnostics: [ValidationDiagnostic] = []
+    if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        diagnostics.append(ValidationDiagnostic(
+            severity: .warning,
+            code: "\(codePrefix).title.empty",
+            message: "Model title is empty.",
+            path: "model.title"
+        ))
+    }
+    if timeUnit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        diagnostics.append(errorDiagnostic(
+            code: "\(codePrefix).timeUnit.empty",
+            message: "Time unit must not be empty.",
+            path: "model.timeUnit"
+        ))
+    }
+    return diagnostics
+}
+
+func appendPositiveError(
+    _ value: Double,
+    name: String,
+    path: String,
+    codePrefix: String,
+    to diagnostics: inout [ValidationDiagnostic]
+) {
+    guard value.isFinite, value > 0 else {
+        diagnostics.append(errorDiagnostic(
+            code: "\(codePrefix).\(path.split(separator: ".").last ?? "value").nonpositive",
+            message: "\(name.capitalized) must be finite and positive.",
+            path: path
+        ))
+        return
+    }
+}
+
+func appendNonnegativeError(
+    _ value: Double,
+    name: String,
+    path: String,
+    codePrefix: String,
+    to diagnostics: inout [ValidationDiagnostic]
+) {
+    guard value.isFinite, value >= 0 else {
+        diagnostics.append(errorDiagnostic(
+            code: "\(codePrefix).\(path.split(separator: ".").last ?? "value").negative",
+            message: "\(name.capitalized) must be finite and nonnegative.",
+            path: path
+        ))
+        return
+    }
+}
+
+private func errorDiagnostic(code: String, message: String, path: String) -> ValidationDiagnostic {
+    ValidationDiagnostic(severity: .error, code: code, message: message, path: path)
+}
+
+func throwFirstInventoryValidationError(_ diagnostics: [ValidationDiagnostic]) throws {
+    if let diagnostic = diagnostics.first(where: { $0.severity == .error }) {
+        throw InventoryModelError.invalidModel(diagnostic.message)
+    }
+}
+
 public enum WinQSBInventoryParser {
+    public static func parseModelEnvelope(from data: Data) throws -> InventoryModelEnvelope {
+        guard let text = data.legacyLatin1String,
+              let firstLine = text
+                .replacingOccurrences(of: "\r\n", with: "\n")
+                .replacingOccurrences(of: "\r", with: "\n")
+                .split(separator: "\n", omittingEmptySubsequences: true)
+                .first
+        else {
+            throw InventoryModelError.unsupportedFormat
+        }
+        let metadata = firstLine
+            .split(separator: "\t", omittingEmptySubsequences: false)
+            .map(clean)
+        guard metadata.count >= 5, metadata[0] == "ITS" else {
+            throw InventoryModelError.unsupportedFormat
+        }
+        switch (metadata[3], metadata[4]) {
+        case ("0", "0"):
+            return .eoq(try parseEOQ(from: data))
+        case ("1", "1"):
+            return .quantityDiscountEOQ(try parseQuantityDiscountEOQ(from: data))
+        case ("2", "2"):
+            return .newsboy(try parseNewsboy(from: data))
+        case ("3", _):
+            return .lotSizing(try parseLotSizing(from: data))
+        case ("4", _), ("5", _), ("6", _), ("7", _):
+            return .stochasticReview(try parseStochasticInventory(from: data))
+        default:
+            throw InventoryModelError.unsupportedModel(
+                "recognized ITS variant \(metadata[3]) \(metadata[4]) has no normalized model yet"
+            )
+        }
+    }
+
     public static func parseEOQ(from data: Data) throws -> EOQModel {
-        guard let text = String(data: data, encoding: .isoLatin1) else {
+        guard let text = data.legacyLatin1String else {
             throw InventoryModelError.unsupportedFormat
         }
 
@@ -407,7 +1306,7 @@ public enum WinQSBInventoryParser {
     }
 
     private static func parseEntryTableWithLines(from data: Data) throws -> ([String], [String: String], [[String]]) {
-        guard let text = String(data: data, encoding: .isoLatin1) else {
+        guard let text = data.legacyLatin1String else {
             throw InventoryModelError.unsupportedFormat
         }
 
@@ -475,7 +1374,7 @@ public enum WinQSBInventoryParser {
 
 public enum QuantityDiscountEOQSolver {
     public static func solve(_ model: QuantityDiscountEOQModel) throws -> QuantityDiscountEOQSolution {
-        try validate(model)
+        try QuantityDiscountEOQValidator.validate(model)
 
         let unconstrainedEOQ = sqrt((2 * model.demand * model.setupCost) / model.holdingCost)
         let tiers = ([QuantityDiscountBreak(minimumQuantity: 0, discountPercent: 0)] + model.discountBreaks)
@@ -499,28 +1398,6 @@ public enum QuantityDiscountEOQSolver {
             optimum: optimum,
             knownQuantity: knownQuantity
         )
-    }
-
-    private static func validate(_ model: QuantityDiscountEOQModel) throws {
-        guard model.demand > 0, model.setupCost >= 0, model.holdingCost > 0, model.acquisitionCost >= 0 else {
-            throw InventoryModelError.invalidModel("discount EOQ demand, holding cost, and acquisition cost must be valid")
-        }
-        var previousMinimum = -Double.infinity
-        for discountBreak in model.discountBreaks.sorted(by: { $0.minimumQuantity < $1.minimumQuantity }) {
-            guard discountBreak.minimumQuantity > 0,
-                  discountBreak.minimumQuantity > previousMinimum,
-                  discountBreak.discountPercent >= 0,
-                  discountBreak.discountPercent < 100
-            else {
-                throw InventoryModelError.invalidModel("discount breaks must have increasing positive quantities and discounts below 100%")
-            }
-            previousMinimum = discountBreak.minimumQuantity
-        }
-        if let knownOrderQuantity = model.knownOrderQuantity {
-            guard knownOrderQuantity > 0 else {
-                throw InventoryModelError.invalidModel("known order quantity must be positive")
-            }
-        }
     }
 
     private static func candidate(
@@ -553,7 +1430,7 @@ public enum QuantityDiscountEOQSolver {
 
 public enum NewsboySolver {
     public static func solve(_ model: NewsboyModel) throws -> NewsboySolution {
-        try validate(model)
+        try NewsboyValidator.validate(model)
 
         let underageCost = model.sellingPrice - model.acquisitionCost + model.shortageCost
         let overageCost = model.acquisitionCost - model.salvageValue
@@ -575,31 +1452,6 @@ public enum NewsboySolver {
             knownQuantity: knownQuantity,
             desiredServiceLevelQuantity: desiredQuantity
         )
-    }
-
-    private static func validate(_ model: NewsboyModel) throws {
-        guard model.meanDemand > 0, model.standardDeviation > 0 else {
-            throw InventoryModelError.invalidModel("normal newsboy demand mean and standard deviation must be positive")
-        }
-        guard model.setupCost >= 0,
-              model.acquisitionCost >= 0,
-              model.sellingPrice >= model.acquisitionCost,
-              model.shortageCost >= 0,
-              model.salvageValue >= 0,
-              model.acquisitionCost > model.salvageValue
-        else {
-            throw InventoryModelError.invalidModel("newsboy costs must be nonnegative with selling price >= acquisition cost > salvage value")
-        }
-        for value in [model.initialInventory, model.knownOrderQuantity, model.desiredServiceLevelPercent].compactMap({ $0 }) {
-            guard value >= 0, value.isFinite else {
-                throw InventoryModelError.invalidModel("optional newsboy values must be finite and nonnegative")
-            }
-        }
-        if let desiredServiceLevelPercent = model.desiredServiceLevelPercent {
-            guard desiredServiceLevelPercent > 0, desiredServiceLevelPercent < 100 else {
-                throw InventoryModelError.invalidModel("desired service level must be between 0 and 100")
-            }
-        }
     }
 
     private static func evaluation(orderQuantity: Double, model: NewsboyModel) -> NewsboyEvaluation {
@@ -697,7 +1549,7 @@ public enum LotSizingSolver {
     }
 
     public static func solve(_ model: LotSizingModel) throws -> LotSizingSolution {
-        try validate(model)
+        try LotSizingValidator.validate(model)
 
         let totalDemand = model.periods.reduce(0) { $0 + $1.demand }
         guard totalDemand > 0 else {
@@ -786,37 +1638,14 @@ public enum LotSizingSolver {
         )
     }
 
-    private static func validate(_ model: LotSizingModel) throws {
-        guard !model.periods.isEmpty else {
-            throw InventoryModelError.invalidModel("lot sizing requires at least one period")
-        }
-        for period in model.periods {
-            guard !period.name.isEmpty,
-                  period.demand >= 0,
-                  period.setupCost >= 0,
-                  period.unitVariableCost >= 0,
-                  period.unitHoldingCost >= 0,
-                  period.unitBackorderCost >= 0,
-                  period.setupCost.isFinite,
-                  period.unitVariableCost.isFinite,
-                  period.unitHoldingCost.isFinite,
-                  period.unitBackorderCost.isFinite
-            else {
-                throw InventoryModelError.invalidModel("lot sizing periods must have labels, nonnegative integer demand, and nonnegative finite costs")
-            }
-        }
-    }
 }
 
 public enum EOQSolver {
     public static func solve(_ model: EOQModel) throws -> EOQSolution {
-        try validate(model)
+        try EOQValidator.validate(model)
 
         let eoq: Double
         if let replenishmentRate = model.replenishmentRate {
-            guard replenishmentRate > model.demand else {
-                throw InventoryModelError.invalidModel("replenishment rate must be greater than demand")
-            }
             eoq = sqrt((2 * model.demand * model.setupCost) / (model.holdingCost * (1 - model.demand / replenishmentRate)))
         } else {
             eoq = sqrt((2 * model.demand * model.setupCost) / model.holdingCost)
@@ -836,22 +1665,6 @@ public enum EOQSolver {
             optimum: optimum,
             knownQuantity: knownQuantity
         )
-    }
-
-    private static func validate(_ model: EOQModel) throws {
-        guard model.demand > 0, model.setupCost >= 0, model.holdingCost > 0 else {
-            throw InventoryModelError.invalidModel("demand and holding cost must be positive, setup cost must be nonnegative")
-        }
-        for value in [model.shortageCost, model.replenishmentRate, model.leadTime, model.acquisitionCost, model.knownOrderQuantity].compactMap({ $0 }) {
-            guard value >= 0, value.isFinite else {
-                throw InventoryModelError.invalidModel("optional EOQ values must be finite and nonnegative")
-            }
-        }
-        if let knownOrderQuantity = model.knownOrderQuantity {
-            guard knownOrderQuantity > 0 else {
-                throw InventoryModelError.invalidModel("known order quantity must be positive")
-            }
-        }
     }
 
     private static func costBreakdown(for orderQuantity: Double, model: EOQModel) -> EOQCostBreakdown {

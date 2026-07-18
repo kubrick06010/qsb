@@ -3,6 +3,19 @@
 The forecasting module supports legacy WinQSB time-series and multiple linear
 regression files.
 
+The normalized workflow uses `ForecastingRequest`: it combines a reusable
+time-series or regression model with the selected method and its parameters.
+`ForecastingBackend` provides `nativeEducational` and `validateOnly` modes;
+`externalHighPerformance` is reserved for future integrations. Structured
+solutions retain fitted values, residuals, accuracy metrics, forecasts, method
+parameters, and backend metadata.
+
+```sh
+qsb export-forecast-json reference/winqsb/SALES.FC_ trend 2 > forecast.json
+qsb solve-forecast-json forecast.json --backend native
+qsb validate-forecast-json forecast.json
+```
+
 Supported input:
 
 - Legacy WinQSB `FC ... 0 ...` univariate time-series files.
@@ -118,3 +131,24 @@ Insulation: -1.169119
 sse: 945.092894
 rSquared: 0.903620
 ```
+
+## macOS Workbench Charts
+
+QSBMacApp decodes the same `ForecastingSolutionDocument` emitted by the shared
+backend and offers a native Chart/JSON presentation for every supported method.
+
+- Linear trend, moving average, exponential smoothing, and multiplicative
+  seasonal decomposition show actual, fitted, and future forecast series on a
+  common time axis.
+- Ordinary least squares shows actual and predicted dependent values by
+  observation.
+- A signed residual area/line view shares the observation axis and distinguishes
+  negative residual points.
+- The model summary displays MAD, MSE, MAPE, trend/smoothing/seasonal parameters,
+  or OLS R-squared, SSE, intercept, and coefficients as applicable.
+- Visibility checkboxes and horizontal scale controls support both compact and
+  wide windows; the normalized JSON document remains available at all times.
+
+Swift Charts is used only to present typed results. Parsing, validation,
+forecasting, regression, and metric calculation remain in QSBCore behind
+`ForecastingBackend`.

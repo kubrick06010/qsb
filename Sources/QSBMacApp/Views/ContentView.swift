@@ -31,6 +31,39 @@ struct ContentView: View {
                     Button("Facility Layout Sample") {
                         workspace.loadSample(.facilityLayout)
                     }
+                    Divider()
+                    Button("EOQ Inventory Sample") {
+                        workspace.loadSample(.economicOrderQuantity)
+                    }
+                    Button("Bounded Knapsack Sample") {
+                        workspace.loadSample(.boundedKnapsack)
+                    }
+                    Button("Linear Trend Forecast Sample") {
+                        workspace.loadSample(.linearTrendForecast)
+                    }
+                    Divider()
+                    Button("Payoff Analysis Sample") {
+                        workspace.loadSample(.payoffAnalysis)
+                    }
+                    Button("Decision Tree Sample") {
+                        workspace.loadSample(.decisionTree)
+                    }
+                    Button("Simulation Sample") {
+                        workspace.loadSample(.simulation)
+                    }
+                    Divider()
+                    Button("Quadratic Programming Sample") {
+                        workspace.loadSample(.quadraticProgramming)
+                    }
+                    Button("Nonlinear Programming Sample") {
+                        workspace.loadSample(.nonlinearProgramming)
+                    }
+                    Button("Markov Analysis Sample") {
+                        workspace.loadSample(.markov)
+                    }
+                    Button("Goal Programming Sample") {
+                        workspace.loadSample(.goalProgramming)
+                    }
                 } label: {
                     Label("Samples", systemImage: "tray.and.arrow.down")
                 }
@@ -83,23 +116,17 @@ struct ContentView: View {
                 .disabled(!workspace.isLinearProgrammingModel)
 
                 Button {
-                    workspace.solveNetwork()
+                    workspace.solveCurrentModel()
                 } label: {
-                    Label("Solve Network", systemImage: "point.3.connected.trianglepath.dotted")
+                    Label("Solve", systemImage: "play.circle")
                 }
-                .disabled(!workspace.isNetworkModel)
-
-                Button {
-                    workspace.solveFacilities()
-                } label: {
-                    Label("Solve Facilities", systemImage: "building.2")
-                }
-                .disabled(!workspace.isFacilitiesModel)
+                .help("Solve the current model with the selected backend")
+                .disabled(!workspace.canSolveCurrentModel)
             }
         }
         .fileImporter(
             isPresented: $workspace.isImportingModel,
-            allowedContentTypes: [.json],
+            allowedContentTypes: [.json, .data],
             allowsMultipleSelection: false
         ) { result in
             switch result {

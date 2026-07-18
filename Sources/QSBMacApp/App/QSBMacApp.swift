@@ -13,7 +13,7 @@ struct QSBMacApp: App {
         }
         .commands {
             CommandMenu("Model") {
-                Button("Open Model JSON...") {
+                Button("Open Model...") {
                     workspace.isImportingModel = true
                 }
                 .keyboardShortcut("o", modifiers: [.command])

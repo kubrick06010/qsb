@@ -6,7 +6,33 @@ parser and treats costs as undirected edges.
 
 All supported network models can also be exported to normalized JSON with
 `qsb export-network-json <legacy-network-file>` and solved from JSON with
-`qsb solve-network-json <network-model-json-file>`.
+`qsb solve-network-json <network-model-json-file> --backend native`. A shared
+`NetworkBackend` provides native educational and validation-only workflows for
+all seven variants; `validate-network-json` validates without solving.
+
+Structured solution documents retain the normalized model and solution plus
+backend algorithm, exactness, and assumptions. Algorithms are Dijkstra,
+Kruskal, Edmonds-Karp, fixture-scale exact Held-Karp dynamic programming,
+rectangular Hungarian matching, and continuous LP-backed minimum-cost flow and
+transportation.
+
+## Minimum-Cost Network Flow
+
+Legacy `NET ... CNF ...` transshipment files are parsed into nodes, directed
+cost arcs, and separate supply/demand values for every node. The native backend
+formulates flow conservation as a continuous LP through the shared
+`LinearProgrammingBackend`.
+
+WinQSB's preserved `NETFLOW.NE_` example has 100 more units of demand than
+supply. The normalized model preserves those original values; validation emits
+`network.CNF.balance.automatic`, and solving adds an explicit zero-cost dummy
+supply adjustment recorded in solution JSON. This reproduces the manual's
+reference objective of 7900.
+
+```sh
+qsb solve-netflow reference/winqsb/NETFLOW.NE_ --backend native
+qsb validate-netflow reference/winqsb/NETFLOW.NE_
+```
 
 ## Shortest Path
 
@@ -25,6 +51,7 @@ Run:
 
 ```sh
 qsb solve-spp reference/winqsb/SHTPATH.NE_
+qsb validate-spp reference/winqsb/SHTPATH.NE_
 ```
 
 Example output:
@@ -50,6 +77,7 @@ Run:
 
 ```sh
 qsb solve-mst reference/winqsb/SPANTREE.NE_
+qsb validate-mst reference/winqsb/SPANTREE.NE_
 ```
 
 Example output:
@@ -85,6 +113,7 @@ Run:
 
 ```sh
 qsb solve-maxflow reference/winqsb/MAXFLOW.NE_
+qsb validate-maxflow reference/winqsb/MAXFLOW.NE_
 ```
 
 Example output:
@@ -112,6 +141,7 @@ Run:
 
 ```sh
 qsb solve-tsp reference/winqsb/TSP.NE_
+qsb validate-tsp reference/winqsb/TSP.NE_
 ```
 
 Example output:
@@ -138,6 +168,7 @@ Run:
 
 ```sh
 qsb solve-assignment reference/winqsb/ASSIMENT.NE_
+qsb validate-assignment reference/winqsb/ASSIMENT.NE_
 ```
 
 Example output:
@@ -198,5 +229,21 @@ totalSupply: 700
 totalDemand: 700
 ```
 
-Future network modules should keep using separate model and solver types for
-related WinQSB workflows.
+The macOS workbench uses the same backend and decodes the same structured
+`NetworkSolutionDocument` emitted by CLI workflows. All seven variants open in
+a native Diagram/JSON solution surface:
+
+- shortest path, spanning tree, maximum flow, TSP, and minimum-cost flow use a
+  deterministic circular network layout;
+- assignment and transportation use bipartite layouts with collision-safe
+  internal node identifiers;
+- active route, tree, tour, flow, assignment, or shipment connections are
+  highlighted, while the complete model can be revealed with the
+  `All connections` control;
+- the detail pane preserves exact costs, capacities, quantities, and dummy
+  balance adjustments from the typed solution document.
+
+Diagram scaling and compact/wide scrolling are presentation concerns only.
+Parsing, validation, and solving remain in QSBCore behind `NetworkBackend`, and
+normalized JSON remains the universal fallback. Future network modules should
+keep using separate model and solver types behind this family-level seam.

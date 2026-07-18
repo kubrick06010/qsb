@@ -3,6 +3,25 @@
 The first dynamic programming modules support legacy WinQSB bounded knapsack,
 stagecoach shortest-route, and production/inventory planning files.
 
+All three variants share `DynamicProgrammingModelEnvelope`, structured
+validators, and the `DynamicProgrammingBackend` seam. The available backend
+modes are `nativeEducational` and `validateOnly`; `externalHighPerformance` is
+reserved and currently unavailable.
+
+Common workflows:
+
+```sh
+qsb solve-knapsack reference/winqsb/KNAPSACK.DP_ --backend native
+qsb validate-stagecoach reference/winqsb/STAGE.DP_
+qsb export-dp-json reference/winqsb/PRODINVT.DP_ > model.json
+qsb solve-dp-json model.json --backend native
+qsb validate-dp-json model.json
+```
+
+Normalized solution documents include backend algorithm/exactness metadata,
+model assumptions, the typed result, and a policy trace. Every trace row names
+a stage, state, action, optional next state, and local value.
+
 Supported input:
 
 - Legacy WinQSB `DP ... KS ...` knapsack files.
@@ -16,7 +35,7 @@ capacity used, and selected item quantities.
 Run:
 
 ```sh
-qsb solve-knapsack reference/winqsb/KNAPSACK.DP_
+qsb solve-knapsack reference/winqsb/KNAPSACK.DP_ [--backend native|validate]
 ```
 
 Example output:
@@ -45,7 +64,7 @@ cost route.
 Run:
 
 ```sh
-qsb solve-stagecoach reference/winqsb/STAGE.DP_
+qsb solve-stagecoach reference/winqsb/STAGE.DP_ [--backend native|validate]
 ```
 
 Example output:
@@ -73,7 +92,7 @@ the minimum-cost production plan.
 Run:
 
 ```sh
-qsb solve-prod-inventory reference/winqsb/PRODINVT.DP_
+qsb solve-prod-inventory reference/winqsb/PRODINVT.DP_ [--backend native|validate]
 ```
 
 Example output:

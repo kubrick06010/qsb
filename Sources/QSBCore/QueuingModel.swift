@@ -539,7 +539,7 @@ public enum WinQSBQueuingParser {
     }
 
     private static func parseEntryTable(from data: Data) throws -> ([String], [String: String]) {
-        guard let text = String(data: data, encoding: .isoLatin1) else {
+        guard let text = data.legacyLatin1String else {
             throw QueuingModelError.unsupportedFormat
         }
 

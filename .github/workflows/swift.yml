@@ -1,0 +1,25 @@
+name: Swift
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [macos-14, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build portable products
+        run: swift build --target QSBCore && swift build --product qsb
+      - name: Test
+        run: swift test
+
+  macos-app:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build macOS app
+        run: swift build --product QSBMacApp

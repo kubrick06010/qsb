@@ -73,13 +73,26 @@ public enum LegacyFixtureInventory {
         try entry(for: url)
     }
 
+    public static func entry(
+        for data: Data,
+        fileName: String
+    ) throws -> LegacyFixtureInventoryEntry {
+        try makeEntry(data: data, fileName: fileName)
+    }
+
     public static func encode(_ entries: [LegacyFixtureInventoryEntry]) throws -> Data {
         try encoder.encode(entries)
     }
 
     private static func entry(for url: URL) throws -> LegacyFixtureInventoryEntry {
         let data = try Data(contentsOf: url)
-        let fileName = url.lastPathComponent
+        return try makeEntry(data: data, fileName: url.lastPathComponent)
+    }
+
+    private static func makeEntry(
+        data: Data,
+        fileName: String
+    ) throws -> LegacyFixtureInventoryEntry {
 
         let compressionFormat: LegacyFixtureCompressionFormat
         let restoredFileName: String
@@ -285,31 +298,51 @@ public enum LegacyFixtureInventory {
     ]
 
     private static let verifiedFixtures: [String: FixtureClassification] = [
+        "APLP.AP": verified(family: "Aggregate planning", commands: ["qsb solve-aggregate", "qsb validate-aggregate", "qsb export-aggregate-json", "qsb solve-aggregate-json", "qsb validate-aggregate-json"]),
+        "APSIMPLE.AP": verified(family: "Aggregate planning", commands: ["qsb solve-aggregate", "qsb validate-aggregate", "qsb export-aggregate-json", "qsb solve-aggregate-json", "qsb validate-aggregate-json"]),
+        "APTRP.AP": verified(family: "Aggregate planning", commands: ["qsb solve-aggregate", "qsb validate-aggregate", "qsb export-aggregate-json", "qsb solve-aggregate-json", "qsb validate-aggregate-json"]),
         "ASSIMENT.NET": verified(
             family: "Network models",
-            commands: ["qsb solve-assignment", "qsb export-network-json", "qsb solve-network-json"]
+            commands: ["qsb solve-assignment", "qsb validate-assignment", "qsb export-network-json", "qsb solve-network-json", "qsb validate-network-json"]
         ),
-        "BAYESIAN.DA": verified(family: "Decision analysis", commands: ["qsb solve-bayesian"]),
-        "DISCOUNT.ITS": verified(family: "Inventory theory", commands: ["qsb solve-discount-eoq"]),
-        "DTREE.DA": verified(family: "Decision analysis", commands: ["qsb solve-decision-tree"]),
-        "EOQ.ITS": verified(family: "Inventory theory", commands: ["qsb solve-eoq"]),
+        "ASA1.ASA": verified(family: "Acceptance sampling", commands: ["qsb solve-acceptance", "qsb validate-acceptance", "qsb export-acceptance-json", "qsb solve-acceptance-json", "qsb validate-acceptance-json"]),
+        "ASA2.ASA": verified(family: "Acceptance sampling", commands: ["qsb solve-acceptance", "qsb validate-acceptance", "qsb export-acceptance-json", "qsb solve-acceptance-json", "qsb validate-acceptance-json"]),
+        "BAYESIAN.DA": verified(family: "Decision analysis", commands: ["qsb solve-bayesian", "qsb validate-bayesian", "qsb export-decision-json", "qsb solve-decision-json", "qsb validate-decision-json"]),
+        "CPM.CPM": verified(family: "PERT/CPM", commands: ["qsb solve-cpm", "qsb validate-cpm", "qsb export-project-json", "qsb solve-project-json", "qsb validate-project-json"]),
+        "CPMGRAPH.CPM": verified(family: "PERT/CPM", commands: ["qsb solve-cpm", "qsb validate-cpm", "qsb export-project-json", "qsb solve-project-json", "qsb validate-project-json"]),
+        "CRSQ.ITS": verified(family: "Inventory theory", commands: ["qsb solve-stochastic-inventory", "qsb validate-stochastic-inventory", "qsb export-inventory-json", "qsb solve-inventory-json", "qsb validate-inventory-json"]),
+        "CRSS.ITS": verified(family: "Inventory theory", commands: ["qsb solve-stochastic-inventory", "qsb validate-stochastic-inventory", "qsb export-inventory-json", "qsb solve-inventory-json", "qsb validate-inventory-json"]),
+        "C_CHART.QC": verified(family: "Quality control", commands: ["qsb solve-quality", "qsb validate-quality", "qsb export-quality-json", "qsb solve-quality-json", "qsb validate-quality-json"]),
+        "DISCOUNT.ITS": verified(
+            family: "Inventory theory",
+            commands: ["qsb solve-discount-eoq", "qsb validate-discount-eoq", "qsb export-inventory-json", "qsb solve-inventory-json"]
+        ),
+        "DTREE.DA": verified(family: "Decision analysis", commands: ["qsb solve-decision-tree", "qsb validate-decision-tree", "qsb export-decision-json", "qsb solve-decision-json", "qsb validate-decision-json"]),
+        "EOQ.ITS": verified(
+            family: "Inventory theory",
+            commands: ["qsb solve-eoq", "qsb validate-eoq", "qsb export-inventory-json", "qsb solve-inventory-json"]
+        ),
         "FLOWSHOP.JOB": verified(
             family: "Scheduling",
-            commands: ["qsb solve-flowshop", "qsb validate-flowshop"]
+            commands: ["qsb solve-flowshop", "qsb validate-flowshop", "qsb solve-flowshop-json", "qsb export-scheduling-json", "qsb solve-scheduling-json", "qsb validate-scheduling-json"]
         ),
         "GAME.DA": verified(
             family: "Decision analysis",
-            commands: ["qsb solve-game", "qsb validate-game"]
+            commands: ["qsb solve-game", "qsb validate-game", "qsb export-decision-json", "qsb solve-decision-json", "qsb validate-decision-json"]
         ),
+        "GP.GP": verified(family: "Goal programming", commands: ["qsb solve-goal", "qsb validate-goal", "qsb export-goal-json", "qsb solve-goal-json", "qsb validate-goal-json"]),
+        "GPNORMAL.GP": verified(family: "Goal programming", commands: ["qsb solve-goal", "qsb validate-goal", "qsb export-goal-json", "qsb solve-goal-json", "qsb validate-goal-json"]),
         "ILP.LP": verified(
             family: "Linear/integer programming",
             commands: ["qsb solve-ilp", "qsb validate-lp", "qsb export-json"]
         ),
+        "IGP.GP": verified(family: "Goal programming", commands: ["qsb solve-goal", "qsb validate-goal", "qsb export-goal-json", "qsb solve-goal-json", "qsb validate-goal-json"]),
+        "IQP.QP": verified(family: "Quadratic/integer quadratic programming", commands: ["qsb solve-qp", "qsb validate-qp", "qsb export-qp-json", "qsb solve-qp-json", "qsb validate-qp-json"]),
         "JOBSHOP.JOB": verified(
             family: "Scheduling",
-            commands: ["qsb solve-jobshop", "qsb validate-jobshop"]
+            commands: ["qsb solve-jobshop", "qsb validate-jobshop", "qsb solve-jobshop-json", "qsb export-scheduling-json", "qsb solve-scheduling-json", "qsb validate-scheduling-json"]
         ),
-        "KNAPSACK.DP": verified(family: "Dynamic programming", commands: ["qsb solve-knapsack"]),
+        "KNAPSACK.DP": verified(family: "Dynamic programming", commands: ["qsb solve-knapsack", "qsb validate-knapsack", "qsb export-dp-json", "qsb solve-dp-json"]),
         "LAYOUT.FL": verified(
             family: "Facilities and workflow",
             commands: [
@@ -330,7 +363,7 @@ public enum LegacyFixtureInventory {
                 "qsb solve-facilities-json"
             ]
         ),
-        "LINEREG.FC": verified(family: "Forecasting", commands: ["qsb solve-regression"]),
+        "LINEREG.FC": verified(family: "Forecasting", commands: ["qsb solve-regression", "qsb export-forecast-json", "qsb solve-forecast-json", "qsb validate-forecast-json"]),
         "LOCATION.FL": verified(
             family: "Facilities and workflow",
             commands: [
@@ -341,7 +374,10 @@ public enum LegacyFixtureInventory {
                 "qsb solve-facilities-json"
             ]
         ),
-        "LOTSIZE.ITS": verified(family: "Inventory theory", commands: ["qsb solve-lot-sizing"]),
+        "LOTSIZE.ITS": verified(
+            family: "Inventory theory",
+            commands: ["qsb solve-lot-sizing", "qsb validate-lot-sizing", "qsb export-inventory-json", "qsb solve-inventory-json"]
+        ),
         "LP.LP": verified(
             family: "Linear/integer programming",
             commands: ["qsb solve-lp", "qsb validate-lp", "qsb export-json"]
@@ -352,50 +388,81 @@ public enum LegacyFixtureInventory {
         ),
         "MAXFLOW.NET": verified(
             family: "Network models",
-            commands: ["qsb solve-maxflow", "qsb export-network-json", "qsb solve-network-json"]
+            commands: ["qsb solve-maxflow", "qsb validate-maxflow", "qsb export-network-json", "qsb solve-network-json", "qsb validate-network-json"]
         ),
-        "NEWSBOY.ITS": verified(family: "Inventory theory", commands: ["qsb solve-newsboy"]),
-        "PAYOFF.DA": verified(family: "Decision analysis", commands: ["qsb solve-payoff"]),
-        "PRODINVT.DP": verified(family: "Dynamic programming", commands: ["qsb solve-prod-inventory"]),
+        "MKP1.MKP": verified(family: "Markov processes", commands: ["qsb solve-markov", "qsb validate-markov", "qsb export-markov-json", "qsb solve-markov-json", "qsb validate-markov-json"]),
+        "MKP2.MKP": verified(family: "Markov processes", commands: ["qsb solve-markov", "qsb validate-markov", "qsb export-markov-json", "qsb solve-markov-json", "qsb validate-markov-json"]),
+        "NETFLOW.NET": verified(
+            family: "Network models",
+            commands: ["qsb solve-netflow", "qsb validate-netflow", "qsb export-network-json", "qsb solve-network-json", "qsb validate-network-json"]
+        ),
+        "NLP1.NLP": verified(family: "Nonlinear programming", commands: ["qsb solve-nlp", "qsb validate-nlp", "qsb export-nlp-json", "qsb solve-nlp-json", "qsb validate-nlp-json"]),
+        "NLP2.NLP": verified(family: "Nonlinear programming", commands: ["qsb solve-nlp", "qsb validate-nlp", "qsb export-nlp-json", "qsb solve-nlp-json", "qsb validate-nlp-json"]),
+        "NLP3.NLP": verified(family: "Nonlinear programming", commands: ["qsb solve-nlp", "qsb validate-nlp", "qsb export-nlp-json", "qsb solve-nlp-json", "qsb validate-nlp-json"]),
+        "QSS1.QS": verified(family: "Simulation", commands: ["qsb solve-simulation", "qsb validate-simulation", "qsb export-simulation-json", "qsb solve-simulation-json", "qsb validate-simulation-json"]),
+        "QSS2.QS": verified(family: "Simulation", commands: ["qsb solve-simulation", "qsb validate-simulation", "qsb export-simulation-json", "qsb solve-simulation-json", "qsb validate-simulation-json"]),
+        "QSS3.QS": verified(family: "Simulation", commands: ["qsb solve-simulation", "qsb validate-simulation", "qsb export-simulation-json", "qsb solve-simulation-json", "qsb validate-simulation-json"]),
+        "QSSGRAPH.QS": verified(family: "Simulation", commands: ["qsb solve-simulation", "qsb validate-simulation", "qsb export-simulation-json", "qsb solve-simulation-json", "qsb validate-simulation-json"]),
+        "NEWSBOY.ITS": verified(
+            family: "Inventory theory",
+            commands: ["qsb solve-newsboy", "qsb validate-newsboy", "qsb export-inventory-json", "qsb solve-inventory-json"]
+        ),
+        "PAYOFF.DA": verified(family: "Decision analysis", commands: ["qsb solve-payoff", "qsb validate-payoff", "qsb export-decision-json", "qsb solve-decision-json", "qsb validate-decision-json"]),
+        "PARETO.QC": verified(family: "Quality control", commands: ["qsb solve-quality", "qsb validate-quality", "qsb export-quality-json", "qsb solve-quality-json", "qsb validate-quality-json"]),
+        "PERT.CPM": verified(family: "PERT/CPM", commands: ["qsb solve-pert", "qsb validate-pert", "qsb export-project-json", "qsb solve-project-json", "qsb validate-project-json"]),
+        "PERTGRPH.CPM": verified(family: "PERT/CPM", commands: ["qsb solve-pert", "qsb validate-pert", "qsb export-project-json", "qsb solve-project-json", "qsb validate-project-json"]),
+        "PROBPLOT.QC": verified(family: "Quality control", commands: ["qsb solve-quality", "qsb validate-quality", "qsb export-quality-json", "qsb solve-quality-json", "qsb validate-quality-json"]),
+        "PRODINVT.DP": verified(family: "Dynamic programming", commands: ["qsb solve-prod-inventory", "qsb validate-prod-inventory", "qsb export-dp-json", "qsb solve-dp-json"]),
+        "PRRS.ITS": verified(family: "Inventory theory", commands: ["qsb solve-stochastic-inventory", "qsb validate-stochastic-inventory", "qsb export-inventory-json", "qsb solve-inventory-json", "qsb validate-inventory-json"]),
+        "PRRSS.ITS": verified(family: "Inventory theory", commands: ["qsb solve-stochastic-inventory", "qsb validate-stochastic-inventory", "qsb export-inventory-json", "qsb solve-inventory-json", "qsb validate-inventory-json"]),
         "QUEUE1.QA": verified(
             family: "Queuing analysis",
-            commands: ["qsb solve-mm1", "qsb solve-mm1-json", "qsb validate-mm1"]
+            commands: ["qsb solve-mm1", "qsb solve-mm1-json", "qsb validate-mm1", "qsb export-queuing-json", "qsb solve-queuing-json", "qsb validate-queuing-json"]
         ),
         "QUEUE2.QA": verified(
             family: "Queuing analysis",
-            commands: ["qsb solve-finite-queue", "qsb solve-finite-queue-json", "qsb validate-finite-queue"]
+            commands: ["qsb solve-finite-queue", "qsb solve-finite-queue-json", "qsb validate-finite-queue", "qsb export-queuing-json", "qsb solve-queuing-json", "qsb validate-queuing-json"]
         ),
+        "QSB.MRP": verified(family: "Material requirements planning", commands: ["qsb solve-mrp", "qsb validate-mrp", "qsb export-mrp-json", "qsb solve-mrp-json", "qsb validate-mrp-json"]),
+        "QP.QP": verified(family: "Quadratic/integer quadratic programming", commands: ["qsb solve-qp", "qsb validate-qp", "qsb export-qp-json", "qsb solve-qp-json", "qsb validate-qp-json"]),
+        "QPNORMAL.QP": verified(family: "Quadratic/integer quadratic programming", commands: ["qsb solve-qp", "qsb validate-qp", "qsb export-qp-json", "qsb solve-qp-json", "qsb validate-qp-json"]),
         "SALES.FC": verified(
             family: "Forecasting",
             commands: [
                 "qsb solve-timeseries",
                 "qsb solve-moving-average",
                 "qsb solve-exp-smoothing",
-                "qsb solve-seasonal"
+                "qsb solve-seasonal",
+                "qsb export-forecast-json",
+                "qsb solve-forecast-json",
+                "qsb validate-forecast-json"
             ]
         ),
+        "P_CHART.QC": verified(family: "Quality control", commands: ["qsb solve-quality", "qsb validate-quality", "qsb export-quality-json", "qsb solve-quality-json", "qsb validate-quality-json"]),
         "SHTPATH.NET": verified(
             family: "Network models",
-            commands: ["qsb solve-spp", "qsb export-network-json", "qsb solve-network-json"]
+            commands: ["qsb solve-spp", "qsb validate-spp", "qsb export-network-json", "qsb solve-network-json", "qsb validate-network-json"]
         ),
         "SPANTREE.NET": verified(
             family: "Network models",
-            commands: ["qsb solve-mst", "qsb export-network-json", "qsb solve-network-json"]
+            commands: ["qsb solve-mst", "qsb validate-mst", "qsb export-network-json", "qsb solve-network-json", "qsb validate-network-json"]
         ),
-        "STAGE.DP": verified(family: "Dynamic programming", commands: ["qsb solve-stagecoach"]),
+        "STAGE.DP": verified(family: "Dynamic programming", commands: ["qsb solve-stagecoach", "qsb validate-stagecoach", "qsb export-dp-json", "qsb solve-dp-json"]),
         "TRNSPORT.NET": verified(
             family: "Network models",
             commands: [
                 "qsb solve-transport",
                 "qsb validate-transport",
                 "qsb export-network-json",
-                "qsb solve-network-json"
+                "qsb solve-network-json",
+                "qsb validate-network-json"
             ]
         ),
         "TSP.NET": verified(
             family: "Network models",
-            commands: ["qsb solve-tsp", "qsb export-network-json", "qsb solve-network-json"]
-        )
+            commands: ["qsb solve-tsp", "qsb validate-tsp", "qsb export-network-json", "qsb solve-network-json", "qsb validate-network-json"]
+        ),
+        "VARIABLE.QC": verified(family: "Quality control", commands: ["qsb solve-quality", "qsb validate-quality", "qsb export-quality-json", "qsb solve-quality-json", "qsb validate-quality-json"])
     ]
 
     private static func verified(family: String, commands: [String]) -> FixtureClassification {
@@ -403,7 +470,7 @@ public enum LegacyFixtureInventory {
             family: family,
             role: "verified legacy model fixture",
             supportStatus: .verified,
-            supportedCommands: commands,
+            supportedCommands: commands + ["qsb import-legacy-json"],
             notes: ["Covered by parser/solver regression tests."]
         )
     }

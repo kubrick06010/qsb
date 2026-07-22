@@ -2,16 +2,23 @@ name: Swift
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-14, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@65540b95f51493d65f5e59e97dcef9629ddf11bf
+        with:
+          swift-version: "6.0"
+      - name: Show Swift version
+        run: swift --version
       - name: Build portable products
         run: swift build --target QSBCore && swift build --product qsb
       - name: Test
@@ -21,5 +28,10 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@65540b95f51493d65f5e59e97dcef9629ddf11bf
+        with:
+          swift-version: "6.0"
+      - name: Show Swift version
+        run: swift --version
       - name: Build macOS app
         run: swift build --product QSBMacApp

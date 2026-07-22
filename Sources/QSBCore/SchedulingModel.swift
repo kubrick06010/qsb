@@ -728,7 +728,7 @@ public enum WinQSBSchedulingParser {
     }
 
     private static func tabularLines(from data: Data) throws -> [[String]] {
-        guard let text = String(data: data, encoding: .isoLatin1) else {
+        guard let text = data.legacyLatin1String else {
             throw SchedulingModelError.unsupportedFormat
         }
 

@@ -333,7 +333,7 @@ public enum LinearProgramError: Error, CustomStringConvertible {
 
 public enum WinQSBMatrixParser {
     public static func parseLP(from data: Data) throws -> LinearProgram {
-        guard let text = String(data: data, encoding: .isoLatin1) else {
+        guard let text = data.legacyLatin1String else {
             throw LinearProgramError.unsupportedMatrixFormat
         }
 
@@ -871,7 +871,7 @@ public enum SimplexSolver {
 
         var values = Array(repeating: 0.0, count: variableCount)
         for column in 0..<variableCount {
-            if let row = basicVariableRow(in: tableau, column: column, constraintCount: constraintCount) {
+            if let row = basis.firstIndex(of: column) {
                 values[column] = tableau[row][rhsColumn]
             }
         }
@@ -963,10 +963,10 @@ public enum SimplexSolver {
         guard ProcessInfo.processInfo.environment["QSB_DEBUG_TABLEAU"] == "1" else {
             return
         }
-        fputs("\n\(label) basis=\(basis)\n", stderr)
-        for row in tableau {
-            fputs(row.map { String(format: "%9.3f", $0) }.joined(separator: " ") + "\n", stderr)
+        let rows = tableau.map { row in
+            row.map { String(format: "%9.3f", $0) }.joined(separator: " ")
         }
+        FileHandle.standardError.write(Data(("\n\(label) basis=\(basis)\n" + rows.joined(separator: "\n") + "\n").utf8))
     }
 }
 
@@ -1210,24 +1210,4 @@ private func pivot(_ tableau: inout [[Double]], row: Int, column: Int) {
             tableau[targetRow][index] -= factor * tableau[row][index]
         }
     }
-}
-
-private func basicVariableRow(
-    in tableau: [[Double]],
-    column: Int,
-    constraintCount: Int
-) -> Int? {
-    var oneRow: Int?
-    for row in 0..<constraintCount {
-        let value = tableau[row][column]
-        if abs(value - 1) < 1e-8 {
-            if oneRow != nil {
-                return nil
-            }
-            oneRow = row
-        } else if abs(value) > 1e-8 {
-            return nil
-        }
-    }
-    return oneRow
 }

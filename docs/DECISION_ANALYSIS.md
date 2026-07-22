@@ -21,6 +21,7 @@ Run:
 
 ```sh
 qsb solve-payoff reference/winqsb/PAYOFF.DA_
+qsb validate-payoff reference/winqsb/PAYOFF.DA_
 ```
 
 Example output:
@@ -51,6 +52,7 @@ Run:
 
 ```sh
 qsb solve-bayesian reference/winqsb/BAYESIAN.DA_
+qsb validate-bayesian reference/winqsb/BAYESIAN.DA_
 ```
 
 Example output:
@@ -82,6 +84,7 @@ Run:
 
 ```sh
 qsb solve-decision-tree reference/winqsb/DTREE.DA_
+qsb validate-decision-tree reference/winqsb/DTREE.DA_
 ```
 
 Example output:
@@ -144,3 +147,29 @@ status: valid
 rowStrategies: 5
 columnStrategies: 4
 ```
+
+## Normalized JSON and Backends
+
+All four variants share a discriminated `DecisionAnalysisModelEnvelope` with
+`kind` values `payoff`, `bayesian`, `decisionTree`, and `zeroSumGame`.
+`DecisionAnalysisSolutionDocument` retains the original model, a typed solution,
+and backend algorithm/exactness metadata. Validation output contains the kind,
+backend, validity flag, and structured diagnostics.
+
+```sh
+qsb export-decision-json reference/winqsb/DTREE.DA_ > decision.json
+qsb solve-decision-json decision.json --backend native > solution.json
+qsb solve-decision-json decision.json --backend validate > validation.json
+qsb validate-decision-json decision.json
+```
+
+The native backend uses expected-value/information analysis, Bayes' rule,
+decision-tree rollback, or LP-backed mixed strategies as appropriate. Rounded
+legacy chance probabilities that have a positive sum other than one produce a
+warning and are normalized consistently with the rollback solver.
+
+The macOS workbench imports the same normalized envelopes, detects all four
+variants, validates or solves through the selected backend, and emits these same
+solution and validation documents. Its Samples menu includes compact Payoff
+Analysis and Decision Tree models for exercising EVSI/EVPI and rollback/policy
+workflows.

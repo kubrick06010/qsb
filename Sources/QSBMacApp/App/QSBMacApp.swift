@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
+@MainActor
 struct QSBMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var workspace = QSBWorkspace()
@@ -13,7 +14,7 @@ struct QSBMacApp: App {
         }
         .commands {
             CommandMenu("Model") {
-                Button("Open Model JSON...") {
+                Button("Open Model...") {
                     workspace.isImportingModel = true
                 }
                 .keyboardShortcut("o", modifiers: [.command])
@@ -80,6 +81,7 @@ struct QSBMacApp: App {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)

@@ -18,7 +18,7 @@ private func legacyReferenceURL() -> URL {
     let data = try Data(contentsOf: url)
 
     let file = try LegacyCompressedFile(data: data)
-    let text = try #require(String(data: file.expandedData, encoding: .isoLatin1))
+    let text = try #require(file.expandedData.legacyLatin1String)
 
     #expect(file.expandedSize == 200)
     #expect(text.contains("LP\tMatrixFormat"))
@@ -63,19 +63,173 @@ private func legacyReferenceURL() -> URL {
     #expect(finiteQueue.supportedCommands.contains("qsb solve-finite-queue-json"))
     #expect(finiteQueue.supportedCommands.contains("qsb validate-finite-queue"))
 
+    for fileName in ["C_CHART.QC_", "P_CHART.QC_", "VARIABLE.QC_", "PARETO.QC_", "PROBPLOT.QC_"] {
+        let qualityControl = try #require(entriesByName[fileName])
+        #expect(qualityControl.family == "Quality control")
+        #expect(qualityControl.supportStatus == .verified)
+        #expect(qualityControl.supportedCommands.contains("qsb solve-quality-json"))
+    }
+
+    for fileName in ["APLP.AP_", "APSIMPLE.AP_", "APTRP.AP_"] {
+        let aggregatePlanning = try #require(entriesByName[fileName])
+        #expect(aggregatePlanning.family == "Aggregate planning")
+        #expect(aggregatePlanning.supportStatus == .verified)
+        #expect(aggregatePlanning.supportedCommands.contains("qsb solve-aggregate-json"))
+    }
+
+    let mrp = try #require(entriesByName["QSB.MR_"])
+    #expect(mrp.restoredFileName == "QSB.MRP")
+    #expect(mrp.family == "Material requirements planning")
+    #expect(mrp.supportStatus == .verified)
+    #expect(mrp.supportedCommands.contains("qsb solve-mrp-json"))
+
+    for fileName in ["CRSQ.IT_", "CRSS.IT_", "PRRS.IT_", "PRRSS.IT_"] {
+        let stochasticInventory = try #require(entriesByName[fileName])
+        #expect(stochasticInventory.family == "Inventory theory")
+        #expect(stochasticInventory.supportStatus == .verified)
+        #expect(stochasticInventory.supportedCommands.contains("qsb solve-stochastic-inventory"))
+    }
+
+    for fileName in ["QP.QP_", "QPNORMAL.QP_", "IQP.QP_"] {
+        let quadratic = try #require(entriesByName[fileName])
+        #expect(quadratic.family == "Quadratic/integer quadratic programming")
+        #expect(quadratic.supportStatus == .verified)
+        #expect(quadratic.supportedCommands.contains("qsb solve-qp-json"))
+    }
+
+    for fileName in ["NLP1.NL_", "NLP2.NL_", "NLP3.NL_"] {
+        let nonlinear = try #require(entriesByName[fileName])
+        #expect(nonlinear.family == "Nonlinear programming")
+        #expect(nonlinear.supportStatus == .verified)
+        #expect(nonlinear.supportedCommands.contains("qsb solve-nlp-json"))
+    }
+
+    for fileName in ["QSS1.QS_", "QSS2.QS_", "QSS3.QS_", "QSSGRAPH.QS_"] {
+        let simulation = try #require(entriesByName[fileName])
+        #expect(simulation.family == "Simulation")
+        #expect(simulation.supportStatus == .verified)
+        #expect(simulation.supportedCommands.contains("qsb solve-simulation-json"))
+    }
+
     let executable = try #require(entriesByName["FLL.EX_"])
     #expect(executable.family == "WinQSB application")
     #expect(executable.role == "application executable")
     #expect(executable.supportStatus == .referenceOnly)
 
-    let quadratic = try #require(entriesByName["QP.QP_"])
-    #expect(quadratic.family == "Quadratic/integer quadratic programming")
-    #expect(quadratic.supportStatus == .familyPartial)
-
     let json = try LegacyFixtureInventory.encode(entries)
     let text = try #require(String(data: json, encoding: .utf8))
     #expect(text.contains("\"fileName\" : \"LP.LP_\""))
     #expect(text.contains("\"supportStatus\" : \"verified\""))
+}
+
+@Test func importsEveryVerifiedLegacyFixtureAsNormalizedJSON() throws {
+    let entries = try LegacyFixtureInventory.scanDirectory(at: legacyReferenceURL())
+    let verified = entries.filter { $0.supportStatus == .verified }
+
+    #expect(verified.count == 64)
+    for entry in verified {
+        let result = try LegacyModelImporter.importModel(
+            at: legacyFixtureURL(entry.fileName)
+        )
+
+        #expect(result.sourceFileName == entry.fileName)
+        #expect(result.restoredFileName == entry.restoredFileName)
+        try decodeImportedModel(result)
+    }
+}
+
+@Test func rejectsEveryReferenceOnlyLegacyArtifactAsNonModel() throws {
+    let entries = try LegacyFixtureInventory.scanDirectory(at: legacyReferenceURL())
+    let referenceOnly = entries.filter { $0.supportStatus == .referenceOnly }
+
+    #expect(referenceOnly.count == 53)
+    for entry in referenceOnly {
+        do {
+            _ = try LegacyModelImporter.importModel(
+                at: legacyFixtureURL(entry.fileName)
+            )
+            Issue.record("Expected \(entry.fileName) to remain reference-only")
+        } catch LegacyModelImportError.referenceOnly(let fileName, _) {
+            #expect(fileName == entry.fileName)
+        } catch {
+            Issue.record("Unexpected import error for \(entry.fileName): \(error)")
+        }
+    }
+}
+
+private func decodeImportedModel(_ result: LegacyModelImportResult) throws {
+    let data = result.normalizedJSON
+    switch result.family {
+    case .acceptanceSampling:
+        _ = try AcceptanceSamplingJSON.decodeModel(from: data)
+    case .aggregatePlanning:
+        _ = try AggregatePlanningJSON.decodeModel(from: data)
+    case .decisionAnalysis:
+        _ = try DecisionAnalysisModelJSON.decodeModel(from: data)
+    case .dynamicProgramming:
+        _ = try DynamicProgrammingModelJSON.decodeModel(from: data)
+    case .facilities:
+        _ = try FacilitiesModelJSON.decodeModel(from: data)
+    case .forecasting:
+        _ = try ForecastingModelJSON.decodeRequest(from: data)
+    case .goalProgramming:
+        _ = try GoalProgrammingJSON.decodeModel(from: data)
+    case .inventory:
+        _ = try InventoryModelJSON.decodeModel(from: data)
+    case .linearProgramming:
+        _ = try LinearProgramJSON.decodeProgram(from: data)
+    case .markov:
+        _ = try MarkovJSON.decodeRequest(from: data)
+    case .materialRequirementsPlanning:
+        _ = try MaterialRequirementsPlanningJSON.decodeModel(from: data)
+    case .network:
+        _ = try NetworkModelJSON.decodeModel(from: data)
+    case .nonlinearProgramming:
+        _ = try NonlinearProgrammingJSON.decodeModel(from: data)
+    case .projectScheduling:
+        _ = try ProjectSchedulingJSON.decodeModel(from: data)
+    case .quadraticProgramming:
+        _ = try QuadraticProgrammingJSON.decodeModel(from: data)
+    case .qualityControl:
+        _ = try QualityControlJSON.decodeModel(from: data)
+    case .queuing:
+        _ = try QueuingModelJSON.decodeModel(from: data)
+    case .scheduling:
+        _ = try SchedulingModelJSON.decodeModel(from: data)
+    case .simulation:
+        _ = try SimulationJSON.decodeModel(from: data)
+    }
+}
+
+@Test func exhaustivelyClassifiesCurrentFacilitiesPayload() throws {
+    let entries = try LegacyFixtureInventory.scanDirectory(at: legacyReferenceURL())
+    let facilitiesPayload = entries.filter {
+        $0.fileName.hasPrefix("FLL") || $0.fileName.hasSuffix(".FL_")
+    }
+    let byName = Dictionary(uniqueKeysWithValues: facilitiesPayload.map { ($0.fileName, $0) })
+
+    #expect(Set(byName.keys) == [
+        "FLL.EX_",
+        "FLLHELP.HL_",
+        "LAYOUT.FL_",
+        "LINEBAL.FL_",
+        "LOCATION.FL_"
+    ])
+
+    for fileName in ["LAYOUT.FL_", "LINEBAL.FL_", "LOCATION.FL_"] {
+        let fixture = try #require(byName[fileName])
+        #expect(fixture.family == "Facilities and workflow")
+        #expect(fixture.role == "verified legacy model fixture")
+        #expect(fixture.supportStatus == .verified)
+        #expect(fixture.supportedCommands.contains("qsb export-facilities-json"))
+        #expect(fixture.supportedCommands.contains("qsb solve-facilities-json"))
+    }
+
+    for fileName in ["FLL.EX_", "FLLHELP.HL_"] {
+        let artifact = try #require(byName[fileName])
+        #expect(artifact.supportStatus == .referenceOnly)
+        #expect(artifact.supportedCommands.isEmpty)
+    }
 }
 
 @Test func parsesAndSolvesWinQSBMaxLPFixture() throws {
@@ -129,6 +283,671 @@ private func legacyReferenceURL() -> URL {
     #expect(solution.sink == "Node10")
     #expect(abs(solution.totalCost - 29) < 1e-8)
     #expect(solution.path == ["Node1", "Node2", "Node5", "Node9", "Node10"])
+}
+
+@Test func parsesAndSolvesWinQSBMinimumCostNetworkFlowFixture() throws {
+    let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("NETFLOW.NE_")))
+    let problem = try WinQSBNetworkParser.parseMinimumCostFlow(from: expanded)
+    let model = try WinQSBNetworkParser.parseModelEnvelope(from: expanded)
+    let report = ValidateOnlyNetworkBackend().validationReport(for: model)
+    let solution = try MinimumCostNetworkFlowSolver.solve(problem)
+
+    #expect(problem.nodes == ["S1", "S2", "T1", "T2", "T3", "T4", "D1", "D2", "D3"])
+    #expect(problem.arcs.count == 17)
+    #expect(problem.supply.reduce(0, +) == 1950)
+    #expect(problem.demand.reduce(0, +) == 2050)
+    #expect(report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "network.CNF.balance.automatic" && $0.severity == .warning })
+    #expect(abs(solution.totalCost - 7900) < 1e-8)
+    #expect(solution.balanceAdjustments == [NetworkBalanceAdjustment(node: "D2", quantity: 100, kind: "dummySupply")])
+}
+
+@Test func parsesAndSolvesWinQSBCPMMatrixAndGraphicFixtures() throws {
+    for fixture in ["CPM.CP_", "CPMGRAPH.CP_"] {
+        let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(fixture)))
+        let model = try WinQSBProjectSchedulingParser.parseModelEnvelope(from: expanded)
+        let solution = try NativeEducationalProjectSchedulingBackend().solve(model)
+        guard case .cpm(let project) = model else { Issue.record("Expected CPM model"); return }
+
+        #expect(project.activities.count == 12)
+        #expect(project.activities[0].normalCost == 2000)
+        #expect(abs(solution.projectDuration - 34) < 1e-8)
+        #expect(solution.criticalActivities == ["C", "F", "J", "L"])
+        #expect(solution.totalNormalCost == 30000)
+    }
+}
+
+@Test func parsesAndSolvesWinQSBPERTMatrixAndGraphicFixtures() throws {
+    for fixture in ["PERT.CP_", "PERTGRPH.CP_"] {
+        let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(fixture)))
+        let model = try WinQSBProjectSchedulingParser.parseModelEnvelope(from: expanded)
+        let solution = try NativeEducationalProjectSchedulingBackend().solve(model)
+        guard case .pert(let project) = model else { Issue.record("Expected PERT model"); return }
+
+        #expect(project.activities.count == 12)
+        #expect(abs(project.activities[2].expectedTime - 7.833333333333333) < 1e-8)
+        #expect(abs(solution.projectDuration - 33.833333333333336) < 1e-8)
+        #expect(solution.criticalActivities == ["C", "F", "J", "L"])
+        #expect(abs((solution.projectVariance ?? -1) - 1.3611111111111112) < 1e-8)
+    }
+}
+
+@Test func roundTripsAndValidatesProjectSchedulingBackends() throws {
+    for fixture in ["CPM.CP_", "PERT.CP_"] {
+        let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(fixture)))
+        let model = try WinQSBProjectSchedulingParser.parseModelEnvelope(from: expanded)
+        let encoded = try ProjectSchedulingJSON.encodeModel(model)
+        #expect(try ProjectSchedulingJSON.decodeModel(from: encoded) == model)
+        let native = NativeEducationalProjectSchedulingBackend()
+        let document = native.solutionDocument(for: model, solution: try native.solve(model))
+        #expect(try ProjectSchedulingJSON.decodeSolution(from: ProjectSchedulingJSON.encodeSolution(document)) == document)
+        #expect(ValidateOnlyProjectSchedulingBackend().validationReport(for: model).isValid)
+    }
+
+    let invalid = ProjectSchedulingModelEnvelope.cpm(CPMProject(title: "Cycle", timeUnit: "day", activities: [
+        CPMActivity(name: "A", predecessors: ["B"], normalTime: 1, crashTime: 1, normalCost: 0, crashCost: 0),
+        CPMActivity(name: "B", predecessors: ["A"], normalTime: 1, crashTime: 1, normalCost: 0, crashCost: 0)
+    ]))
+    let report = ValidateOnlyProjectSchedulingBackend().validationReport(for: invalid)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "project.precedence.cycle" })
+    #expect(ProjectSchedulingBackends.backend(for: .externalHighPerformance) == nil)
+    do {
+        _ = try ValidateOnlyProjectSchedulingBackend().solve(invalid)
+        Issue.record("validateOnly unexpectedly solved a project model")
+    } catch { #expect(String(describing: error).contains("validateOnly")) }
+}
+
+@Test func parsesAndSolvesWinQSBMarkovFixtureWithInitialState() throws {
+    let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("MKP1.MK_")))
+    let model = try WinQSBMarkovParser.parse(from: expanded)
+    let request = MarkovAnalysisRequest(model: model, periods: 10)
+    let solution = try NativeEducationalMarkovBackend().solve(request)
+
+    #expect(model.states == ["A", "B", "C"])
+    #expect(model.initialProbabilities == [0, 1, 0])
+    #expect(solution.transientResults.count == 11)
+    #expect(solution.transientResults[1].probabilities == [0.4, 0.3, 0.3])
+    #expect(abs(solution.stationaryProbabilities[0] - 0.26785714285714285) < 1e-8)
+    #expect(abs(solution.stationaryExpectedCost - 3.8464285714285715) < 1e-8)
+}
+
+@Test func parsesAndSolvesWinQSBMarkovFixtureWithoutInitialState() throws {
+    let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("MKP2.MK_")))
+    let model = try WinQSBMarkovParser.parse(from: expanded)
+    let solution = try MarkovSolver.solve(MarkovAnalysisRequest(model: model))
+
+    #expect(model.states.count == 4)
+    #expect(model.initialProbabilities == nil)
+    #expect(solution.transientResults.isEmpty)
+    #expect(abs(solution.stationaryProbabilities.reduce(0, +) - 1) < 1e-8)
+    #expect(abs(solution.stationaryExpectedCost - 31.432482618771726) < 1e-8)
+}
+
+@Test func roundTripsAndValidatesMarkovBackends() throws {
+    let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("MKP1.MK_")))
+    let request = MarkovAnalysisRequest(model: try WinQSBMarkovParser.parse(from: expanded), periods: 3)
+    let encoded = try MarkovJSON.encodeRequest(request)
+    #expect(try MarkovJSON.decodeRequest(from: encoded) == request)
+    let native = NativeEducationalMarkovBackend()
+    let document = native.solutionDocument(for: request, solution: try native.solve(request))
+    #expect(try MarkovJSON.decodeSolution(from: MarkovJSON.encodeSolution(document)) == document)
+    #expect(ValidateOnlyMarkovBackend().validationReport(for: request).isValid)
+    #expect(MarkovBackends.backend(for: .externalHighPerformance) == nil)
+
+    let invalid = MarkovAnalysisRequest(model: MarkovChainModel(
+        title: "Invalid", states: ["A", "B"], transitionMatrix: [[0.5, 0.4], [0.2, 0.8]],
+        initialProbabilities: [1.2, -0.2], stateCosts: [1, 2]
+    ))
+    let report = ValidateOnlyMarkovBackend().validationReport(for: invalid)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "markov.transition.rowSum" })
+    #expect(report.diagnostics.contains { $0.code == "markov.initial.probability" })
+    do {
+        _ = try ValidateOnlyMarkovBackend().solve(request)
+        Issue.record("validateOnly unexpectedly solved a Markov request")
+    } catch { #expect(String(describing: error).contains("validateOnly")) }
+}
+
+@Test func parsesEquivalentWinQSBGoalProgrammingFormats() throws {
+    let matrix = try WinQSBGoalProgrammingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("GP.GP_"))))
+    let normal = try WinQSBGoalProgrammingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("GPNORMAL.GP_"))))
+    let backend = NativeEducationalGoalProgrammingBackend()
+    let matrixSolution = try backend.solve(matrix)
+    let normalSolution = try backend.solve(normal)
+
+    #expect(matrix == normal)
+    #expect(matrix.goals.map(\.name) == ["G1", "G2"])
+    #expect(matrixSolution == normalSolution)
+    #expect(matrixSolution.goalOutcomes.map(\.value) == [114, 574])
+    #expect(matrixSolution.variableValues == ["A": 16, "B": 14, "C": 36])
+}
+
+@Test func parsesAndSolvesWinQSBIntegerGoalProgrammingFixture() throws {
+    let model = try WinQSBGoalProgrammingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("IGP.GP_"))))
+    let backend = NativeEducationalGoalProgrammingBackend()
+    let solution = try backend.solve(model)
+
+    #expect(model.variableTypes.allSatisfy { $0 == .integer })
+    #expect(backend.runMetadata(for: model).exactness == .fixtureScale)
+    #expect(solution.goalOutcomes.map(\.value) == [0, 295])
+    #expect(solution.variableValues["X1"] == 4)
+    #expect(solution.variableValues["X2"] == 3)
+    #expect(solution.variableValues["n3"] == 295)
+}
+
+@Test func roundTripsAndValidatesGoalProgrammingBackends() throws {
+    let model = try WinQSBGoalProgrammingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("GP.GP_"))))
+    let encoded = try GoalProgrammingJSON.encodeModel(model)
+    #expect(try GoalProgrammingJSON.decodeModel(from: encoded) == model)
+    let native = NativeEducationalGoalProgrammingBackend()
+    let document = native.solutionDocument(for: model, solution: try native.solve(model))
+    #expect(try GoalProgrammingJSON.decodeSolution(from: GoalProgrammingJSON.encodeSolution(document)) == document)
+    #expect(ValidateOnlyGoalProgrammingBackend().validationReport(for: model).isValid)
+    #expect(GoalProgrammingBackends.backend(for: .externalHighPerformance) == nil)
+
+    let invalid = GoalProgram(title: "Invalid", variableNames: ["x"], goals: [], constraints: [], lowerBounds: [0], upperBounds: [nil], variableTypes: [.continuous])
+    let report = ValidateOnlyGoalProgrammingBackend().validationReport(for: invalid)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "goalProgramming.goals.empty" })
+    do {
+        _ = try ValidateOnlyGoalProgrammingBackend().solve(model)
+        Issue.record("validateOnly unexpectedly solved a goal program")
+    } catch { #expect(String(describing: error).contains("validateOnly")) }
+}
+
+@Test func parsesAndEvaluatesWinQSBSingleAcceptanceSamplingFixture() throws {
+    let model = try WinQSBAcceptanceSamplingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("ASA1.AS_"))))
+    let solution = try NativeEducationalAcceptanceSamplingBackend().solve(model)
+    guard case .single(let plan) = model else { Issue.record("Expected single sampling plan"); return }
+
+    #expect(plan.sampleSize == 89)
+    #expect(plan.acceptanceNumber == 2)
+    #expect(solution.operatingCharacteristic.count == 101)
+    #expect(abs(solution.producerRiskAtAQL - 0.06031008168644125) < 1e-8)
+    #expect(abs(solution.consumerRiskAtRQL - 0.09186934717218487) < 1e-8)
+    #expect(solution.atAQL.averageSampleNumber == 89)
+}
+
+@Test func parsesAndEvaluatesWinQSBDoubleAcceptanceSamplingFixture() throws {
+    let model = try WinQSBAcceptanceSamplingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("ASA2.AS_"))))
+    let solution = try AcceptanceSamplingSolver.solve(model)
+    guard case .double(let plan) = model else { Issue.record("Expected double sampling plan"); return }
+
+    #expect(plan.firstSampleSize == 40)
+    #expect(plan.secondSampleSize == 80)
+    #expect(plan.cumulativeSecondAcceptanceNumber == 5)
+    #expect(abs(solution.producerRiskAtAQL - 0.0009487338644097454) < 1e-8)
+    #expect(abs(solution.consumerRiskAtRQL - 0.41007373405511627) < 1e-8)
+    #expect(abs(solution.atRQL.averageSampleNumber - 88.91005913444376) < 1e-8)
+}
+
+@Test func roundTripsAndValidatesAcceptanceSamplingBackends() throws {
+    let model = try WinQSBAcceptanceSamplingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("ASA1.AS_"))))
+    let encoded = try AcceptanceSamplingJSON.encodeModel(model)
+    #expect(try AcceptanceSamplingJSON.decodeModel(from: encoded) == model)
+    let native = NativeEducationalAcceptanceSamplingBackend()
+    let document = native.solutionDocument(for: model, solution: try native.solve(model))
+    #expect(try AcceptanceSamplingJSON.decodeSolution(from: AcceptanceSamplingJSON.encodeSolution(document)) == document)
+    #expect(ValidateOnlyAcceptanceSamplingBackend().validationReport(for: model).isValid)
+    #expect(AcceptanceSamplingBackends.backend(for: .externalHighPerformance) == nil)
+
+    let invalid = AcceptanceSamplingModelEnvelope.single(SingleSamplingPlan(
+        title: "Invalid", sampleSize: 10, acceptanceNumber: 10,
+        acceptableQualityLevel: 0.1, rejectableQualityLevel: 0.05,
+        nominalProducerRisk: 0.05, nominalConsumerRisk: 0.1,
+        economics: AcceptanceSamplingEconomics(lotSize: 5, unitSamplingCost: 1, unitInspectionCost: 1, producerDefectiveCost: 1, consumerDefectiveCost: 1)
+    ))
+    let report = ValidateOnlyAcceptanceSamplingBackend().validationReport(for: invalid)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "acceptanceSampling.single.acceptanceNumber" })
+    #expect(report.diagnostics.contains { $0.code == "acceptanceSampling.qualityLevels" })
+    do {
+        _ = try ValidateOnlyAcceptanceSamplingBackend().solve(model)
+        Issue.record("validateOnly unexpectedly evaluated a sampling plan")
+    } catch { #expect(String(describing: error).contains("validateOnly")) }
+}
+
+@Test func parsesAndSolvesWinQSBCAndPChartFixtures() throws {
+    let cModel = try WinQSBQualityControlParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("C_CHART.QC_"))))
+    let pModel = try WinQSBQualityControlParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("P_CHART.QC_"))))
+
+    guard case .cChart(let cChart) = try QualityControlSolver.solve(cModel),
+          case .pChart(let pChart) = try QualityControlSolver.solve(pModel) else {
+        Issue.record("Expected c-chart and p-chart solutions")
+        return
+    }
+    #expect(cChart.points.count == 26)
+    #expect(cChart.outsideLimitIndexes == [6, 20])
+    #expect(abs(cChart.points[0].centerLine - 19.846153846153847) < 1e-10)
+    #expect(pChart.points.count == 30)
+    #expect(pChart.outsideLimitIndexes == [15, 23])
+    #expect(abs(pChart.points[0].centerLine - 0.23133333333333334) < 1e-10)
+}
+
+@Test func parsesAndSolvesWinQSBXbarRFixture() throws {
+    let model = try WinQSBQualityControlParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("VARIABLE.QC_"))))
+    guard case .xbarRChart(let solution) = try NativeEducationalQualityControlBackend().solve(model) else {
+        Issue.record("Expected an Xbar-R solution")
+        return
+    }
+    #expect(solution.meanChart.points.count == 50)
+    #expect(abs(solution.grandMean - 74.001524) < 1e-9)
+    #expect(abs(solution.averageRange - 0.02758) < 1e-9)
+    #expect(solution.meanChart.outsideLimitIndexes == [28, 29, 36, 48])
+    #expect(solution.rangeChart.outsideLimitIndexes == [28, 29, 36, 48])
+}
+
+@Test func parsesAndSolvesWinQSBParetoFixture() throws {
+    let model = try WinQSBQualityControlParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("PARETO.QC_"))))
+    guard case .pareto(let solution) = try QualityControlSolver.solve(model) else {
+        Issue.record("Expected a Pareto solution")
+        return
+    }
+    #expect(solution.totalCount == 152)
+    #expect(solution.categories.map(\.name) == ["Bent Pins", "Misaligned", "Broken", "Miscellaneous", "Missing"])
+    #expect(solution.categories.map(\.count) == [77, 28, 18, 16, 13])
+    #expect(abs(solution.categories.last!.cumulativePercentage - 1) < 1e-12)
+}
+
+@Test func parsesAndSolvesWinQSBNormalProbabilityPlotFixture() throws {
+    let model = try WinQSBQualityControlParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("PROBPLOT.QC_"))))
+    guard case .normalProbabilityPlot(let solution) = try QualityControlSolver.solve(model) else {
+        Issue.record("Expected a normal probability plot solution")
+        return
+    }
+    #expect(solution.points.count == 20)
+    #expect(abs(solution.mean - 10.0065) < 1e-10)
+    #expect(abs(solution.sampleStandardDeviation - 0.33427494198953245) < 1e-10)
+    #expect(abs(solution.correlation - 0.9994166884040918) < 1e-10)
+}
+
+@Test func roundTripsAndValidatesQualityControlBackends() throws {
+    let model = try WinQSBQualityControlParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("C_CHART.QC_"))))
+    #expect(try QualityControlJSON.decodeModel(from: QualityControlJSON.encodeModel(model)) == model)
+    let native = NativeEducationalQualityControlBackend()
+    let solution = try native.solve(model)
+    let document = native.solutionDocument(for: model, solution: solution)
+    #expect(try QualityControlJSON.decodeSolution(from: QualityControlJSON.encodeSolution(document)) == document)
+    #expect(ValidateOnlyQualityControlBackend().validationReport(for: model).isValid)
+    #expect(QualityControlBackends.backend(for: .externalHighPerformance) == nil)
+
+    let invalid = QualityControlModelEnvelope.pChart(PChartModel(title: "Invalid", characteristic: "Defects", sampleSizes: [0], proportions: [1.2]))
+    let report = ValidateOnlyQualityControlBackend().validationReport(for: invalid)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "qualityControl.pChart.values" })
+    do {
+        _ = try ValidateOnlyQualityControlBackend().solve(model)
+        Issue.record("validateOnly unexpectedly solved a quality-control model")
+    } catch {
+        #expect(String(describing: error).contains("validateOnly"))
+    }
+}
+
+@Test func extractsOnlyTheRecordedSimplexBasisValues() throws {
+    let program = LinearProgram(
+        title: "Degenerate unit columns",
+        sense: .minimize,
+        variableNames: ["expensive", "cheap"],
+        objectiveCoefficients: [10, 1],
+        constraints: [LinearConstraint(name: "shared", coefficients: [1, 1], relation: .equal, rhs: 1)]
+    )
+    let solution = try SimplexSolver.solve(program)
+    #expect(abs(solution.objectiveValue - 1) < 1e-10)
+    #expect(abs((solution.variableValues["expensive"] ?? -1)) < 1e-10)
+    #expect(abs((solution.variableValues["cheap"] ?? -1) - 1) < 1e-10)
+}
+
+@Test func parsesAndSolvesWinQSBAggregatePlanningWorkforceFixtures() throws {
+    let lpModel = try WinQSBAggregatePlanningParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("APLP.AP_"))))
+    let simpleModel = try WinQSBAggregatePlanningParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("APSIMPLE.AP_"))))
+    let backend = NativeEducationalAggregatePlanningBackend()
+    let lpSolution = try backend.solve(lpModel)
+    let simpleSolution = try backend.solve(simpleModel)
+
+    #expect(lpModel.method == .linearProgramming)
+    #expect(simpleModel.method == .simple)
+    #expect(lpModel.demand == simpleModel.demand)
+    #expect(lpModel.capacityRequirementPerUnit == Array(repeating: 5, count: 6))
+    #expect(simpleModel.capacityRequirementPerUnit == Array(repeating: 5, count: 6))
+    #expect(abs(lpSolution.totalCost - 165_355.95238095237) < 1e-7)
+    #expect(abs(simpleSolution.totalCost - lpSolution.totalCost) < 1e-7)
+    #expect(abs((lpSolution.periods[2].workforce ?? -1) - 29.761904761904763) < 1e-9)
+    #expect(abs(lpSolution.periods[5].subcontracted - 725) < 1e-9)
+    #expect(lpSolution.periods.allSatisfy { abs($0.endingBackorder) < 1e-9 })
+    try expectAggregatePlanningBalances(model: lpModel, solution: lpSolution)
+}
+
+@Test func parsesAndSolvesWinQSBAggregatePlanningTransportationFixture() throws {
+    let model = try WinQSBAggregatePlanningParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("APTRP.AP_"))))
+    let solution = try AggregatePlanningSolver.solve(model)
+    #expect(model.method == .transportation)
+    #expect(!model.capacityIsPerWorker)
+    #expect(abs(solution.totalCost - 4_100) < 1e-9)
+    #expect(solution.periods.map(\.regularProduction) == [450, 450, 750, 450])
+    #expect(solution.periods.map(\.overtimeProduction) == [90, 90, 150, 90])
+    #expect(solution.periods.map(\.subcontracted) == [20, 200, 200, 110])
+    #expect(solution.periods.map(\.endingInventory) == [510, 400, 0, 300])
+    try expectAggregatePlanningBalances(model: model, solution: solution)
+}
+
+@Test func roundTripsAndValidatesAggregatePlanningBackends() throws {
+    let model = try WinQSBAggregatePlanningParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("APTRP.AP_"))))
+    #expect(try AggregatePlanningJSON.decodeModel(from: AggregatePlanningJSON.encodeModel(model)) == model)
+    let native = NativeEducationalAggregatePlanningBackend()
+    let solution = try native.solve(model)
+    let document = native.solutionDocument(for: model, solution: solution)
+    #expect(try AggregatePlanningJSON.decodeSolution(from: AggregatePlanningJSON.encodeSolution(document)) == document)
+    #expect(ValidateOnlyAggregatePlanningBackend().validationReport(for: model).isValid)
+    #expect(AggregatePlanningBackends.backend(for: .externalHighPerformance) == nil)
+
+    let invalid = AggregatePlanningModel(
+        title: model.title, method: model.method, periodNames: model.periodNames,
+        workforceUnit: model.workforceUnit, capacityUnit: model.capacityUnit,
+        demand: model.demand, initialWorkforce: model.initialWorkforce, initialInventory: model.initialInventory,
+        regularCapacity: model.regularCapacity, regularCost: model.regularCost,
+        undertimeCost: model.undertimeCost, overtimeCapacity: model.overtimeCapacity,
+        overtimeCost: model.overtimeCost, hiringCost: model.hiringCost,
+        dismissalCost: model.dismissalCost, maximumWorkforce: model.maximumWorkforce,
+        minimumWorkforce: model.minimumWorkforce, maximumInventory: model.maximumInventory,
+        minimumInventory: model.minimumInventory, inventoryHoldingCost: model.inventoryHoldingCost,
+        maximumSubcontracting: model.maximumSubcontracting, subcontractingCost: model.subcontractingCost,
+        maximumBackorder: model.maximumBackorder, backorderCost: model.backorderCost,
+        otherUnitProductionCost: model.otherUnitProductionCost,
+        capacityRequirementPerUnit: [0, 1, 1, 1], capacityIsPerWorker: model.capacityIsPerWorker
+    )
+    let report = ValidateOnlyAggregatePlanningBackend().validationReport(for: invalid)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "aggregatePlanning.capacityRequirement" })
+    do {
+        _ = try ValidateOnlyAggregatePlanningBackend().solve(model)
+        Issue.record("validateOnly unexpectedly solved an aggregate-planning model")
+    } catch {
+        #expect(String(describing: error).contains("validateOnly"))
+    }
+}
+
+private func expectAggregatePlanningBalances(model: AggregatePlanningModel, solution: AggregatePlanningSolution) throws {
+    var priorNetInventory = model.initialInventory
+    for index in model.periodNames.indices {
+        let period = solution.periods[index]
+        let available = priorNetInventory + period.regularProduction + period.overtimeProduction + period.subcontracted
+        let endingNetInventory = period.endingInventory - period.endingBackorder
+        #expect(abs(available - model.demand[index] - endingNetInventory) < 1e-7)
+        priorNetInventory = endingNetInventory
+    }
+}
+
+@Test func parsesWinQSBMaterialRequirementsPlanningFixture() throws {
+    let model = try legacyMRPModel()
+    #expect(model.title == "MRP Example Problem")
+    #expect(model.bucketNames == ["Overdue"] + (1...12).map { "Week \($0)" })
+    #expect(model.items.count == 7)
+    #expect(Set(model.items.map(\.lotSizingRule)) == [.lotForLot, .economicOrderQuantity, .leastUnitCost, .leastTotalCost, .partPeriodBalancing])
+
+    let a100 = try #require(model.items.first { $0.identifier == "A100" })
+    #expect(a100.safetyStock == 50)
+    #expect(a100.initialOnHand == 75)
+    #expect(a100.scheduledReceipts == [0, 0, 50, 0, 70, 0, 0, 0, 0, 0, 0, 0, 0])
+    #expect(a100.capacity == [nil, 120, 120, 120, 120, 120, 150, 150, 150, 150, 100, 100, 100])
+
+    let aBill = try #require(model.billsOfMaterial.first { $0.parentIdentifier == "A100" })
+    #expect(aBill.components == [MRPComponent(itemIdentifier: "C200", quantityPerParent: 1), MRPComponent(itemIdentifier: "D200", quantityPerParent: 1), MRPComponent(itemIdentifier: "F300", quantityPerParent: 3)])
+}
+
+@Test func explodesWinQSBMaterialRequirementsAcrossAllLevels() throws {
+    let model = try legacyMRPModel()
+    let solution = try NativeEducationalMaterialRequirementsPlanningBackend().solve(model)
+    #expect(solution.schedules.count == 7)
+    let schedules = Dictionary(uniqueKeysWithValues: solution.schedules.map { ($0.itemIdentifier, $0) })
+    let a = try #require(schedules["A100"]), b = try #require(schedules["B100"])
+    let c = try #require(schedules["C200"]), d = try #require(schedules["D200"])
+    let e = try #require(schedules["E200"]), f = try #require(schedules["F300"]), g = try #require(schedules["G300"])
+
+    #expect(a.grossRequirements.reduce(0, +) == 1_030)
+    #expect(a.plannedOrderReceipts.reduce(0, +) == 885)
+    #expect(a.plannedOrderReleases == [0, 0, 0, 0, 0, 0, 275, 0, 300, 0, 240, 70, 0])
+    #expect(b.plannedOrderReleases.reduce(0, +) == 615)
+    #expect(c.grossRequirements.reduce(0, +) == 2_205)
+    #expect(d.grossRequirements.reduce(0, +) == 1_570)
+    #expect(e.grossRequirements.reduce(0, +) == 660)
+    #expect(f.grossRequirements.reduce(0, +) == 5_844)
+    #expect(g.grossRequirements.reduce(0, +) == 4_978)
+    #expect(c.plannedOrderReceipts.reduce(0, +) == 1_885)
+    #expect(f.plannedOrderReceipts.reduce(0, +) == 5_995)
+    #expect(g.plannedOrderReceipts.reduce(0, +) == 5_527)
+    #expect(a.capacityExcess.reduce(0, +) == 415)
+    #expect(solution.schedules.allSatisfy { schedule in schedule.projectedOnHand.allSatisfy { $0 >= -1e-9 } })
+}
+
+@Test func roundTripsAndValidatesMaterialRequirementsPlanningBackends() throws {
+    let model = try legacyMRPModel()
+    #expect(try MaterialRequirementsPlanningJSON.decodeModel(from: MaterialRequirementsPlanningJSON.encodeModel(model)) == model)
+    let native = NativeEducationalMaterialRequirementsPlanningBackend()
+    let solution = try native.solve(model)
+    let document = native.solutionDocument(for: model, solution: solution)
+    #expect(try MaterialRequirementsPlanningJSON.decodeSolution(from: MaterialRequirementsPlanningJSON.encodeSolution(document)) == document)
+    #expect(native.runMetadata(for: model).exactness == .heuristic)
+    #expect(ValidateOnlyMaterialRequirementsPlanningBackend().validationReport(for: model).isValid)
+    #expect(MaterialRequirementsPlanningBackends.backend(for: .externalHighPerformance) == nil)
+
+    let cycle = MaterialRequirementsPlanningModel(title: model.title, timeUnit: model.timeUnit, periodsPerYear: model.periodsPerYear, bucketNames: model.bucketNames, items: model.items, billsOfMaterial: model.billsOfMaterial + [MRPBillOfMaterial(parentIdentifier: "G300", components: [MRPComponent(itemIdentifier: "A100", quantityPerParent: 1)])], masterProductionSchedule: model.masterProductionSchedule)
+    let report = ValidateOnlyMaterialRequirementsPlanningBackend().validationReport(for: cycle)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "mrp.bomCycle" })
+    let duplicateParent = MaterialRequirementsPlanningModel(title: model.title, timeUnit: model.timeUnit, periodsPerYear: model.periodsPerYear, bucketNames: model.bucketNames, items: model.items, billsOfMaterial: model.billsOfMaterial + [model.billsOfMaterial[0]], masterProductionSchedule: model.masterProductionSchedule)
+    #expect(ValidateOnlyMaterialRequirementsPlanningBackend().validationReport(for: duplicateParent).diagnostics.contains { $0.code == "mrp.bomParent" })
+    do {
+        _ = try ValidateOnlyMaterialRequirementsPlanningBackend().solve(model)
+        Issue.record("validateOnly unexpectedly exploded an MRP model")
+    } catch {
+        #expect(String(describing: error).contains("validateOnly"))
+    }
+}
+
+private func legacyMRPModel() throws -> MaterialRequirementsPlanningModel {
+    try WinQSBMaterialRequirementsPlanningParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("QSB.MR_"))))
+}
+
+@Test func parsesAndSolvesWinQSBMatrixQuadraticProgram() throws {
+    let model = try legacyQuadraticProgram("QP.QP_")
+    #expect(model.variableNames == ["Gid1", "Gid2", "Gid3"])
+    #expect(model.linearCoefficients == [3.2, 5, 5])
+    #expect(model.quadraticMatrix == [[-1, 0, 0], [0, -2, 0], [0, 0, -5]])
+    #expect(model.variableTypes == [.continuous, .continuous, .continuous])
+    let solution = try QuadraticProgrammingSolver.solve(model)
+    #expect(abs(solution.objectiveValue - -134.20587293112655) < 1e-8)
+    #expect(abs((solution.variableValues["Gid1"] ?? 0) - 8.556860651361452) < 1e-8)
+    #expect(abs((solution.variableValues["Gid2"] ?? 0) - 8.013614522156969) < 1e-8)
+    #expect(abs(solution.variableValues["Gid3"] ?? -1) < 1e-10)
+    #expect(Set(solution.activeConstraints) == ["C2", "Gid3 lower"])
+}
+
+@Test func parsesAndSolvesWinQSBNormalQuadraticProgram() throws {
+    let model = try legacyQuadraticProgram("QPNORMAL.QP_")
+    #expect(model.variableNames == ["a", "b", "c"])
+    #expect(model.linearCoefficients == [1, 3, -4])
+    #expect(model.quadraticMatrix == [[-2, 1, 0], [1, -2, 0], [0, 0, -1]])
+    let solution = try NativeEducationalQuadraticProgrammingBackend().solve(model)
+    #expect(abs(solution.objectiveValue - -5355.86463963964) < 1e-8)
+    #expect(abs((solution.variableValues["a"] ?? 0) - 56.808108108108) < 1e-8)
+    #expect(abs((solution.variableValues["b"] ?? 0) - 31.543693693694) < 1e-8)
+    #expect(abs((solution.variableValues["c"] ?? 0) - 23.511711711712) < 1e-8)
+    #expect(Set(solution.activeConstraints) == ["C2", "C3"])
+}
+
+@Test func parsesAndSolvesWinQSBIntegerQuadraticProgram() throws {
+    let model = try legacyQuadraticProgram("IQP.QP_")
+    #expect(model.variableTypes == [.integer, .integer, .integer])
+    let backend = NativeEducationalQuadraticProgrammingBackend()
+    let solution = try backend.solve(model)
+    #expect(solution.objectiveValue == -303.2)
+    #expect(solution.variableValues == ["Gid1": 19, "Gid2": 3, "Gid3": 1])
+    #expect(solution.activeConstraints == ["C2"])
+    #expect(backend.runMetadata(for: model).exactness == .fixtureScale)
+}
+
+@Test func roundTripsAndValidatesQuadraticProgrammingBackends() throws {
+    let model = try legacyQuadraticProgram("QP.QP_")
+    #expect(try QuadraticProgrammingJSON.decodeModel(from: QuadraticProgrammingJSON.encodeModel(model)) == model)
+    let native = NativeEducationalQuadraticProgrammingBackend(), solution = try native.solve(model)
+    let document = native.solutionDocument(for: model, solution: solution)
+    #expect(try QuadraticProgrammingJSON.decodeSolution(from: QuadraticProgrammingJSON.encodeSolution(document)) == document)
+    #expect(ValidateOnlyQuadraticProgrammingBackend().validationReport(for: model).isValid)
+    #expect(QuadraticProgrammingBackends.backend(for: .externalHighPerformance) == nil)
+    let invalid = QuadraticProgram(title: "Nonconcave", sense: .maximize, variableNames: ["x"], linearCoefficients: [0], quadraticMatrix: [[1]], constraints: [], lowerBounds: [0], upperBounds: [nil], variableTypes: [.continuous])
+    let report = ValidateOnlyQuadraticProgrammingBackend().validationReport(for: invalid)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "qp.curvature" })
+    do {
+        _ = try ValidateOnlyQuadraticProgrammingBackend().solve(model)
+        Issue.record("validateOnly unexpectedly solved a quadratic program")
+    } catch {
+        #expect(String(describing: error).contains("validateOnly"))
+    }
+}
+
+private func legacyQuadraticProgram(_ filename: String) throws -> QuadraticProgram {
+    try WinQSBQuadraticProgrammingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(filename))))
+}
+
+@Test func parsesAndSolvesWinQSBOneVariableNonlinearProgram() throws {
+    let model = try legacyNonlinearProgram("NLP1.NL_")
+    #expect(model.sense == .minimize)
+    #expect(model.objectiveExpression == "2(Workforce-1000)^2+500Workforce+460000")
+    #expect(model.lowerBounds == [10])
+    #expect(model.upperBounds == [10_000])
+    let solution = try NonlinearProgrammingSolver.solve(model)
+    #expect(abs(solution.objectiveValue - 928_750) < 1e-6)
+    #expect(abs((solution.variableValues["Workforce"] ?? 0) - 875) < 1e-8)
+    #expect(solution.maximumViolation == 0)
+}
+
+@Test func parsesAndSolvesWinQSBMultivariableNonlinearProgram() throws {
+    let model = try legacyNonlinearProgram("NLP2.NL_")
+    let solution = try NativeEducationalNonlinearProgrammingBackend().solve(model)
+    #expect(abs(solution.objectiveValue - -0.25) < 2e-6)
+    #expect(abs(solution.variableValues["X1"] ?? -1) < 1e-8)
+    #expect(abs(solution.variableValues["X2"] ?? -1) < 1e-8)
+    #expect(abs((solution.variableValues["X3"] ?? 0) - 0.5) < 0.002)
+}
+
+@Test func solvesWinQSBConstrainedExponentialNonlinearProgram() throws {
+    let model = try legacyNonlinearProgram("NLP3.NL_")
+    #expect(model.normalizedStrictInequalities)
+    #expect(model.constraints.map(\.relation) == [.equal, .lessThanOrEqual])
+    let report = ValidateOnlyNonlinearProgrammingBackend().validationReport(for: model)
+    #expect(report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "nlp.strict.normalized" && $0.severity == .warning })
+    let solution = try NonlinearProgrammingSolver.solve(model)
+    #expect(abs(solution.objectiveValue - -0.7221281301068521) < 2e-6)
+    #expect(abs((solution.variableValues["X1"] ?? 0) - -0.8228756555322954) < 2e-6)
+    #expect(abs((solution.variableValues["X2"] ?? 0) - 1.8228756555322954) < 2e-6)
+    #expect(solution.maximumViolation < 2e-7)
+}
+
+@Test func roundTripsAndValidatesNonlinearProgrammingBackends() throws {
+    let model = try legacyNonlinearProgram("NLP3.NL_")
+    #expect(try NonlinearProgrammingJSON.decodeModel(from: NonlinearProgrammingJSON.encodeModel(model)) == model)
+    let native = NativeEducationalNonlinearProgrammingBackend(), solution = try native.solve(model)
+    let document = native.solutionDocument(for: model, solution: solution)
+    #expect(try NonlinearProgrammingJSON.decodeSolution(from: NonlinearProgrammingJSON.encodeSolution(document)) == document)
+    #expect(native.runMetadata(for: model).exactness == .approximate)
+    #expect(NonlinearProgrammingBackends.backend(for: .externalHighPerformance) == nil)
+    let invalid = NonlinearProgram(title: "Invalid", sense: .minimize, objectiveExpression: "mystery(x)", variableNames: ["x"], lowerBounds: [0], upperBounds: [1], constraints: [])
+    let report = ValidateOnlyNonlinearProgrammingBackend().validationReport(for: invalid)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "nlp.expression" })
+    do {
+        _ = try ValidateOnlyNonlinearProgrammingBackend().solve(model)
+        Issue.record("validateOnly unexpectedly solved a nonlinear program")
+    } catch {
+        #expect(String(describing: error).contains("validateOnly"))
+    }
+}
+
+private func legacyNonlinearProgram(_ filename: String) throws -> NonlinearProgram {
+    try WinQSBNonlinearProgrammingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(filename))))
+}
+
+@Test func parsesAndSimulatesWinQSSTwoServerQueueFixtures() throws {
+    let exponential = try legacySimulation("QSS1.QS_")
+    let constant = try legacySimulation("QSS2.QS_")
+    #expect(exponential.representation == .matrix)
+    #expect(exponential.components.count == 4)
+    #expect(constant.components.count == 4)
+    #expect(exponential.components.filter { $0.kind == .server }.count == 2)
+    let first = try DiscreteEventSimulationSolver.solve(exponential, horizon: 100, seed: 7)
+    let repeatRun = try DiscreteEventSimulationSolver.solve(exponential, horizon: 100, seed: 7)
+    let second = try DiscreteEventSimulationSolver.solve(constant, horizon: 100, seed: 7)
+    #expect(first == repeatRun)
+    #expect(first.generatedEntities > 50)
+    #expect(first.completedEntities > 0)
+    #expect(second.serverMetrics.reduce(0) { $0 + $1.completed } > 0)
+}
+
+@Test func parsesAndSimulatesEquivalentWinQSSAssemblyRepresentations() throws {
+    let matrix = try legacySimulation("QSS3.QS_")
+    let graphic = try legacySimulation("QSSGRAPH.QS_")
+    #expect(matrix.representation == .matrix)
+    #expect(graphic.representation == .graphic)
+    #expect(matrix.components.count == 13)
+    #expect(graphic.components.count == 13)
+    #expect(Set(matrix.components.map { $0.name.lowercased() }) == Set(graphic.components.map { $0.name.lowercased() }))
+    let matrixSolution = try DiscreteEventSimulationSolver.solve(matrix, horizon: 200, seed: 11)
+    let graphicSolution = try DiscreteEventSimulationSolver.solve(graphic, horizon: 200, seed: 11)
+    #expect(matrixSolution.serverMetrics.first { $0.name == "Station 5" }?.completed ?? 0 > 0)
+    #expect(graphicSolution.serverMetrics.first { $0.name == "Station 5" }?.completed ?? 0 > 0)
+}
+
+@Test func roundTripsAndValidatesSimulationBackends() throws {
+    let model = try legacySimulation("QSS3.QS_")
+    #expect(try SimulationJSON.decodeModel(from: SimulationJSON.encodeModel(model)) == model)
+    let native = NativeEducationalSimulationBackend()
+    let solution = try native.solve(model, options: SolverOptions(timeLimitSeconds: 100, randomSeed: 3))
+    let solutionJSON = try SimulationJSON.encodeSolution(native.solutionDocument(for: model, solution: solution))
+    #expect(String(decoding: solutionJSON, as: UTF8.self).contains("seededDiscreteEventSimulation"))
+    #expect(ValidateOnlySimulationBackend().validationReport(for: model).isValid)
+    #expect(SimulationBackends.backend(for: .externalHighPerformance) == nil)
+    #expect(throws: SimulationError.self) { _ = try ValidateOnlySimulationBackend().solve(model) }
+}
+
+private func legacySimulation(_ filename: String) throws -> SimulationModel {
+    try WinQSBSimulationParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(filename))))
+}
+
+@Test func roundTripsNormalizedSchedulingModelsAndBackends() throws {
+    let fixtures = ["FLOWSHOP.JO_", "JOBSHOP.JO_"]
+    let native = NativeEducationalSchedulingBackend()
+    let validate = ValidateOnlySchedulingBackend()
+    for fixture in fixtures {
+        let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(fixture)))
+        let model = try WinQSBSchedulingParser.parseModelEnvelope(from: expanded)
+        let decoded = try SchedulingModelJSON.decodeModel(from: SchedulingModelJSON.encodeModel(model))
+        #expect(decoded == model)
+        #expect(validate.validationReport(for: model).isValid)
+        let document = try native.solve(model)
+        #expect(document.makespan > 0)
+        #expect(String(decoding: try SchedulingModelJSON.encodeSolution(document), as: UTF8.self).contains("machineTimelines"))
+    }
+    #expect(SchedulingBackends.backend(for: .externalHighPerformance) == nil)
+}
+
+@Test func roundTripsNormalizedQueuingModelsAndBackends() throws {
+    let fixtures = ["QUEUE1.QA_", "QUEUE2.QA_"]
+    let native = NativeEducationalQueuingBackend()
+    let validate = ValidateOnlyQueuingBackend()
+    for fixture in fixtures {
+        let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(fixture)))
+        let model = try WinQSBQueuingParser.parseModelEnvelope(from: expanded)
+        let decoded = try QueuingModelJSON.decodeModel(from: QueuingModelJSON.encodeModel(model))
+        #expect(decoded == model)
+        #expect(validate.validationReport(for: model).isValid)
+        let document = try native.solve(model)
+        #expect(document.metrics.utilization > 0)
+        #expect(String(decoding: try QueuingModelJSON.encodeSolution(document), as: UTF8.self).contains("metrics"))
+    }
+    #expect(QueuingBackends.backend(for: .externalHighPerformance) == nil)
 }
 
 @Test func parsesAndSolvesWinQSBMinimumSpanningTreeFixture() throws {
@@ -391,6 +1210,49 @@ private func legacyReferenceURL() -> URL {
     #expect(abs(solution.forecasts[1].value - 574.2974425729508) < 1e-8)
 }
 
+@Test func roundTripsNormalizedForecastingRequestsAndSolutions() throws {
+    let sales = try WinQSBForecastingParser.parseModelEnvelope(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("SALES.FC_"))))
+    let regression = try WinQSBForecastingParser.parseModelEnvelope(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("LINEREG.FC_"))))
+    let requests = [
+        ForecastingRequest(model: sales, method: .linearTrend, periodsAhead: 2),
+        ForecastingRequest(model: sales, method: .movingAverage, periodsAhead: 2, windowSize: 3),
+        ForecastingRequest(model: sales, method: .exponentialSmoothing, periodsAhead: 2, alpha: 0.3),
+        ForecastingRequest(model: sales, method: .multiplicativeSeasonalDecomposition, periodsAhead: 2, seasonLength: 12),
+        ForecastingRequest(model: regression, method: .ordinaryLeastSquares)
+    ]
+    let backend = NativeEducationalForecastingBackend()
+    for request in requests {
+        let encodedRequest = try ForecastingModelJSON.encodeRequest(request)
+        #expect(try ForecastingModelJSON.decodeRequest(from: encodedRequest) == request)
+        let solution = try backend.solve(request)
+        #expect(solution.method == request.method)
+        let document = backend.solutionDocument(for: request, solution: solution)
+        let encodedSolution = try ForecastingModelJSON.encodeSolutionDocument(document)
+        #expect(try ForecastingModelJSON.decodeSolutionDocument(from: encodedSolution) == document)
+    }
+}
+
+@Test func routesForecastingThroughNamedBackendsAndStructuredValidation() throws {
+    let model = try WinQSBForecastingParser.parseModelEnvelope(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("SALES.FC_"))))
+    let valid = ForecastingRequest(model: model, method: .movingAverage, windowSize: 3)
+    let invalid = ForecastingRequest(model: model, method: .movingAverage, windowSize: 24)
+    let native = NativeEducationalForecastingBackend()
+    let validateOnly = ValidateOnlyForecastingBackend()
+
+    #expect(native.runMetadata(for: valid).algorithm == "movingAverage")
+    #expect(native.runMetadata(for: valid).exactness == .approximate)
+    #expect(validateOnly.validationReport(for: valid).isValid)
+    #expect(!validateOnly.validationReport(for: invalid).isValid)
+    #expect(validateOnly.validationReport(for: invalid).diagnostics.contains { $0.code == "forecasting.movingAverage.window.invalid" })
+    #expect(ForecastingBackends.backend(for: .externalHighPerformance) == nil)
+    do {
+        _ = try validateOnly.solve(valid)
+        Issue.record("validateOnly unexpectedly solved a forecasting request")
+    } catch {
+        #expect(String(describing: error).contains("validateOnly"))
+    }
+}
+
 @Test func parsesAndSolvesWinQSBEOQFixture() throws {
     let url = legacyFixtureURL("EOQ.IT_")
     let data = try Data(contentsOf: url)
@@ -499,6 +1361,149 @@ private func legacyReferenceURL() -> URL {
         LotSizingDecision(period: "5", demand: 30, productionQuantity: 0, endingInventory: 0, setupCost: 0, variableCost: 0, holdingCost: 0, backorderCost: 0, totalCost: 0),
         LotSizingDecision(period: "6", demand: 35, productionQuantity: 35, endingInventory: 0, setupCost: 30, variableCost: 157.5, holdingCost: 0, backorderCost: 0, totalCost: 187.5)
     ])
+}
+
+@Test func roundTripsNormalizedInventoryModelsAndSolutions() throws {
+    let fixtureNames = ["EOQ.IT_", "DISCOUNT.IT_", "NEWSBOY.IT_", "LOTSIZE.IT_", "CRSQ.IT_", "CRSS.IT_", "PRRS.IT_", "PRRSS.IT_"]
+    let expectedKinds: [InventoryProblemKind] = [.eoq, .quantityDiscountEOQ, .newsboy, .lotSizing, .stochasticReview, .stochasticReview, .stochasticReview, .stochasticReview]
+    let nativeBackend = NativeEducationalInventoryBackend()
+
+    for (fixtureName, expectedKind) in zip(fixtureNames, expectedKinds) {
+        let data = try Data(contentsOf: legacyFixtureURL(fixtureName))
+        let expanded = try LegacyCompressedFile.expandedData(from: data)
+        let model = try WinQSBInventoryParser.parseModelEnvelope(from: expanded)
+        #expect(model.kind == expectedKind)
+
+        let encodedModel = try InventoryModelJSON.encodeModel(model)
+        #expect(try InventoryModelJSON.decodeModel(from: encodedModel) == model)
+
+        let solution = try nativeBackend.solve(model)
+        #expect(solution.kind == expectedKind)
+        let document = nativeBackend.solutionDocument(for: model, solution: solution)
+        #expect(document.kind == expectedKind)
+        #expect(document.backend.backendKind == .nativeEducational)
+        #expect(!document.assumptions.isEmpty)
+
+        let encodedSolution = try InventoryModelJSON.encodeSolutionDocument(document)
+        #expect(try InventoryModelJSON.decodeSolutionDocument(from: encodedSolution) == document)
+    }
+}
+
+@Test func parsesAndSolvesAllWinQSBStochasticInventoryPolicies() throws {
+    let fixtures: [(String, StochasticInventoryPolicy)] = [
+        ("CRSQ.IT_", .continuousFixedOrderQuantity),
+        ("CRSS.IT_", .continuousOrderUpTo),
+        ("PRRS.IT_", .periodicFixedOrderInterval),
+        ("PRRSS.IT_", .periodicOptionalReplenishment)
+    ]
+    var solutions: [StochasticInventoryPolicy: StochasticInventorySolution] = [:]
+    for (fixture, policy) in fixtures {
+        let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(fixture)))
+        let model = try WinQSBInventoryParser.parseStochasticInventory(from: expanded)
+        #expect(model.policy == policy)
+        #expect(model.meanDemand == 1_000)
+        #expect(model.demandStandardDeviation == 100)
+        #expect(model.leadTime > 0.08332 && model.leadTime < 0.08334)
+        #expect(model.backorderFraction == 1)
+        #expect(model.backorderCost == 20)
+        solutions[policy] = try StochasticInventorySolver.solve(model)
+    }
+    let q = try #require(solutions[.continuousFixedOrderQuantity])
+    #expect(abs(q.orderQuantity - 155.025984159998) < 1e-6)
+    #expect(abs((q.reorderPoint ?? 0) - 124.382959946781) < 1e-6)
+    #expect(abs(q.serviceLevel - 0.922487007920001) < 1e-8)
+    let s = try #require(solutions[.continuousOrderUpTo])
+    #expect(s.orderQuantity == 50)
+    #expect(abs((s.orderUpToLevel ?? 0) - 189.912173835284) < 1e-6)
+    let periodic = try #require(solutions[.periodicFixedOrderInterval])
+    #expect(abs((periodic.reviewInterval ?? 0) - 0.173205080756888) < 1e-8)
+    #expect(abs(periodic.orderQuantity - 173.205080756888) < 1e-8)
+    let optional = try #require(solutions[.periodicOptionalReplenishment])
+    #expect(abs((optional.reviewInterval ?? 0) - 0.1) < 1e-10)
+    #expect(abs(optional.orderQuantity - 141.42135623731) < 1e-8)
+    #expect(solutions.values.allSatisfy { $0.costs.totalCost > 50_000 && $0.serviceLevel > 0 && $0.serviceLevel < 1 })
+}
+
+@Test func validatesStochasticInventoryAssumptionsAndBackendRouting() throws {
+    let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("CRSQ.IT_")))
+    let model = try WinQSBInventoryParser.parseStochasticInventory(from: expanded)
+    let invalid = StochasticInventoryModel(title: model.title, timeUnit: model.timeUnit, policy: model.policy, demandDistribution: "Poisson", meanDemand: model.meanDemand, demandStandardDeviation: model.demandStandardDeviation, setupCost: model.setupCost, acquisitionCost: model.acquisitionCost, holdingCost: model.holdingCost, backorderFraction: model.backorderFraction, backorderCost: model.backorderCost, lostSalesFraction: model.lostSalesFraction, lostSalesCost: model.lostSalesCost, fixedShortageCost: model.fixedShortageCost, leadTimeDistribution: "Variable", leadTime: model.leadTime, averageOrderSize: model.averageOrderSize, reviewCost: model.reviewCost)
+    let validate = ValidateOnlyInventoryBackend()
+    let report = validate.validationReport(for: invalid)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "inventory.stochastic.distribution.unsupported" })
+    #expect(report.diagnostics.contains { $0.code == "inventory.stochastic.leadTimeDistribution.unsupported" })
+    #expect(NativeEducationalInventoryBackend().runMetadata(for: model).exactness == .approximate)
+    do {
+        _ = try validate.solve(model)
+        Issue.record("validateOnly unexpectedly solved a stochastic inventory model")
+    } catch {
+        #expect(String(describing: error).contains("validateOnly"))
+    }
+}
+
+@Test func routesInventoryModelsThroughNamedBackends() throws {
+    let eoqData = try LegacyCompressedFile.expandedData(
+        from: Data(contentsOf: legacyFixtureURL("EOQ.IT_"))
+    )
+    let discountData = try LegacyCompressedFile.expandedData(
+        from: Data(contentsOf: legacyFixtureURL("DISCOUNT.IT_"))
+    )
+    let newsboyData = try LegacyCompressedFile.expandedData(
+        from: Data(contentsOf: legacyFixtureURL("NEWSBOY.IT_"))
+    )
+    let lotSizingData = try LegacyCompressedFile.expandedData(
+        from: Data(contentsOf: legacyFixtureURL("LOTSIZE.IT_"))
+    )
+    let eoq = try WinQSBInventoryParser.parseEOQ(from: eoqData)
+    let discount = try WinQSBInventoryParser.parseQuantityDiscountEOQ(from: discountData)
+    let newsboy = try WinQSBInventoryParser.parseNewsboy(from: newsboyData)
+    let lotSizing = try WinQSBInventoryParser.parseLotSizing(from: lotSizingData)
+
+    let nativeBackend = NativeEducationalInventoryBackend()
+    #expect(nativeBackend.capabilities.backendKind == .nativeEducational)
+    #expect(nativeBackend.capabilities.solves)
+    #expect(abs(try nativeBackend.solve(eoq).economicOrderQuantity - 31.622776601683793) < 1e-8)
+    #expect(abs(try nativeBackend.solve(discount).optimum.cost.orderQuantity - 80) < 1e-8)
+    #expect(abs(try nativeBackend.solve(newsboy).criticalRatio - 0.8) < 1e-8)
+    #expect(abs(try nativeBackend.solve(lotSizing).totalCost - 907.5) < 1e-8)
+    #expect(nativeBackend.runMetadata(for: eoq).exactness == .closedForm)
+    #expect(nativeBackend.runMetadata(for: discount).algorithm == "allUnitsDiscountTierEnumeration")
+    #expect(nativeBackend.runMetadata(for: newsboy).algorithm == "normalDemandCriticalFractile")
+    #expect(nativeBackend.runMetadata(for: lotSizing).exactness == .fixtureScale)
+
+    let validateBackend = ValidateOnlyInventoryBackend()
+    #expect(validateBackend.capabilities.backendKind == .validateOnly)
+    #expect(!validateBackend.capabilities.solves)
+    #expect(validateBackend.validationReport(for: eoq).isValid)
+    #expect(validateBackend.validationReport(for: discount).isValid)
+    #expect(validateBackend.validationReport(for: newsboy).isValid)
+    #expect(validateBackend.validationReport(for: lotSizing).isValid)
+
+    let invalidEOQ = EOQModel(
+        title: "Invalid production rate",
+        timeUnit: "year",
+        demand: 10,
+        setupCost: 5,
+        holdingCost: 2,
+        replenishmentRate: 10
+    )
+    let invalidReport = validateBackend.validationReport(for: invalidEOQ)
+    #expect(!invalidReport.isValid)
+    #expect(invalidReport.diagnostics.contains {
+        $0.code == "inventory.eoq.replenishmentRate.insufficient" && $0.severity == .error
+    })
+
+    do {
+        _ = try validateBackend.solve(eoq)
+        Issue.record("Expected validateOnly backend to reject EOQ solving")
+    } catch {
+        #expect(String(describing: error).contains("validateOnly"))
+    }
+
+    #expect(InventoryBackends.backend(for: .nativeEducational) != nil)
+    #expect(InventoryBackends.backend(for: .validateOnly) != nil)
+    #expect(InventoryBackends.backend(for: .externalHighPerformance) == nil)
 }
 
 @Test func parsesAndSolvesWinQSBFlowShopFixture() throws {
@@ -726,10 +1731,11 @@ private func legacyReferenceURL() -> URL {
         )
     )
     let flowShopJSON = try SchedulingSolutionJSON.encode(flowShopDocument)
-    let decodedFlowShop = try JSONDecoder().decode(SchedulingSolutionDocument.self, from: flowShopJSON)
+    let decodedFlowShop = try SchedulingModelJSON.decodeSolution(from: flowShopJSON)
     let flowShopText = try #require(String(data: flowShopJSON, encoding: .utf8))
 
     #expect(decodedFlowShop.kind == .flowShop)
+    #expect(decodedFlowShop == flowShopDocument)
     #expect(decodedFlowShop.backend.algorithm == "flowShopPermutationSearch")
     #expect(decodedFlowShop.makespan == 213)
     #expect(decodedFlowShop.operations.count == 20)
@@ -759,10 +1765,11 @@ private func legacyReferenceURL() -> URL {
         )
     )
     let jobShopJSON = try SchedulingSolutionJSON.encode(jobShopDocument)
-    let decodedJobShop = try JSONDecoder().decode(SchedulingSolutionDocument.self, from: jobShopJSON)
+    let decodedJobShop = try SchedulingModelJSON.decodeSolution(from: jobShopJSON)
     let jobShopText = try #require(String(data: jobShopJSON, encoding: .utf8))
 
     #expect(decodedJobShop.kind == .jobShop)
+    #expect(decodedJobShop == jobShopDocument)
     #expect(decodedJobShop.backend.algorithm == "jobShopBranchAndBoundDominancePruning")
     #expect(decodedJobShop.makespan == 34)
     #expect(decodedJobShop.operations.count == 25)
@@ -1327,6 +2334,57 @@ private func legacyReferenceURL() -> URL {
     ])
 }
 
+@Test func roundTripsNormalizedDynamicProgrammingModelsAndSolutions() throws {
+    let fixtures: [(String, DynamicProgrammingProblemKind)] = [
+        ("KNAPSACK.DP_", .boundedKnapsack),
+        ("STAGE.DP_", .stagecoach),
+        ("PRODINVT.DP_", .productionInventory)
+    ]
+    let backend = NativeEducationalDynamicProgrammingBackend()
+
+    for (fileName, expectedKind) in fixtures {
+        let data = try Data(contentsOf: legacyFixtureURL(fileName))
+        let model = try WinQSBDynamicProgrammingParser.parseModelEnvelope(from: LegacyCompressedFile.expandedData(from: data))
+        #expect(model.kind == expectedKind)
+
+        let encodedModel = try DynamicProgrammingModelJSON.encodeModel(model)
+        #expect(try DynamicProgrammingModelJSON.decodeModel(from: encodedModel) == model)
+
+        let solution = try backend.solve(model)
+        #expect(solution.kind == expectedKind)
+        #expect(!solution.trace.isEmpty)
+        let document = backend.solutionDocument(for: model, solution: solution)
+        let encodedSolution = try DynamicProgrammingModelJSON.encodeSolutionDocument(document)
+        #expect(try DynamicProgrammingModelJSON.decodeSolutionDocument(from: encodedSolution) == document)
+    }
+}
+
+@Test func routesDynamicProgrammingModelsThroughNamedBackends() throws {
+    let native = NativeEducationalDynamicProgrammingBackend()
+    let validateOnly = ValidateOnlyDynamicProgrammingBackend()
+    let data = try Data(contentsOf: legacyFixtureURL("KNAPSACK.DP_"))
+    let model = try WinQSBDynamicProgrammingParser.parseModelEnvelope(from: LegacyCompressedFile.expandedData(from: data))
+
+    #expect(native.capabilities.solves)
+    #expect(native.runMetadata(for: model).algorithm == "boundedKnapsackDynamicProgramming")
+    #expect(native.runMetadata(for: model).exactness == .fixtureScale)
+    #expect(validateOnly.validationReport(for: model).isValid)
+    #expect(DynamicProgrammingBackends.backend(for: .externalHighPerformance) == nil)
+
+    let invalid = DynamicProgrammingModelEnvelope.boundedKnapsack(KnapsackProblem(title: "invalid", capacity: 0, items: []))
+    let report = validateOnly.validationReport(for: invalid)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "dynamicProgramming.boundedKnapsack.capacity.nonpositive" })
+    #expect(report.diagnostics.contains { $0.code == "dynamicProgramming.boundedKnapsack.items.empty" })
+
+    do {
+        _ = try validateOnly.solve(model)
+        Issue.record("validateOnly unexpectedly solved a dynamic-programming model")
+    } catch {
+        #expect(String(describing: error).contains("validateOnly"))
+    }
+}
+
 @Test func parsesAndSolvesWinQSBPayoffFixture() throws {
     let url = legacyFixtureURL("PAYOFF.DA_")
     let data = try Data(contentsOf: url)
@@ -1476,6 +2534,56 @@ private func legacyReferenceURL() -> URL {
     #expect(diagnostics.contains {
         $0.severity == .info && $0.code == "decisionAnalysis.zeroSumGame.valid"
     })
+}
+
+@Test func roundTripsNormalizedDecisionAnalysisModelsAndSolutions() throws {
+    let fixtures = ["PAYOFF.DA_", "BAYESIAN.DA_", "DTREE.DA_", "GAME.DA_"]
+    let backend = NativeEducationalDecisionAnalysisBackend()
+
+    for fixture in fixtures {
+        let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(fixture)))
+        let model = try WinQSBDecisionAnalysisParser.parseModelEnvelope(from: expanded)
+        let encodedModel = try DecisionAnalysisModelJSON.encodeModel(model)
+        #expect(try DecisionAnalysisModelJSON.decodeModel(from: encodedModel) == model)
+
+        let solution = try backend.solve(model)
+        #expect(solution.kind == model.kind)
+        let document = backend.solutionDocument(for: model, solution: solution)
+        let encodedSolution = try DecisionAnalysisModelJSON.encodeSolutionDocument(document)
+        #expect(try DecisionAnalysisModelJSON.decodeSolutionDocument(from: encodedSolution) == document)
+    }
+}
+
+@Test func routesDecisionAnalysisThroughNamedBackendsAndStructuredValidation() throws {
+    let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("PAYOFF.DA_")))
+    let model = try WinQSBDecisionAnalysisParser.parseModelEnvelope(from: expanded)
+    let native = NativeEducationalDecisionAnalysisBackend()
+    let validateOnly = ValidateOnlyDecisionAnalysisBackend()
+
+    #expect(native.capabilities.solves)
+    #expect(native.runMetadata(for: model).algorithm == "expectedValueOfInformation")
+    #expect(native.runMetadata(for: model).exactness == .exact)
+    #expect(validateOnly.validationReport(for: model).isValid)
+    #expect(DecisionAnalysisBackends.backend(for: .externalHighPerformance) == nil)
+
+    let invalid = DecisionAnalysisModelEnvelope.bayesian(BayesianAnalysisProblem(
+        title: "Invalid",
+        states: ["A", "B"],
+        priorProbabilities: [0.8, 0.8],
+        outcomes: ["Yes"],
+        likelihoods: [[0.5, 0.5]]
+    ))
+    let report = validateOnly.validationReport(for: invalid)
+    #expect(!report.isValid)
+    #expect(report.diagnostics.contains { $0.code == "decisionAnalysis.priors.sum" })
+    #expect(report.diagnostics.contains { $0.code == "decisionAnalysis.bayesian.likelihoods.sum" })
+
+    do {
+        _ = try validateOnly.solve(model)
+        Issue.record("validateOnly unexpectedly solved a decision-analysis model")
+    } catch {
+        #expect(String(describing: error).contains("validateOnly"))
+    }
 }
 
 @Test func parsesAndSolvesWinQSBMM1QueueFixture() throws {
@@ -1711,6 +2819,58 @@ private func legacyReferenceURL() -> URL {
     #expect(abs(solution.totalCost - 29) < 1e-8)
     #expect(solutionText.contains("\"kind\" : \"SPP\""))
     #expect(solutionText.contains("\"totalCost\" : 29"))
+}
+
+@Test func routesAllNetworkModelsThroughNamedBackends() throws {
+    let fixtures = ["NETFLOW.NE_", "SHTPATH.NE_", "SPANTREE.NE_", "MAXFLOW.NE_", "TSP.NE_", "ASSIMENT.NE_", "TRNSPORT.NE_"]
+    let expectedAlgorithms = ["continuousLinearProgramming", "dijkstra", "kruskal", "edmondsKarp", "heldKarpDynamicProgramming", "hungarianRectangular", "continuousLinearProgramming"]
+    let native = NativeEducationalNetworkBackend()
+    let validateOnly = ValidateOnlyNetworkBackend()
+
+    for (fixture, algorithm) in zip(fixtures, expectedAlgorithms) {
+        let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(fixture)))
+        let model = try WinQSBNetworkParser.parseModelEnvelope(from: expanded)
+        #expect(validateOnly.validationReport(for: model).isValid)
+        #expect(native.runMetadata(for: model).algorithm == algorithm)
+        let solution = try native.solve(model)
+        #expect(solution.kind == model.kind)
+        let document = native.solutionDocument(for: model, solution: solution)
+        let encoded = try NetworkModelJSON.encodeSolutionDocument(document)
+        #expect(try NetworkModelJSON.decodeSolutionDocument(from: encoded) == document)
+    }
+
+    #expect(native.runMetadata(for: try WinQSBNetworkParser.parseModelEnvelope(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("TSP.NE_"))))).exactness == .fixtureScale)
+    #expect(NetworkBackends.backend(for: .externalHighPerformance) == nil)
+}
+
+@Test func validatesNetworkModelsWithStructuredDiagnostics() throws {
+    let invalidGraph = NetworkModelEnvelope.shortestPath(ShortestPathNetwork(
+        title: "Invalid",
+        nodes: ["A", "A"],
+        arcs: [NetworkArc(from: "A", to: "B", cost: -1)]
+    ))
+    let graphReport = ValidateOnlyNetworkBackend().validationReport(for: invalidGraph)
+    #expect(!graphReport.isValid)
+    #expect(graphReport.diagnostics.contains { $0.code == "network.SPP.nodes.duplicate" })
+    #expect(graphReport.diagnostics.contains { $0.code == "network.SPP.arc.endpoint" })
+    #expect(graphReport.diagnostics.contains { $0.code == "network.SPP.arc.value" })
+
+    let invalidAssignment = NetworkModelEnvelope.assignment(AssignmentProblem(
+        title: "Invalid",
+        workers: ["W1", "W2"],
+        tasks: ["T1"],
+        costs: [[1], [2]]
+    ))
+    let assignmentReport = ValidateOnlyNetworkBackend().validationReport(for: invalidAssignment)
+    #expect(!assignmentReport.isValid)
+    #expect(assignmentReport.diagnostics.contains { $0.code == "network.AP.tasks.insufficient" })
+
+    do {
+        _ = try ValidateOnlyNetworkBackend().solve(invalidGraph)
+        Issue.record("validateOnly unexpectedly solved a network model")
+    } catch {
+        #expect(String(describing: error).contains("validateOnly"))
+    }
 }
 
 @Test func parsesAndSolvesWinQSBNormalModelFixture() throws {

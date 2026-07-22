@@ -477,10 +477,14 @@ private struct NetworkDiagramData {
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             let radiusX = max(80, size.width / 2 - inset)
             let radiusY = max(80, size.height / 2 - inset - 12)
-            return Dictionary(uniqueKeysWithValues: nodes.enumerated().map { index, node in
+            var result: [String: CGPoint] = [:]
+            for (index, node) in nodes.enumerated() {
                 let angle = -Double.pi / 2 + 2 * Double.pi * Double(index) / Double(nodes.count)
-                return (node.id, CGPoint(x: center.x + cos(angle) * radiusX, y: center.y + sin(angle) * radiusY))
-            })
+                let x = center.x + cos(angle) * radiusX
+                let y = center.y + sin(angle) * radiusY
+                result[node.id] = CGPoint(x: x, y: y)
+            }
+            return result
         case .bipartite(let left, let right):
             var result: [String: CGPoint] = [:]
             for (index, node) in left.enumerated() {

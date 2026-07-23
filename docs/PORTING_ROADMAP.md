@@ -194,7 +194,9 @@ public protocol ModelSolver {
 }
 ```
 
-This exact API does not need to be adopted verbatim, but Codex should preserve the architectural intent:
+This exact API does not need to be adopted verbatim. Contributors may use
+whatever languages, libraries, tools, or development environments best fit the
+integration, provided that the architectural intent is preserved:
 
 - solver choice is explicit;
 - validation is separated from solving;
@@ -272,7 +274,8 @@ Implemented:
 - `qsb` command-line executable;
 - `QSBMacApp` SwiftUI shell;
 - project-local `script/build_and_run.sh`;
-- Codex Run action for staging and launching the SwiftPM GUI as an `.app` bundle;
+- a repeatable developer or CI action for staging and launching the SwiftPM GUI
+  as an `.app` bundle;
 - normalized LP/ILP, network, facilities, inventory, and dynamic-programming
   JSON detection in the macOS shell;
 - facilities solve/validate support in `QSBMacApp` through the same named

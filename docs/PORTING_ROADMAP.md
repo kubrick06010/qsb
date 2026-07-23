@@ -1422,11 +1422,11 @@ swift run qsb solve-facilities-json <exported facilities JSON> --backend native 
 # source = pairwiseSwapLocalSearch
 ```
 
-## Immediate Codex Task List
+## Immediate Contributor Task List
 
-Recommended next tasks for Codex, in order:
+Recommended next tasks for contributors, in order:
 
-1. Read `goal.md` and this roadmap before modifying code.
+1. Read this roadmap and the relevant project documentation before modifying code.
 2. Run `swift test` to establish baseline.
 3. Inspect current solver organization in `QSBCore`.
 4. Keep extending backend metadata beyond LP/ILP and scheduling where it clarifies solver behavior.
@@ -1436,7 +1436,7 @@ Recommended next tasks for Codex, in order:
 8. Continue facilities/workflow fixture discovery beyond the current layout baseline.
 9. For each new facilities/layout fixture, implement classification, parsing, validation, JSON export, and only then solving.
 10. Keep the macOS GUI compiling, but do not let GUI refactors block core/CLI progress.
-11. Update `goal.md` and this roadmap after each meaningful milestone.
+11. Update the relevant project documentation and this roadmap after each meaningful milestone.
 
 ## Suggested Commit Boundaries
 

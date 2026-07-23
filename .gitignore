@@ -5,7 +5,7 @@
 .build/
 .swift-home/
 
-# Codex local workspace configuration
+# Local workspace configuration
 .codex/
 
 # Local build outputs

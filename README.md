@@ -41,3 +41,11 @@ swift run qsb
 
 The CLI exposes import, validation, solving, inventory, and JSON export
 workflows for supported model families.
+
+## Roadmap and Contributions
+
+QSB is an open project and welcomes developers who want to help extend it.
+Please review the [porting roadmap](docs/PORTING_ROADMAP.md) and contribute
+new model families, solver capabilities, macOS workflows, tests, and
+documentation as the project continues to grow. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for the clean-room rules and development workflow.

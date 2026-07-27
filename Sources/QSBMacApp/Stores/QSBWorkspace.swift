@@ -845,6 +845,33 @@ final class QSBWorkspace {
         try? ForecastingModelJSON.decodeSolutionDocument(from: Data(solutionJSON.utf8))
     }
 
+    var inventorySolution: InventorySolutionDocument? {
+        try? InventoryModelJSON.decodeSolutionDocument(from: Data(solutionJSON.utf8))
+    }
+
+    var dynamicProgrammingSolution: DynamicProgrammingSolutionDocument? {
+        try? DynamicProgrammingModelJSON.decodeSolutionDocument(
+            from: Data(solutionJSON.utf8)
+        )
+    }
+
+    var facilityLayoutPresentation: FacilityLayoutPresentation? {
+        guard
+            let document = try? FacilitiesModelJSON.decodeSolutionDocument(
+                from: Data(solutionJSON.utf8)
+            ),
+            case .layout = document.solution,
+            let model = try? FacilitiesModelJSON.decodeUncheckedModel(
+                from: Data(modelJSON.utf8)
+            ),
+            case .layout(let problem) = model
+        else {
+            return nil
+        }
+
+        return FacilityLayoutPresentation(document: document, problem: problem)
+    }
+
     var modelDocument: JSONTextDocument {
         JSONTextDocument(text: modelJSON)
     }

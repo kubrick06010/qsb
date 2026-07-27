@@ -52,6 +52,33 @@ struct SolutionView: View {
                 case .json:
                     solutionEditor
                 }
+            } else if let inventorySolution = workspace.inventorySolution {
+                presentationPicker(visualLabel: "Analysis", systemImage: "chart.bar.xaxis")
+
+                switch presentation {
+                case .visual:
+                    InventorySolutionView(document: inventorySolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let dynamicProgrammingSolution = workspace.dynamicProgrammingSolution {
+                presentationPicker(visualLabel: "Stages", systemImage: "tablecells")
+
+                switch presentation {
+                case .visual:
+                    DynamicProgrammingSolutionView(document: dynamicProgrammingSolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let facilityLayout = workspace.facilityLayoutPresentation {
+                presentationPicker(visualLabel: "Layout", systemImage: "square.grid.3x3")
+
+                switch presentation {
+                case .visual:
+                    FacilityLayoutSolutionView(presentation: facilityLayout)
+                case .json:
+                    solutionEditor
+                }
             } else {
                 solutionEditor
             }

@@ -502,6 +502,10 @@ public enum FacilitiesModelJSON {
         try encoder.encode(document)
     }
 
+    public static func decodeSolutionDocument(from data: Data) throws -> FacilitiesSolutionDocument {
+        try decoder.decode(FacilitiesSolutionDocument.self, from: data)
+    }
+
     public static func validationDocument(
         for envelope: FacilitiesModelEnvelope,
         backend: SolverBackendKind = .validateOnly

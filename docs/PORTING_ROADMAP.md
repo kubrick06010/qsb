@@ -432,11 +432,15 @@ Implemented:
 - normalized discriminated model and solution envelopes with backend metadata,
   assumptions, typed solutions, and validation documents through
   `export-inventory-json`, `solve-inventory-json`, and
-  `validate-inventory-json`.
+  `validate-inventory-json`;
+- a native responsive macOS analysis for all five normalized solution kinds,
+  including EOQ and stochastic cost components, quantity-discount candidates,
+  newsboy demand outcomes, lot-sizing production/inventory series, stacked
+  period costs, decision tables, backend context, accessibility values, and
+  Analysis/JSON switching.
 
 Recommended next:
 
-- add richer family-specific inventory presentation beyond normalized JSON;
 - add empirical or non-normal lead-time demand through a future external backend;
 - add simulation-based validation of service levels and shortage costs.
 
@@ -454,7 +458,11 @@ Implemented:
 - normalized discriminated model/solution JSON through `export-dp-json`,
   `solve-dp-json`, and `validate-dp-json`;
 - educational policy traces standardized around stages, states, actions,
-  transitions, and values for all three supported variants.
+  transitions, and values for all three supported variants;
+- a native responsive macOS Stages presentation for all three solution kinds,
+  including selection returns, Stagecoach route and arc costs,
+  production/inventory series and tables, the common policy trace, backend
+  context, accessibility values, and Stages/JSON switching.
 
 Recommended next:
 
@@ -926,6 +934,18 @@ Implemented in the current shell:
   fitted/predicted, forecast, and signed residual series, method parameters and
   fit metrics, visibility/scale controls, accessibility values, backend
   context, and Chart/JSON switching.
+- a native responsive facilities-layout view over the typed model and solution
+  documents, with grid/department rendering, fixed-area treatment, optional
+  highest-impact flow overlays, scale controls, department/move/flow details,
+  search improvement context, accessibility values, and Layout/JSON switching.
+- a native responsive inventory analysis across EOQ, quantity discounts,
+  newsboy, lot sizing, and stochastic review documents, with cost breakdowns,
+  outcome and policy metrics, production/inventory charts, period tables,
+  backend context, accessibility values, and Analysis/JSON switching.
+- a native responsive dynamic-programming view across bounded knapsack,
+  Stagecoach, and production/inventory documents, with variant result charts,
+  result tables, the common stage/state/action/transition/value policy trace,
+  backend context, accessibility values, and Stages/JSON switching.
 
 Goals:
 
@@ -948,17 +968,16 @@ GUI milestones:
    - LP tables;
    - network paths/flows/tours: implemented;
    - forecasting charts: implemented;
-   - inventory cost breakdowns;
-   - DP stage tables;
+   - inventory cost breakdowns: implemented;
+   - DP stage tables: implemented;
    - decision trees;
    - queue metrics;
    - scheduling Gantt charts: implemented;
-   - facilities layouts.
+   - facilities layouts: implemented.
 
 Next priority:
 
-- add inventory cost-breakdown and facilities-layout views from the existing
-  typed solution documents;
+- add decision-tree inspection from the existing typed solution documents;
 - retain the JSON solution view as a fallback and keep all transformations in
   QSBCore or thin presentation adapters.
 

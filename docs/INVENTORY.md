@@ -205,3 +205,21 @@ Validation documents contain the kind, `validateOnly` backend, `isValid`, and
 structured diagnostics. The same envelope works for all eight legacy fixtures,
 so future CLI and GUI routing does not need to infer a type from arbitrary JSON
 fields.
+
+## macOS Workbench
+
+`QSBMacApp` decodes the same `InventorySolutionDocument` emitted by
+`InventoryBackend` and presents all five normalized solution kinds natively:
+
+- EOQ cost components and supplied-quantity comparisons;
+- quantity-discount candidates and the selected tier's cost breakdown;
+- newsboy demand outcomes, service level, expected profit, and known-quantity
+  comparison;
+- lot-sizing demand, production, ending inventory/backlog, stacked period costs,
+  and the complete decision table;
+- stochastic policy levels, safety/service metrics, and expected ordering,
+  review, holding, shortage, acquisition, relevant, and total costs.
+
+The view adds no inventory formulas. It maps existing typed solution fields to
+Charts and native tables, keeps backend exactness and assumptions visible, and
+retains the normalized document through the Analysis/JSON selector.

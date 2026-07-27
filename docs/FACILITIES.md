@@ -194,3 +194,18 @@ initial evaluation produces objective `88`, while pairwise-swap local search
 produces objective `52` with improvement `36`. The Validate backend emits a
 `FacilitiesValidationDocument` instead of solving. Model and result JSON remain
 importable/exportable through the existing document controls.
+
+Layout solution documents also open in a native responsive facility view. The
+canvas renders the normalized grid and department rectangles, distinguishes
+fixed departments, optionally overlays the highest-impact flows, and supports
+independent grid visibility and scale controls. A segmented detail inspector
+lists department centroids and areas, applied pairwise swaps, or the full
+load-distance interaction breakdown. Initial and improved solutions use the
+same presentation, with backend exactness, search counts, and objective
+improvement kept visible. The Layout/JSON selector preserves the normalized
+solution document as the universal fallback.
+
+`FacilitiesModelJSON.decodeSolutionDocument` is the shared typed decoder used by
+the workbench. SwiftUI combines that document with the currently loaded
+`FacilityLayoutProblem` only for title and grid dimensions; all placements,
+flows, moves, centroids, and objective values come from the QSBCore solution.

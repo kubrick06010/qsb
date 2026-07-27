@@ -105,3 +105,19 @@ February: begin 1, produce 4, demand 5, end 0, cost 1730
 March: begin 0, produce 3, demand 3, end 0, cost 1250
 April: begin 0, produce 4, demand 4, end 0, cost 2000
 ```
+
+## macOS Workbench
+
+`QSBMacApp` decodes the same `DynamicProgrammingSolutionDocument` emitted by
+the backend and presents each supported result natively:
+
+- bounded knapsack selection return bars and quantity/capacity table;
+- Stagecoach route sequence and local arc-cost chart;
+- production/inventory demand, production, ending-inventory series, and period
+  table;
+- the common policy trace with stage, state, action, next state, and local
+  value for every variant.
+
+The view does not recompute policies or parse trace strings. It renders the
+typed result and trace supplied by `QSBCore`, keeps exactness and assumptions
+visible, and retains the normalized solution through the Stages/JSON selector.

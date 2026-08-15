@@ -1,0 +1,23 @@
+{
+  "title": "ILP Sample Problem",
+  "sense": "minimize",
+  "variableNames": ["X1", "X2"],
+  "objectiveCoefficients": [2.5, 2],
+  "constraints": [
+    {
+      "name": "C1",
+      "coefficients": [6, 3],
+      "relation": ">=",
+      "rhs": 200
+    },
+    {
+      "name": "C2",
+      "coefficients": [3, 5],
+      "relation": ">=",
+      "rhs": 180
+    }
+  ],
+  "lowerBounds": [0, 0],
+  "upperBounds": [null, null],
+  "variableTypes": ["integer", "integer"]
+}

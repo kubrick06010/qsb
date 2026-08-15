@@ -1,0 +1,59 @@
+\chapter{Programacion entera}
+
+\section{Motivacion}
+La programacion entera extiende la programacion lineal al exigir que algunas o
+todas las variables adopten valores enteros. Esta restriccion permite modelar
+decisiones indivisibles como abrir instalaciones, seleccionar proyectos,
+asignar turnos o producir lotes discretos \cite{nemhauser1988integer,wolsey1998integer}.
+
+\section{Modelo general}
+Un problema mixto entero lineal puede escribirse como
+\[
+  \min \; c^\top x + d^\top y
+  \quad \text{sujeto a} \quad
+  Ax + By \geq b,\;
+  x \in \R_+^n,\;
+  y \in \Z_+^p.
+\]
+La dificultad computacional crece porque la region factible deja de ser
+convexa en el sentido continuo: la relajacion lineal puede proponer soluciones
+fraccionarias que no son implementables.
+
+\section{Ejemplo QSB: requerimientos minimos discretos}
+El ejemplo \texttt{manual/examples/ilp\_sample.json} minimiza el costo de dos
+actividades enteras:
+\[
+\begin{aligned}
+  \min \quad & 2.5X_1 + 2X_2 \\
+  \text{s.a.}\quad & 6X_1 + 3X_2 \geq 200,\\
+  & 3X_1 + 5X_2 \geq 180,\\
+  & X_1, X_2 \in \Z_+.
+\end{aligned}
+\]
+
+Comando reproducible:
+\begin{lstlisting}
+swift run qsb solve-json-ilp manual/examples/ilp_sample.json
+\end{lstlisting}
+
+\begin{table}[h]
+\centering
+\caption{Solucion del ejemplo de programacion entera}
+\begin{tabular}{lr}
+\toprule
+Cantidad & Valor \\
+\midrule
+\(X_1\) & 22 \\
+\(X_2\) & 23 \\
+Valor objetivo & 101 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Notas de verificacion}
+La solucion satisface las restricciones:
+\[
+6(22)+3(23)=201 \geq 200,\qquad 3(22)+5(23)=181 \geq 180.
+\]
+La cercania de ambas restricciones a sus requerimientos muestra el equilibrio
+tipico entre costo minimo e integridad de las decisiones.

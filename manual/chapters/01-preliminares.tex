@@ -1,0 +1,31 @@
+\chapter{Preliminares metodologicos}
+
+\section{Objeto del manual}
+La investigacion de operaciones estudia la construccion, analisis y solucion de
+modelos cuantitativos para apoyar decisiones bajo restricciones. Este manual
+adopta una perspectiva doble: presenta los fundamentos clasicos del campo y
+muestra como convertirlos en modelos ejecutables con \qsb.
+
+\section{Ciclo de modelacion}
+Un estudio riguroso debe registrar, como minimo:
+\begin{enumerate}
+  \item el sistema real y la decision que se desea apoyar;
+  \item las variables de decision, parametros y unidades;
+  \item los supuestos que vuelven tratable el modelo;
+  \item la funcion objetivo y las restricciones;
+  \item el procedimiento de solucion;
+  \item la interpretacion, validacion y sensibilidad del resultado.
+\end{enumerate}
+
+\section{Trazabilidad computacional en QSB}
+Los ejemplos del manual usaran archivos de entrada en
+\texttt{manual/examples/} y salidas obtenidas con comandos de \qsb. Cuando un
+ejemplo provenga de datos
+externos, debera documentarse su fuente, licencia, fecha de extraccion,
+transformaciones y unidad de analisis.
+
+\begin{observacion}
+Un resultado computacional no sustituye la interpretacion. El solucionador
+produce valores optimos bajo los supuestos codificados; el analista debe decidir
+si esos supuestos son defendibles para el sistema real.
+\end{observacion}

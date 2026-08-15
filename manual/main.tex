@@ -1,0 +1,114 @@
+\documentclass[11pt,openany]{book}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{makeidx}
+\usepackage{microtype}
+\usepackage{url}
+
+\geometry{letterpaper,margin=2.7cm}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue,
+  pdftitle={Manual academico de investigacion de operaciones con QSB},
+  pdfauthor={Proyecto QSB}
+}
+
+\makeindex
+
+\theoremstyle{definition}
+\newtheorem{definicion}{Definicion}[chapter]
+\newtheorem{ejemplo}{Ejemplo}[chapter]
+\newtheorem{observacion}{Observacion}[chapter]
+
+\newcommand{\qsb}{\textsc{QSB}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+
+\lstdefinestyle{qsbjson}{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  showstringspaces=false
+}
+\lstset{style=qsbjson}
+
+\begin{document}
+
+\frontmatter
+
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\Huge\bfseries Manual academico de investigacion de operaciones con \qsb\par}
+  \vspace{1.5cm}
+  {\Large Guia de estudio, modelacion y experimentacion computacional\par}
+  \vspace{2cm}
+  {\large Proyecto QSB\par}
+  \vspace{0.4cm}
+  {\large Editores: comunidad academica y de desarrollo de QSB\par}
+  \vfill
+  {\large Version viva de trabajo\par}
+  {\large \today\par}
+\end{titlepage}
+
+\chapter*{Nota editorial}
+\addcontentsline{toc}{chapter}{Nota editorial}
+Este manual esta concebido como una publicacion academica progresiva: debe
+combinar teoria establecida de investigacion de operaciones con modelos
+reproducibles en \qsb. Cada capitulo debera distinguir con claridad entre
+definiciones, supuestos, formulacion matematica, interpretacion gerencial,
+procedimiento computacional, resultados y limitaciones.
+
+La version inicial fija la arquitectura editorial, los estandares de citacion y
+dos ejemplos basicos de programacion lineal y entera obtenidos mediante \qsb.
+Las ampliaciones futuras deberian incorporar nuevos casos reales, datos de
+entrada versionados, salidas verificadas y notas sobre la trazabilidad de cada
+resultado.
+
+\chapter*{Autores y contribuciones}
+\addcontentsline{toc}{chapter}{Autores y contribuciones}
+\begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
+\toprule
+Rol & Responsabilidad editorial \\
+\midrule
+Proyecto QSB & Desarrollo del software, formatos normalizados y ejemplos
+computacionales reproducibles. \\
+Autores academicos & Curaduria teorica, demostraciones, ejercicios,
+terminologia y referencias. \\
+Revisores & Verificacion matematica, reproducibilidad y consistencia
+pedagogica. \\
+\bottomrule
+\end{longtable}
+
+\tableofcontents
+\listoftables
+
+\mainmatter
+
+\include{chapters/01-preliminares}
+\include{chapters/02-programacion-lineal}
+\include{chapters/03-programacion-entera}
+\include{chapters/04-modelos-de-redes}
+\include{chapters/05-inventarios}
+\include{chapters/06-colas}
+\include{chapters/07-pronosticos}
+\include{chapters/08-calendarizacion}
+\include{chapters/09-referencia-terminos}
+
+\backmatter
+\bibliographystyle{apalike}
+\bibliography{references}
+\printindex
+
+\end{document}

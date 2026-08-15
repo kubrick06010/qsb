@@ -1,0 +1,28 @@
+\chapter{Modelos de redes}
+
+\section{Estructura comun}
+Un modelo de redes representa entidades como nodos y relaciones como arcos. Esta
+abstraccion cubre rutas mas cortas, arboles de expansion minima, flujo maximo,
+transporte, asignacion y vendedor viajero \cite{ahuja1993network}.
+
+\section{Familias contempladas en QSB}
+El formato normalizado de \qsb{} usa un sobre JSON con un campo
+\texttt{kind} y un objeto \texttt{model}. Las familias documentadas actualmente
+incluyen:
+\begin{longtable}{ll}
+\toprule
+Codigo & Familia \\
+\midrule
+SPP & Ruta mas corta \\
+MST & Arbol de expansion minima \\
+MFP & Flujo maximo \\
+TSP & Vendedor viajero \\
+AP & Asignacion \\
+TP & Transporte \\
+\bottomrule
+\end{longtable}
+
+\section{Criterio editorial para nuevos casos}
+Cada caso de red debera incluir diagrama, matriz o lista de arcos, formulacion
+matematica, archivo JSON de entrada, comando de solucion y verificacion manual
+del costo, flujo o asignacion resultante.

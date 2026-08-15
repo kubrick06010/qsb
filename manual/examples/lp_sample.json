@@ -1,0 +1,23 @@
+{
+  "title": "LP Sample Problem",
+  "sense": "maximize",
+  "variableNames": ["X1", "X2"],
+  "objectiveCoefficients": [50, 60],
+  "constraints": [
+    {
+      "name": "C1",
+      "coefficients": [2, 3],
+      "relation": "<=",
+      "rhs": 180
+    },
+    {
+      "name": "C2",
+      "coefficients": [3, 2],
+      "relation": "<=",
+      "rhs": 150
+    }
+  ],
+  "lowerBounds": [0, 0],
+  "upperBounds": [null, null],
+  "variableTypes": ["continuous", "continuous"]
+}

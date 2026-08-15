@@ -1,0 +1,59 @@
+\chapter{Programacion lineal}
+
+\section{Modelo canonico}
+Un problema de programacion lineal (PL) optimiza una funcion lineal sobre una
+region factible descrita por igualdades o desigualdades lineales
+\cite{dantzig1963linear,bertsimas1997introduction}.
+
+\begin{definicion}
+Sea \(x \in \R^n\) el vector de variables de decision, \(c \in \R^n\), \(A \in
+\R^{m \times n}\) y \(b \in \R^m\). Una forma estandar de maximizacion es
+\[
+  \max \; c^\top x
+  \quad \text{sujeto a} \quad
+  Ax \leq b,\; x \geq 0.
+\]
+\end{definicion}
+
+\section{Ejemplo QSB: mezcla de produccion}
+Considere dos productos \(X_1\) y \(X_2\). Cada unidad de \(X_1\) aporta 50
+unidades monetarias y cada unidad de \(X_2\) aporta 60. Dos recursos limitan la
+produccion:
+\[
+\begin{aligned}
+  \max \quad & 50X_1 + 60X_2 \\
+  \text{s.a.}\quad & 2X_1 + 3X_2 \leq 180,\\
+  & 3X_1 + 2X_2 \leq 150,\\
+  & X_1, X_2 \geq 0.
+\end{aligned}
+\]
+
+El archivo normalizado usado por \qsb{} esta en
+\texttt{manual/examples/lp\_sample.json}. La solucion fue obtenida con:
+
+\begin{lstlisting}
+swift run qsb solve-json manual/examples/lp_sample.json
+\end{lstlisting}
+
+\begin{table}[h]
+\centering
+\caption{Solucion del ejemplo de programacion lineal}
+\begin{tabular}{lr}
+\toprule
+Cantidad & Valor \\
+\midrule
+\(X_1\) & 18 \\
+\(X_2\) & 48 \\
+Valor objetivo & 3780 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Interpretacion}
+La solucion usa completamente ambos recursos:
+\[
+2(18)+3(48)=180,\qquad 3(18)+2(48)=150.
+\]
+Por tanto, las dos restricciones son activas. En una version ampliada del
+manual, este ejemplo deberia complementarse con precios sombra, rangos de
+sensibilidad y una explicacion geometrica de los vertices factibles.

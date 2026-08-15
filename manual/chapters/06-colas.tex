@@ -1,0 +1,22 @@
+\chapter{Modelos de colas}
+
+\section{Proposito}
+La teoria de colas estudia sistemas donde clientes, trabajos o unidades esperan
+servicio ante capacidad limitada. Sus metricas centrales incluyen utilizacion,
+longitud esperada de cola, tiempo esperado en el sistema y probabilidad de
+bloqueo \cite{gross2008fundamentals}.
+
+\section{Modelo M/M/1}
+Para llegadas Poisson con tasa \(\lambda\), tiempos de servicio exponenciales
+con tasa \(\mu\) y un servidor, si \(\rho=\lambda/\mu<1\), entonces
+\[
+  L = \frac{\rho}{1-\rho}, \qquad
+  L_q = \frac{\rho^2}{1-\rho}, \qquad
+  W = \frac{1}{\mu-\lambda}, \qquad
+  W_q = \frac{\lambda}{\mu(\mu-\lambda)}.
+\]
+
+\section{Criterio de documentacion}
+Los ejemplos de colas en \qsb{} deberan registrar la notacion Kendall, la unidad
+de tiempo, las distribuciones asumidas, la tasa efectiva de llegada y las notas
+del backend cuando se use una aproximacion.

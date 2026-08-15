@@ -4,7 +4,6 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Bindable var workspace: QSBWorkspace
-    @State private var isShowingLPEntryMock = false
     @State private var isShowingInspector = false
 
     var body: some View {
@@ -42,9 +41,6 @@ struct ContentView: View {
                         workspace.loadSample(.integerProgram)
                     }
                     Divider()
-                    Button("LP Entry Mock") {
-                        isShowingLPEntryMock = true
-                    }
                     Button("TSP Network Sample") {
                         workspace.loadSample(.travelingSalesperson)
                     }
@@ -95,7 +91,7 @@ struct ContentView: View {
                 }
 
                 Button {
-                    workspace.showNewModelPlaceholder()
+                    workspace.startNewLinearProgram()
                 } label: {
                     Label("New", systemImage: "plus")
                 }
@@ -108,7 +104,7 @@ struct ContentView: View {
                 .disabled(!workspace.hasModel || workspace.modelState == .validating)
 
                 Button {
-                    workspace.solveCurrentModel()
+                    workspace.runCurrentModel()
                 } label: {
                     Label("Solve", systemImage: "play.circle")
                 }
@@ -165,9 +161,6 @@ struct ContentView: View {
         }
         .safeAreaInset(edge: .bottom) {
             StatusBar(workspace: workspace)
-        }
-        .sheet(isPresented: $isShowingLPEntryMock) {
-            LinearProgrammingEntryMockView()
         }
     }
 }

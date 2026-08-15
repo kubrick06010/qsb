@@ -4,22 +4,26 @@ struct ModelEditorView: View {
     @Bindable var workspace: QSBWorkspace
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HeaderView(
-                title: workspace.modelTitle,
-                subtitle: "Model JSON · \(workspace.modelState.rawValue)"
-            )
+        if workspace.isLinearProgrammingModel {
+            LinearProgrammingEditorView(workspace: workspace)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                HeaderView(
+                    title: workspace.modelTitle,
+                    subtitle: "Model JSON · \(workspace.modelState.rawValue)"
+                )
 
-            if workspace.hasModel {
-                TextEditor(text: $workspace.modelJSON)
-                    .font(.system(.body, design: .monospaced))
-                    .scrollContentBackground(.hidden)
-                    .padding(12)
-                    .accessibilityLabel("Normalized model JSON definition")
-            } else {
-                EmptyWorkspaceView(workspace: workspace)
+                if workspace.hasModel {
+                    TextEditor(text: $workspace.modelJSON)
+                        .font(.system(.body, design: .monospaced))
+                        .scrollContentBackground(.hidden)
+                        .padding(12)
+                        .accessibilityLabel("Normalized model JSON definition")
+                } else {
+                    EmptyWorkspaceView(workspace: workspace)
+                }
             }
+            .navigationTitle("Model")
         }
-        .navigationTitle("Model")
     }
 }

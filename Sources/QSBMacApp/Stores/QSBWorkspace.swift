@@ -19,6 +19,7 @@ final class QSBWorkspace {
             lastErrorMessage = nil
         }
     }
+    var lpDraft: LinearProgrammingDraft?
     var solutionJSON: String = ""
     var validationJSON: String = ""
     var validationDiagnostics: [ValidationDiagnostic] = []
@@ -38,12 +39,60 @@ final class QSBWorkspace {
     init(modelJSON: String = "") {
         self.modelJSON = modelJSON
         self.modelState = modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .empty : .editing
+        if let program = try? LinearProgramJSON.decodeProgram(from: Data(modelJSON.utf8)) {
+            self.lpDraft = LinearProgrammingDraft(program: program)
+        } else {
+            self.lpDraft = nil
+        }
     }
 
-    func showNewModelPlaceholder() {
-        status = "New Model is planned for a future native editor phase"
+    func startNewLinearProgram() {
+        lpDraft = .blank()
+        modelJSON = ""
+        modelSource = "New · Linear Programming"
+        modelState = .editing
+        runState = .notRun
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
         lastErrorMessage = nil
-        selectedPane = .overview
+        lastResultLabel = nil
+        status = "Editing a new linear program"
+        selectedPane = .model
+    }
+
+    func updateLPDraft(_ update: (inout LinearProgrammingDraft) -> Void) {
+        guard var draft = lpDraft else { return }
+        update(&draft)
+        lpDraft = draft
+        modelState = .editing
+        runState = .notRun
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        lastResultLabel = nil
+        lastErrorMessage = nil
+        status = "Editing linear program"
+    }
+
+    func applyModelJSONToNativeEditor() {
+        do {
+            let program = try LinearProgramJSON.decodeProgram(from: Data(modelJSON.utf8))
+            lpDraft = LinearProgrammingDraft(program: program)
+            modelSource = "Normalized JSON · Linear Programming"
+            modelState = .editing
+            runState = .notRun
+            solutionJSON = ""
+            validationJSON = ""
+            validationDiagnostics = []
+            lastErrorMessage = nil
+            status = "JSON applied to the LP editor"
+            selectedPane = .model
+        } catch {
+            lastErrorMessage = Self.message(for: error)
+            status = "JSON was not applied: \(lastErrorMessage ?? "Invalid JSON")"
+            selectedPane = .json
+        }
     }
 
     func beginSolving() {
@@ -65,8 +114,8 @@ final class QSBWorkspace {
     func solve(_ mode: SolveMode) {
         beginSolving()
         do {
-            let modelData = Data(modelJSON.utf8)
-            let program = try LinearProgramJSON.decodeProgram(from: modelData)
+            let program = try currentLPProgram()
+            try syncLPDraftToJSON(program)
             guard let solver = LinearProgrammingBackends.backend(for: selectedBackend) else {
                 showUnavailableExternalBackend()
                 return
@@ -450,7 +499,11 @@ final class QSBWorkspace {
 
     func runCurrentModel() {
         if isLinearProgrammingModel {
-            solve(.relaxation)
+            if let draft = lpDraft, draft.draftDiagnostics().contains(where: { $0.severity == .error }) {
+                validateCurrentModel()
+                return
+            }
+            solve(lpDraft?.variables.contains(where: { $0.type != .continuous }) == true ? .integer : .relaxation)
         } else {
             solveCurrentModel()
         }
@@ -462,7 +515,7 @@ final class QSBWorkspace {
             let data = Data(modelJSON.utf8)
             switch currentModelFamily {
             case .linearProgramming:
-                let program = try LinearProgramJSON.decodeProgram(from: data)
+                let program = try currentLPProgram()
                 try validate(program: program, source: "LP/ILP JSON")
             case .network:
                 let model = try NetworkModelJSON.decodeModel(from: data); let backend = ValidateOnlyNetworkBackend(); try showNetworkValidationReport(backend.validationReport(for: model), model: model)
@@ -507,13 +560,23 @@ final class QSBWorkspace {
             solutionJSON = ""
             modelState = .invalid
             runState = .notRun
-            lastErrorMessage = Self.message(for: error)
-            status = "Validation failed: \(Self.message(for: error))"
+            if let draft = lpDraft, error is LPDraftError {
+                validationDiagnostics = draft.draftDiagnostics()
+                validationJSON = (try? String(decoding: Self.jsonEncoder.encode(
+                    ValidationReport(backend: .validateOnly, diagnostics: validationDiagnostics)
+                ), as: UTF8.self)) ?? ""
+                lastErrorMessage = validationDiagnostics.first?.message
+                status = "LP draft has (validationDiagnostics.count) input issue(s)"
+            } else {
+                lastErrorMessage = Self.message(for: error)
+                status = "Validation failed: \(Self.message(for: error))"
+            }
             selectedPane = .validation
         }
     }
 
     func loadSample(_ sample: SampleModel) {
+        lpDraft = nil
         switch sample {
         case .linearProgram:
             modelJSON = SampleModels.linearProgramJSON
@@ -543,6 +606,12 @@ final class QSBWorkspace {
             modelJSON = SampleModels.markovJSON
         case .goalProgramming:
             modelJSON = SampleModels.goalProgrammingJSON
+        }
+        if case .linearProgram = sample, let program = try? LinearProgramJSON.decodeProgram(from: Data(modelJSON.utf8)) {
+            lpDraft = LinearProgrammingDraft(program: program)
+        }
+        if case .integerProgram = sample, let program = try? LinearProgramJSON.decodeProgram(from: Data(modelJSON.utf8)) {
+            lpDraft = LinearProgrammingDraft(program: program)
         }
         solutionJSON = ""
         validationJSON = ""
@@ -588,6 +657,11 @@ final class QSBWorkspace {
                 }
             }
             modelJSON = String(decoding: normalizedData, as: UTF8.self)
+            if let program = try? LinearProgramJSON.decodeProgram(from: normalizedData) {
+                lpDraft = LinearProgrammingDraft(program: program)
+            } else {
+                lpDraft = nil
+            }
             solutionJSON = ""
             validationJSON = ""
             validationDiagnostics = []
@@ -655,6 +729,18 @@ final class QSBWorkspace {
     private func validate(program: LinearProgram, source: String) throws {
         let report = ValidationReport(diagnostics: LinearProgramValidator.diagnostics(for: program))
         try showValidationReport(report, source: source)
+    }
+
+    private func currentLPProgram() throws -> LinearProgram {
+        if let lpDraft {
+            return try lpDraft.makeLinearProgram()
+        }
+        return try LinearProgramJSON.decodeProgram(from: Data(modelJSON.utf8))
+    }
+
+    private func syncLPDraftToJSON(_ program: LinearProgram) throws {
+        guard lpDraft != nil else { return }
+        modelJSON = String(decoding: try LinearProgramJSON.encodeProgram(program), as: UTF8.self)
     }
 
     private func validateExtendedModel(_ data: Data) throws {
@@ -846,6 +932,9 @@ final class QSBWorkspace {
     }
 
     var currentModelFamily: WorkspaceModelFamily {
+        if lpDraft != nil {
+            return .linearProgramming
+        }
         let data = Data(modelJSON.utf8)
         if (try? LinearProgramJSON.decodeProgram(from: data)) != nil {
             return .linearProgramming
@@ -886,7 +975,7 @@ final class QSBWorkspace {
     }
 
     var hasModel: Bool {
-        !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        lpDraft != nil || !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var hasSolution: Bool {
@@ -894,7 +983,10 @@ final class QSBWorkspace {
     }
 
     var modelTitle: String {
-        hasModel ? currentModelFamily.displayName : "No model open"
+        if let title = lpDraft?.title.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+            return title
+        }
+        return hasModel ? currentModelFamily.displayName : "No model open"
     }
 
     var validationSummary: String {
@@ -937,6 +1029,7 @@ final class QSBWorkspace {
     }
 
     var isLinearProgrammingModel: Bool {
+        if lpDraft != nil { return true }
         guard case .linearProgramming = currentModelFamily else {
             return false
         }
@@ -1000,6 +1093,14 @@ final class QSBWorkspace {
 
     var schedulingSolution: SchedulingSolutionDocument? {
         try? SchedulingModelJSON.decodeSolution(from: Data(solutionJSON.utf8))
+    }
+
+    var linearProgramSolution: LinearProgramSolution? {
+        try? JSONDecoder().decode(LinearProgramSolution.self, from: Data(solutionJSON.utf8))
+    }
+
+    var linearProgramForPresentation: LinearProgram? {
+        try? currentLPProgram()
     }
 
     var networkSolution: NetworkSolutionDocument? {

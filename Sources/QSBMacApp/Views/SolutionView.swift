@@ -25,6 +25,16 @@ struct SolutionView: View {
                     description: Text("Choose the matching solve action from the toolbar or Solve menu.")
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let linearProgramSolution = workspace.linearProgramSolution,
+                      let linearProgram = workspace.linearProgramForPresentation {
+                presentationPicker(visualLabel: "Details", systemImage: "tablecells")
+
+                switch presentation {
+                case .visual:
+                    LinearProgrammingSolutionView(program: linearProgram, solution: linearProgramSolution)
+                case .json:
+                    solutionEditor
+                }
             } else if let networkSolution = workspace.networkSolution {
                 presentationPicker(visualLabel: "Diagram", systemImage: "point.3.connected.trianglepath.dotted")
 

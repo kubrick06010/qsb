@@ -21,6 +21,18 @@ public struct LinearConstraint: Codable, Equatable, Sendable {
     public let coefficients: [Double]
     public let relation: ConstraintRelation
     public let rhs: Double
+
+    public init(
+        name: String,
+        coefficients: [Double],
+        relation: ConstraintRelation,
+        rhs: Double
+    ) {
+        self.name = name
+        self.coefficients = coefficients
+        self.relation = relation
+        self.rhs = rhs
+    }
 }
 
 public struct LinearProgram: Codable, Equatable, Sendable {
@@ -88,4 +100,3 @@ public enum LinearProgramSolveMode: String, Codable, Sendable {
     case continuous
     case integer
 }
-

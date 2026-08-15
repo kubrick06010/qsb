@@ -24,6 +24,7 @@ var targets: [Target] = [
 #if os(macOS)
 products.append(.executable(name: "QSBMacApp", targets: ["QSBMacApp"]))
 targets.append(.executableTarget(name: "QSBMacApp", dependencies: ["QSBCore"]))
+targets.append(.testTarget(name: "QSBMacAppTests", dependencies: ["QSBMacApp", "QSBCore"]))
 #endif
 
 let package = Package(

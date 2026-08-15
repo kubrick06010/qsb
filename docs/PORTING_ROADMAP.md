@@ -616,7 +616,15 @@ Done:
 - JSON import/export;
 - CLI commands;
 - validation;
-- GUI shell support for JSON editing and solving.
+- GUI shell support for JSON editing and solving;
+- native LP/ILP editor with typed draft conversion, bounds, unrestricted,
+  integer/binary variables, structural editing, and native solution summary.
+
+UI Phase 2 status:
+
+- LP/ILP native editor implemented in `QSBMacApp`;
+- normalized JSON schema and QSBCore solver behavior unchanged;
+- other family editors remain future work.
 
 Next refinement:
 

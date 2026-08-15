@@ -84,13 +84,15 @@ JSON. This is a good advanced/debugging surface and a weak default editor:
 - model identity and assumptions are hidden in JSON;
 - changes are not visibly classified as editing versus validated;
 - there is no dirty state or save/revert model;
-- there is no family-native editor except the preview-only LP Entry Mock.
+- the LP/ILP family now has a native typed editor; other families still use
+  JSON as their practical editing surface.
 
-The LP Entry Mock is a visual product prototype. It has controls for names,
-objective, dimensions, coefficients, relations, and RHS values, but its
-internal state is not converted to `LinearProgram` and its Create Model action
-does not create a model. It does not duplicate QSBCore behavior; it should
-remain explicitly preview-only until a real editor architecture is approved.
+The first production editor is the LP/ILP editor. It keeps an internal
+`LinearProgrammingDraft` only while the user is editing incomplete values, then
+converts through one boundary into `LinearProgram`. QSBCore owns semantic
+validation and solving. The old LP Entry Mock is no longer part of the product
+flow; its concerns were replaced by the native editor without exposing the
+simplex unrestricted-variable transformation.
 
 ### Validation
 
@@ -624,12 +626,15 @@ the inspector is closed. The design must support:
 
 ### UI Phase 2 — LP editor
 
-- turn the LP prototype into a real typed editor backed by existing QSBCore
-  model initializers;
+- Status: implemented for the initial LP/ILP scope.
+- use a typed draft backed by existing QSBCore model initializers;
 - support unrestricted, integer, binary, bounds, relations, and inline
   diagnostics;
-- validate through QSBCore and provide native/JSON tabs;
-- save/export normalized JSON without changing its schema.
+- validate through QSBCore and provide explicit JSON application;
+- run through the existing LP/ILP backends and export unchanged normalized
+  JSON.
+- Remaining refinement includes richer undo/redo, field focus routing, and
+  wider editor ergonomics for very large matrices.
 
 ### UI Phase 3 — Family editor expansion
 

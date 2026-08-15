@@ -855,6 +855,12 @@ final class QSBWorkspace {
         )
     }
 
+    var decisionAnalysisSolution: DecisionAnalysisSolutionDocument? {
+        try? DecisionAnalysisModelJSON.decodeSolutionDocument(
+            from: Data(solutionJSON.utf8)
+        )
+    }
+
     var facilityLayoutPresentation: FacilityLayoutPresentation? {
         guard
             let document = try? FacilitiesModelJSON.decodeSolutionDocument(

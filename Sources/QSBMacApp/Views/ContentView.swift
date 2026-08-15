@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Bindable var workspace: QSBWorkspace
+    @State private var isShowingLPEntryMock = false
 
     var body: some View {
         NavigationSplitView {
@@ -24,6 +25,10 @@ struct ContentView: View {
                     }
                     Button("ILP Sample") {
                         workspace.loadSample(.integerProgram)
+                    }
+                    Divider()
+                    Button("LP Entry Mock") {
+                        isShowingLPEntryMock = true
                     }
                     Button("TSP Network Sample") {
                         workspace.loadSample(.travelingSalesperson)
@@ -155,6 +160,9 @@ struct ContentView: View {
         }
         .safeAreaInset(edge: .bottom) {
             StatusBar(text: workspace.status)
+        }
+        .sheet(isPresented: $isShowingLPEntryMock) {
+            LinearProgrammingEntryMockView()
         }
     }
 }

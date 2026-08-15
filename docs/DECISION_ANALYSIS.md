@@ -173,3 +173,8 @@ variants, validates or solves through the selected backend, and emits these same
 solution and validation documents. Its Samples menu includes compact Payoff
 Analysis and Decision Tree models for exercising EVSI/EVPI and rollback/policy
 workflows.
+
+Decision-tree solution documents open in a native inspection view that shows the
+rollback value at every node, the recommended policy at decision nodes, chance
+probabilities, terminal payoffs, backend exactness metadata, and the original
+normalized JSON as a fallback presentation.

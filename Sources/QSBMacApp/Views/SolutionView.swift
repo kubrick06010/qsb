@@ -70,6 +70,16 @@ struct SolutionView: View {
                 case .json:
                     solutionEditor
                 }
+            } else if let decisionAnalysisSolution = workspace.decisionAnalysisSolution,
+                      case .decisionTree = decisionAnalysisSolution.solution {
+                presentationPicker(visualLabel: "Tree", systemImage: "point.3.connected.trianglepath.dotted")
+
+                switch presentation {
+                case .visual:
+                    DecisionTreeSolutionView(document: decisionAnalysisSolution)
+                case .json:
+                    solutionEditor
+                }
             } else if let facilityLayout = workspace.facilityLayoutPresentation {
                 presentationPicker(visualLabel: "Layout", systemImage: "square.grid.3x3")
 

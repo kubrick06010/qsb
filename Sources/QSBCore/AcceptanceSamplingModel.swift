@@ -260,5 +260,5 @@ public enum AcceptanceSamplingJSON {
     public static func encodeSolution(_ value: AcceptanceSamplingSolutionDocument) throws -> Data { try encoder.encode(value) }
     public static func decodeSolution(from data: Data) throws -> AcceptanceSamplingSolutionDocument { try JSONDecoder().decode(AcceptanceSamplingSolutionDocument.self, from: data) }
     public static func encodeValidation(_ value: AcceptanceSamplingValidationDocument) throws -> Data { try encoder.encode(value) }
-    private static var encoder: JSONEncoder { let value = JSONEncoder(); value.outputFormatting = [.prettyPrinted, .sortedKeys]; return value }
+    private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }

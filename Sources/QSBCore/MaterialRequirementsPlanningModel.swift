@@ -438,5 +438,5 @@ public enum MaterialRequirementsPlanningJSON {
     public static func encodeSolution(_ document: MaterialRequirementsPlanningSolutionDocument) throws -> Data { try encoder.encode(document) }
     public static func decodeSolution(from data: Data) throws -> MaterialRequirementsPlanningSolutionDocument { try JSONDecoder().decode(MaterialRequirementsPlanningSolutionDocument.self, from: data) }
     public static func encodeValidation(_ document: MaterialRequirementsPlanningValidationDocument) throws -> Data { try encoder.encode(document) }
-    private static var encoder: JSONEncoder { let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; return encoder }
+    private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }

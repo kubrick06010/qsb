@@ -178,5 +178,5 @@ public extension NetworkModelJSON {
     static func encodeSolutionDocument(_ value: NetworkSolutionDocument) throws -> Data { try networkEncoder.encode(value) }
     static func decodeSolutionDocument(from data: Data) throws -> NetworkSolutionDocument { try JSONDecoder().decode(NetworkSolutionDocument.self, from: data) }
     static func encodeValidation(_ value: NetworkValidationDocument) throws -> Data { try networkEncoder.encode(value) }
-    private static var networkEncoder: JSONEncoder { let value = JSONEncoder(); value.outputFormatting = [.prettyPrinted, .sortedKeys]; return value }
+    private static var networkEncoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }

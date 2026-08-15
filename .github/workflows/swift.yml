@@ -21,12 +21,14 @@ jobs:
         run: swift --version
       - name: Build portable products
         run: swift build --target QSBCore && swift build --product qsb
-      - name: Test
+      - name: Test portable core
+        run: swift test --filter QSBCorePortableTests
+      - name: Test legacy fixtures
         run: |
           if [[ -d reference/winqsb ]]; then
             swift test
           else
-            echo "::notice::Skipping legacy fixture tests because reference/winqsb is intentionally not versioned."
+            echo "::notice::Legacy fixture tests are unavailable because reference/winqsb is intentionally not versioned; portable tests ran above."
           fi
 
   macos-app:

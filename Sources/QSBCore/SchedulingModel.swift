@@ -457,11 +457,7 @@ public enum SchedulingSolutionJSON {
         }
     }
 
-    private static var encoder: JSONEncoder {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return encoder
-    }
+    private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }
 
 public enum FlowShopValidator {

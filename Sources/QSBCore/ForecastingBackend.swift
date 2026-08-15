@@ -144,7 +144,7 @@ public enum ForecastingModelJSON {
     public static func encodeSolutionDocument(_ value: ForecastingSolutionDocument) throws -> Data { try encoder.encode(value) }
     public static func decodeSolutionDocument(from data: Data) throws -> ForecastingSolutionDocument { try JSONDecoder().decode(ForecastingSolutionDocument.self, from: data) }
     public static func encodeValidation(_ value: ForecastingValidationDocument) throws -> Data { try encoder.encode(value) }
-    private static var encoder: JSONEncoder { let value = JSONEncoder(); value.outputFormatting = [.prettyPrinted, .sortedKeys]; return value }
+    private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }
 public extension WinQSBForecastingParser {
     static func parseModelEnvelope(from data: Data) throws -> ForecastingModelEnvelope {

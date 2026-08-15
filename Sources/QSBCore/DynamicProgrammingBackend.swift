@@ -160,11 +160,7 @@ public enum DynamicProgrammingModelJSON {
         DynamicProgrammingValidationDocument(kind: model.kind, backend: backend, diagnostics: DynamicProgrammingValidator.diagnostics(for: model))
     }
 
-    private static var encoder: JSONEncoder {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return encoder
-    }
+    private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }
 
 public enum KnapsackValidator {

@@ -12,8 +12,12 @@ var targets: [Target] = [
     .executableTarget(name: "QSBCLI", dependencies: ["QSBCore"]),
     .testTarget(
         name: "QSBCoreTests",
-        dependencies: ["QSBCore"],
+        dependencies: ["QSBCore", "QSBCLI"],
         resources: [.copy("Fixtures")]
+    ),
+    .testTarget(
+        name: "QSBCorePortableTests",
+        dependencies: ["QSBCore"]
     )
 ]
 

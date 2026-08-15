@@ -54,7 +54,7 @@ public enum SchedulingModelJSON {
     public static func encodeSolution(_ value: SchedulingSolutionDocument) throws -> Data { try SchedulingSolutionJSON.encode(value) }
     public static func decodeSolution(from data: Data) throws -> SchedulingSolutionDocument { try JSONDecoder().decode(SchedulingSolutionDocument.self, from: data) }
     public static func encodeValidation(_ value: SchedulingValidationDocument) throws -> Data { try encoder.encode(value) }
-    private static var encoder: JSONEncoder { let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; return encoder }
+    private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }
 
 public extension WinQSBSchedulingParser {
@@ -117,7 +117,7 @@ public enum QueuingModelJSON {
     public static func decodeModel(from data: Data) throws -> QueuingModelEnvelope { try JSONDecoder().decode(QueuingModelEnvelope.self, from: data) }
     public static func encodeSolution(_ value: QueuingSolutionDocument) throws -> Data { try QueuingSolutionJSON.encode(value) }
     public static func encodeValidation(_ value: QueuingValidationDocument) throws -> Data { try encoder.encode(value) }
-    private static var encoder: JSONEncoder { let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; return encoder }
+    private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }
 
 public extension WinQSBQueuingParser {

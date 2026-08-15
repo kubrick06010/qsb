@@ -507,11 +507,7 @@ public enum NetworkModelJSON {
         try encoder.encode(solution)
     }
 
-    private static var encoder: JSONEncoder {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return encoder
-    }
+    private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 
     private static var decoder: JSONDecoder {
         JSONDecoder()

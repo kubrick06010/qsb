@@ -7,7 +7,6 @@ import Glibc
 import Darwin
 #endif
 
-@main
 struct QSBCLI {
     static func main() {
         do {
@@ -36,7 +35,7 @@ struct QSBCLI {
             guard arguments.count == 2 else {
                 throw CLIError.usage("inspect expects exactly one file path")
             }
-            try inspect(path: arguments[1])
+            try genericInspect(path: arguments[1])
         case "expand":
             guard arguments.count == 2 else { throw CLIError.usage("expand expects exactly one legacy file path") }
             let data = try Data(contentsOf: URL(fileURLWithPath: arguments[1]))
@@ -70,15 +69,26 @@ struct QSBCLI {
             try validateLegacyLP(path: arguments[1])
         case "export-json":
             guard arguments.count == 2 else {
-                throw CLIError.usage("export-json expects exactly one legacy LP file path")
+                throw CLIError.usage("export-json expects exactly one legacy model file path")
             }
             try exportJSON(path: arguments[1])
+        case "validate":
+            guard arguments.count == 2 else {
+                throw CLIError.usage("validate expects exactly one legacy or normalized model file path")
+            }
+            try genericValidate(path: arguments[1])
+        case "solve":
+            let options = try parsePathAndBackend(
+                arguments,
+                usage: "solve expects a legacy model file path and optional --backend native|validate|external"
+            )
+            try genericSolve(path: options.path, backend: options.backend)
         case "solve-json":
             let options = try parsePathAndBackend(
                 arguments,
                 usage: "solve-json expects a model JSON file path and optional --backend native|validate"
             )
-            try solveJSON(path: options.path, integer: false, backend: options.backend)
+            try genericSolveJSON(path: options.path, backend: options.backend)
         case "solve-json-ilp":
             let options = try parsePathAndBackend(
                 arguments,
@@ -656,105 +666,6 @@ struct QSBCLI {
         }
     }
 
-    private struct PathAndBackend {
-        let path: String
-        let backend: SolverBackendKind
-    }
-
-    private struct LayoutPathBackendAndStrategy {
-        let path: String
-        let backend: SolverBackendKind
-        let strategy: FacilityLayoutSolvingStrategy
-    }
-
-    private static func parsePathAndBackend(_ arguments: [String], usage: String) throws -> PathAndBackend {
-        guard arguments.count == 2 || arguments.count == 4 else {
-            throw CLIError.usage(usage)
-        }
-        guard arguments.count == 2 || arguments[2] == "--backend" else {
-            throw CLIError.usage(usage)
-        }
-        let backend: SolverBackendKind
-        if arguments.count == 4 {
-            backend = try parseBackend(arguments[3])
-        } else {
-            backend = .nativeEducational
-        }
-        return PathAndBackend(path: arguments[1], backend: backend)
-    }
-
-    private static func parseLayoutPathBackendAndStrategy(
-        _ arguments: [String],
-        usage: String
-    ) throws -> LayoutPathBackendAndStrategy {
-        guard arguments.count >= 2 else {
-            throw CLIError.usage(usage)
-        }
-
-        var backend: SolverBackendKind = .nativeEducational
-        var strategy: FacilityLayoutSolvingStrategy = .initial
-        var index = 2
-        while index < arguments.count {
-            guard index + 1 < arguments.count else {
-                throw CLIError.usage(usage)
-            }
-            switch arguments[index] {
-            case "--backend":
-                backend = try parseBackend(arguments[index + 1])
-            case "--layout-strategy":
-                strategy = try parseLayoutStrategy(arguments[index + 1])
-            default:
-                throw CLIError.usage(usage)
-            }
-            index += 2
-        }
-
-        return LayoutPathBackendAndStrategy(path: arguments[1], backend: backend, strategy: strategy)
-    }
-
-    private static func parseBackend(_ value: String) throws -> SolverBackendKind {
-        switch value {
-        case "native", "nativeEducational":
-            return .nativeEducational
-        case "validate", "validateOnly":
-            return .validateOnly
-        case "external", "externalHighPerformance":
-            return .externalHighPerformance
-        default:
-            throw CLIError.usage("backend must be one of: native, validate, external")
-        }
-    }
-
-    private static func linearProgrammingBackend(
-        for backend: SolverBackendKind,
-        command: String
-    ) throws -> any LinearProgrammingBackend {
-        guard let selectedBackend = LinearProgrammingBackends.backend(for: backend) else {
-            throw CLIError.usage("external backend is not available yet for \(command)")
-        }
-        return selectedBackend
-    }
-
-    private static func schedulingBackend(
-        for backend: SolverBackendKind,
-        command: String
-    ) throws -> any SchedulingBackend {
-        guard let selectedBackend = SchedulingBackends.backend(for: backend) else {
-            throw CLIError.usage("external backend is not available yet for \(command)")
-        }
-        return selectedBackend
-    }
-
-    private static func queuingBackend(
-        for backend: SolverBackendKind,
-        command: String
-    ) throws -> any QueuingBackend {
-        guard let selectedBackend = QueuingBackends.backend(for: backend) else {
-            throw CLIError.usage("external backend is not available yet for \(command)")
-        }
-        return selectedBackend
-    }
-
     private static func exportSchedulingModelJSON(path: String) throws {
         let data = try Data(contentsOf: URL(fileURLWithPath: path))
         let model = try WinQSBSchedulingParser.parseModelEnvelope(from: LegacyCompressedFile.expandedData(from: data))
@@ -880,17 +791,6 @@ struct QSBCLI {
         }
     }
 
-    private static func parseLayoutStrategy(_ value: String) throws -> FacilityLayoutSolvingStrategy {
-        switch value {
-        case "initial", "initialLayoutEvaluation":
-            return .initial
-        case "pairwise-swap", "pairwiseSwap", "pairwiseSameSizeSwap":
-            return .pairwiseSwap
-        default:
-            throw CLIError.usage("layout strategy must be one of: initial, pairwise-swap")
-        }
-    }
-
     private static func inspect(path: String) throws {
         let data = try Data(contentsOf: URL(fileURLWithPath: path))
         if LegacyCompressedFile.isCompressed(data) {
@@ -976,9 +876,8 @@ struct QSBCLI {
     }
 
     private static func exportJSON(path: String) throws {
-        let program = try readLegacyProgram(path: path)
-        let data = try LinearProgramJSON.encodeProgram(program)
-        FileHandle.standardOutput.write(data)
+        let result = try LegacyModelImporter.importModel(at: URL(fileURLWithPath: path))
+        FileHandle.standardOutput.write(result.normalizedJSON)
         print()
     }
 
@@ -3454,92 +3353,10 @@ struct QSBCLI {
         """, to: handle)
     }
 
-    private static func printError(_ message: String) {
-        write("qsb: error: \(message)", to: .standardError)
-    }
-
-    private static func write(_ message: String, to handle: FileHandle) {
-        let data = Data((message + "\n").utf8)
-        handle.write(data)
-    }
-
-    private static func userFacingMessage(for error: Error) -> String {
-        switch error {
-        case let error as LinearProgramError:
-            return error.description
-        case let error as LegacyCompressionError:
-            return error.description
-        case let error as NetworkModelError:
-            return error.description
-        case let error as ForecastingModelError:
-            return error.description
-        case let error as InventoryModelError:
-            return error.description
-        case let error as DynamicProgrammingModelError:
-            return error.description
-        case let error as DecisionAnalysisModelError:
-            return error.description
-        case let error as QueuingModelError:
-            return error.description
-        case let error as SchedulingModelError:
-            return error.description
-        case let error as QualityControlError:
-            return error.description
-        case let error as AggregatePlanningError:
-            return error.description
-        case let error as MaterialRequirementsPlanningError:
-            return error.description
-        case let error as QuadraticProgrammingError:
-            return error.description
-        case let error as NonlinearProgrammingError:
-            return error.description
-        case let error as SimulationError:
-            return error.description
-        case let error as FacilitiesModelError:
-            return error.description
-        case let error as DecodingError:
-            return "Invalid model JSON: \(describe(error))"
-        case let error as EncodingError:
-            return "Could not encode JSON: \(describe(error))"
-        case let error as CocoaError where error.code == .fileReadNoSuchFile:
-            return "File not found"
-        default:
-            return String(describing: error)
-        }
-    }
-
-    private static func describe(_ error: DecodingError) -> String {
-        switch error {
-        case .typeMismatch(let type, let context):
-            return "expected \(type) at \(codingPath(context.codingPath))"
-        case .valueNotFound(let type, let context):
-            return "missing value for \(type) at \(codingPath(context.codingPath))"
-        case .keyNotFound(let key, let context):
-            return "missing key '\(key.stringValue)' at \(codingPath(context.codingPath))"
-        case .dataCorrupted(let context):
-            return context.debugDescription
-        @unknown default:
-            return String(describing: error)
-        }
-    }
-
-    private static func describe(_ error: EncodingError) -> String {
-        switch error {
-        case .invalidValue(_, let context):
-            return context.debugDescription
-        @unknown default:
-            return String(describing: error)
-        }
-    }
-
-    private static func codingPath(_ path: [CodingKey]) -> String {
-        guard !path.isEmpty else {
-            return "<root>"
-        }
-        return path.map(\.stringValue).joined(separator: ".")
-    }
 }
 
-private enum CLIError: Error {
+enum CLIError: Error {
     case usage(String?)
 }
+
+QSBCLI.main()

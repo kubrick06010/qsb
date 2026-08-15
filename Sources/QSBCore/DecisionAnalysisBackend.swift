@@ -258,7 +258,7 @@ public enum DecisionAnalysisModelJSON {
     public static func encodeSolutionDocument(_ value: DecisionAnalysisSolutionDocument) throws -> Data { try encoder.encode(value) }
     public static func decodeSolutionDocument(from data: Data) throws -> DecisionAnalysisSolutionDocument { try JSONDecoder().decode(DecisionAnalysisSolutionDocument.self, from: data) }
     public static func encodeValidation(_ value: DecisionAnalysisValidationDocument) throws -> Data { try encoder.encode(value) }
-    private static var encoder: JSONEncoder { let value = JSONEncoder(); value.outputFormatting = [.prettyPrinted, .sortedKeys]; return value }
+    private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }
 
 public extension WinQSBDecisionAnalysisParser {

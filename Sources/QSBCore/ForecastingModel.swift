@@ -141,6 +141,7 @@ public enum ForecastingModelError: Error, CustomStringConvertible {
     case unsupportedModel(String)
     case invalidNumericValue(String)
     case invalidModel(String)
+    case rankDeficient
 
     public var description: String {
         switch self {
@@ -152,6 +153,8 @@ public enum ForecastingModelError: Error, CustomStringConvertible {
             "Invalid numeric value: \(value)"
         case .invalidModel(let detail):
             "Invalid forecasting model: \(detail)"
+        case .rankDeficient:
+            "Regression design matrix is rank deficient"
         }
     }
 }
@@ -608,29 +611,12 @@ public enum RegressionSolver {
     public static func solve(_ model: RegressionModel) throws -> RegressionSolution {
         try validate(model)
 
-        let parameterCount = model.independentVariables.count + 1
         let design = model.observations.map { observation in
             [1.0] + observation.independentValues
         }
         let dependentValues = model.observations.map(\.dependentValue)
 
-        var normalMatrix = Array(
-            repeating: Array(repeating: 0.0, count: parameterCount),
-            count: parameterCount
-        )
-        var normalRHS = Array(repeating: 0.0, count: parameterCount)
-
-        for rowIndex in design.indices {
-            let row = design[rowIndex]
-            for column in 0..<parameterCount {
-                normalRHS[column] += row[column] * dependentValues[rowIndex]
-                for otherColumn in 0..<parameterCount {
-                    normalMatrix[column][otherColumn] += row[column] * row[otherColumn]
-                }
-            }
-        }
-
-        let parameters = try solveLinearSystem(normalMatrix, normalRHS)
+        let parameters = try solveLeastSquaresQR(design, dependentValues)
         let predictions = model.observations.enumerated().map { index, observation in
             let predicted = zip(design[index], parameters).reduce(0.0) { partial, pair in
                 partial + pair.0 * pair.1
@@ -690,36 +676,67 @@ public enum RegressionSolver {
         }
     }
 
-    private static func solveLinearSystem(_ matrix: [[Double]], _ rhs: [Double]) throws -> [Double] {
-        let count = rhs.count
-        var augmented = matrix.enumerated().map { rowIndex, row in
-            row + [rhs[rowIndex]]
+    private static func solveLeastSquaresQR(_ matrix: [[Double]], _ rhs: [Double]) throws -> [Double] {
+        let rowCount = matrix.count
+        let columnCount = matrix.first?.count ?? 0
+        guard rowCount >= columnCount, columnCount > 0,
+              matrix.allSatisfy({ $0.count == columnCount }), rhs.count == rowCount
+        else {
+            throw ForecastingModelError.invalidModel("regression dimensions are inconsistent")
         }
 
-        for pivotIndex in 0..<count {
-            guard let bestRow = (pivotIndex..<count).max(by: {
-                abs(augmented[$0][pivotIndex]) < abs(augmented[$1][pivotIndex])
-            }), abs(augmented[bestRow][pivotIndex]) > 1e-12 else {
-                throw ForecastingModelError.invalidModel("regression design matrix is singular")
-            }
-            if bestRow != pivotIndex {
-                augmented.swapAt(bestRow, pivotIndex)
+        var r = matrix
+        var transformedRHS = rhs
+        let scale = max(1.0, matrix.flatMap { $0 }.map(abs).max() ?? 1.0)
+        let rankTolerance = scale * 1e-12
+
+        for pivot in 0..<columnCount {
+            let norm = sqrt((pivot..<rowCount).reduce(0.0) { partial, row in
+                partial + r[row][pivot] * r[row][pivot]
+            })
+            guard norm > rankTolerance else {
+                throw ForecastingModelError.rankDeficient
             }
 
-            let pivot = augmented[pivotIndex][pivotIndex]
-            for column in pivotIndex...count {
-                augmented[pivotIndex][column] /= pivot
+            let sign = r[pivot][pivot] >= 0 ? 1.0 : -1.0
+            var reflector = Array(repeating: 0.0, count: rowCount - pivot)
+            for index in reflector.indices {
+                reflector[index] = r[pivot + index][pivot]
+            }
+            reflector[0] += sign * norm
+            let reflectorScale = reflector.reduce(0.0) { $0 + $1 * $1 }
+            guard reflectorScale > rankTolerance * rankTolerance else {
+                throw ForecastingModelError.rankDeficient
             }
 
-            for row in 0..<count where row != pivotIndex {
-                let factor = augmented[row][pivotIndex]
-                guard abs(factor) > 1e-15 else { continue }
-                for column in pivotIndex...count {
-                    augmented[row][column] -= factor * augmented[pivotIndex][column]
+            for column in pivot..<columnCount {
+                let projection = 2.0 * reflector.enumerated().reduce(0.0) { partial, item in
+                    partial + item.element * r[pivot + item.offset][column]
+                } / reflectorScale
+                for index in reflector.indices {
+                    r[pivot + index][column] -= projection * reflector[index]
                 }
             }
+
+            let rhsProjection = 2.0 * reflector.enumerated().reduce(0.0) { partial, item in
+                partial + item.element * transformedRHS[pivot + item.offset]
+            } / reflectorScale
+            for index in reflector.indices {
+                transformedRHS[pivot + index] -= rhsProjection * reflector[index]
+            }
         }
 
-        return augmented.map { $0[count] }
+        var solution = Array(repeating: 0.0, count: columnCount)
+        for row in stride(from: columnCount - 1, through: 0, by: -1) {
+            let remainder = ((row + 1)..<columnCount).reduce(0.0) { partial, column in
+                partial + r[row][column] * solution[column]
+            }
+            let diagonal = r[row][row]
+            guard abs(diagonal) > rankTolerance else {
+                throw ForecastingModelError.rankDeficient
+            }
+            solution[row] = (transformedRHS[row] - remainder) / diagonal
+        }
+        return solution
     }
 }

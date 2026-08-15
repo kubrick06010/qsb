@@ -259,5 +259,5 @@ public enum GoalProgrammingJSON {
     public static func encodeSolution(_ value: GoalProgrammingSolutionDocument) throws -> Data { try encoder.encode(value) }
     public static func decodeSolution(from data: Data) throws -> GoalProgrammingSolutionDocument { try JSONDecoder().decode(GoalProgrammingSolutionDocument.self, from: data) }
     public static func encodeValidation(_ value: GoalProgrammingValidationDocument) throws -> Data { try encoder.encode(value) }
-    private static var encoder: JSONEncoder { let value = JSONEncoder(); value.outputFormatting = [.prettyPrinted, .sortedKeys]; return value }
+    private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }

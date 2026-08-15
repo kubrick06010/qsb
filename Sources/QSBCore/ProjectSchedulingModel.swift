@@ -360,5 +360,5 @@ public enum ProjectSchedulingJSON {
     public static func encodeSolution(_ value: ProjectSchedulingSolutionDocument) throws -> Data { try encoder.encode(value) }
     public static func decodeSolution(from data: Data) throws -> ProjectSchedulingSolutionDocument { try JSONDecoder().decode(ProjectSchedulingSolutionDocument.self, from: data) }
     public static func encodeValidation(_ value: ProjectSchedulingValidationDocument) throws -> Data { try encoder.encode(value) }
-    private static var encoder: JSONEncoder { let value = JSONEncoder(); value.outputFormatting = [.prettyPrinted, .sortedKeys]; return value }
+    private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }

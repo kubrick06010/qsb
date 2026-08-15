@@ -462,8 +462,18 @@ UI Phase 3B status:
 - the editor uses an internal typed `NetworkDraft`, stable draft identities,
   UI-only deterministic layout, QSBCore validation, normalized JSON, and the
   existing `NetworkBackend` solution pipeline;
-- Assignment, transportation, and minimum-cost network flow remain available
-  through import/JSON and are deferred to a matrix/balance editor checkpoint.
+UI Phase 3C status:
+
+- Assignment has a native rectangular worker/task cost-matrix editor with
+  dimension-safe row and column mutations;
+- transportation has a native source/destination cost matrix editor with
+  aligned supply and demand fields and no implicit auto-balancing;
+- both editors use distinct internal typed drafts, QSBCore validation, the
+  existing NetworkBackend routes, unchanged normalized JSON, and the existing
+  solution views;
+- minimum-cost network flow (`CNF`) remains available through import/JSON and
+  is deferred to a dedicated graph-plus-balances editor because its node
+  balances and solver-side dummy adjustment do not fit either matrix editor.
 
 Recommended next:
 

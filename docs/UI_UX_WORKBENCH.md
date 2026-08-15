@@ -105,8 +105,14 @@ semantic validation and all derived calculations.
 The Network editor applies the same boundary to graph-native variants:
 shortest path, minimum spanning tree, maximum flow, and traveling salesperson
 use an internal `NetworkDraft` with stable node/arc IDs and UI-only layout
-positions. Assignment, transportation, and minimum-cost flow remain
-import/JSON surfaces until a matrix/balance editor is designed.
+positions. Assignment and transportation now use distinct typed matrix drafts:
+Assignment preserves rectangular worker/task cost matrices, while
+Transportation preserves source/destination costs plus supply and demand
+vectors. Their table editors use the same explicit draft → QSBCore → JSON →
+backend boundary, with dimension-safe row and column mutations. Minimum-cost
+flow remains an import/JSON surface until a dedicated graph-plus-balances
+editor can represent its node balances and automatic solver adjustment without
+overloading either editor.
 
 ### Validation
 
@@ -654,13 +660,15 @@ the inspector is closed. The design must support:
 
 ### UI Phase 3 — Family editor expansion
 
-Status: Inventory is implemented as the first Phase 3 family editor. It
-provides native EOQ, quantity-discount EOQ, newsvendor, and lot-sizing drafts;
-stochastic review remains JSON/import-only for native editing.
+Status: Inventory and Network matrix/bipartite editing are implemented. Native
+Network editing covers graph variants (shortest path, MST, maximum flow, TSP),
+Assignment’s rectangular matrix, and Transportation’s matrix with balances.
+Stochastic inventory review and Network CNF remain JSON/import-only for native
+editing.
 
 Future priorities with high educational and workflow value:
 
-1. Network and scheduling tables;
+1. Network minimum-cost flow graph-plus-balances editor;
 2. Decision analysis/payoff/tree editors;
 3. Forecasting and Markov data editors;
 4. remaining family-specific forms where fixtures and validation make the

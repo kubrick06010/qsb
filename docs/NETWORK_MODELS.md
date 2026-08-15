@@ -266,5 +266,9 @@ coordinates are not written to normalized JSON.
 
 Assignment (`AP`), transportation (`TP`), and minimum-cost network flow (`CNF`)
 remain available through legacy import, normalized JSON, validation, solving,
-and the existing solution views. Their matrix/balance-oriented native editors
-are deliberately deferred rather than being forced into the graph editor.
+and the existing solution views. Assignment now has a native rectangular cost
+matrix editor, and transportation has a native cost matrix with aligned supply
+and demand fields. Both use separate typed drafts and keep JSON as an explicit
+advanced surface. CNF remains deferred: its node balances and solver-side
+automatic dummy adjustment require a dedicated graph-plus-balances editor and
+are not equivalent to transportation.

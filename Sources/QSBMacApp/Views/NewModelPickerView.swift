@@ -60,7 +60,26 @@ struct NewModelPickerView: View {
                         .buttonStyle(.link)
                         .accessibilityIdentifier("network-kind-\(kind.rawValue)")
                     }
-                    Text("Assignment, transportation, and minimum-cost flow remain available through import and JSON; matrix/balance editors are deferred.")
+                    Divider()
+                    Text("Matrix editors")
+                        .font(.headline)
+                    Button {
+                        workspace.startNewAssignment()
+                        dismiss()
+                    } label: {
+                        Label("Assignment", systemImage: "tablecells")
+                    }
+                    .buttonStyle(.link)
+                    .accessibilityIdentifier("network-kind-assignment")
+                    Button {
+                        workspace.startNewTransportation()
+                        dismiss()
+                    } label: {
+                        Label("Transportation", systemImage: "tablecells")
+                    }
+                    .buttonStyle(.link)
+                    .accessibilityIdentifier("network-kind-transportation")
+                    Text("Minimum-cost flow remains available through import and JSON; its graph-and-balance editor is deferred.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

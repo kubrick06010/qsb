@@ -116,3 +116,97 @@ func networkDraftUsesExistingBackend() throws {
     #expect(value.path == ["Node 1", "Node 2"])
     #expect(value.totalCost == 5)
 }
+
+@Test("assignment draft preserves rectangular dimensions and uses the existing backend")
+func assignmentDraftRoundTripsAndSolves() throws {
+    var draft = AssignmentDraft.blank()
+    draft.rows = [AssignmentRowDraft(name: "A"), AssignmentRowDraft(name: "B")]
+    draft.columns = [AssignmentColumnDraft(name: "X"), AssignmentColumnDraft(name: "Y"), AssignmentColumnDraft(name: "Z")]
+    draft.costs = [["4", "1", "3"], ["2", "5", "6"]]
+
+    let model = try draft.makeModel()
+    #expect(model.workers == ["A", "B"])
+    #expect(model.tasks.count == 3)
+    let restored = AssignmentDraft(model: model)
+    #expect(try restored.makeModel() == model)
+    let backend = try #require(NetworkBackends.backend(for: .nativeEducational))
+    guard case .assignment(let solution) = try backend.solve(.assignment(model)) else {
+        Issue.record("Expected assignment solution")
+        return
+    }
+    #expect(solution.totalCost == 3)
+}
+
+@Test("assignment row and column mutations preserve matrix dimensions")
+func assignmentDraftMutationsAreDimensionallySafe() throws {
+    var draft = AssignmentDraft.blank()
+    _ = draft.addRow(name: "Extra")
+    #expect(draft.costs.count == draft.rows.count)
+    #expect(draft.costs.allSatisfy { $0.count == draft.columns.count })
+    draft.removeRow(at: 0)
+    _ = draft.addColumn(name: "Extra task")
+    #expect(draft.costs.allSatisfy { $0.count == draft.columns.count })
+    draft.removeColumn(at: 0)
+    #expect(draft.costs.allSatisfy { $0.count == draft.columns.count })
+}
+
+@Test("transportation draft preserves supply demand alignment and JSON semantics")
+func transportationDraftRoundTripsAndSolves() throws {
+    let draft = TransportationDraft(
+        title: "TP",
+        sources: [TransportationSourceDraft(name: "S1", supply: "5"), TransportationSourceDraft(name: "S2", supply: "5")],
+        destinations: [TransportationDestinationDraft(name: "D1", demand: "4"), TransportationDestinationDraft(name: "D2", demand: "6")],
+        costs: [["1", "3"], ["2", "4"]]
+    )
+    let model = try draft.makeModel()
+    #expect(NetworkValidator.diagnostics(for: .transportation(model)).contains { $0.severity == .info })
+    let json = try NetworkModelJSON.encodeModel(.transportation(model))
+    let decoded = try NetworkModelJSON.decodeModel(from: json)
+    let restored = try #require(TransportationDraft(envelope: decoded))
+    #expect(try restored.makeModel() == model)
+    let backend = try #require(NetworkBackends.backend(for: .nativeEducational))
+    guard case .transportation(let solution) = try backend.solve(.transportation(model)) else {
+        Issue.record("Expected transportation solution")
+        return
+    }
+    #expect(solution.totalCost == 27)
+}
+
+@Test("transportation source and destination mutations preserve matrix dimensions")
+func transportationDraftMutationsAreDimensionallySafe() {
+    var draft = TransportationDraft.blank()
+    _ = draft.addSource(name: "Extra source", supply: "0")
+    #expect(draft.costs.count == draft.sources.count)
+    #expect(draft.costs.allSatisfy { $0.count == draft.destinations.count })
+    draft.removeSource(at: 0)
+    _ = draft.addDestination(name: "Extra destination", demand: "0")
+    #expect(draft.costs.allSatisfy { $0.count == draft.destinations.count })
+    draft.removeDestination(at: 0)
+    #expect(draft.costs.allSatisfy { $0.count == draft.destinations.count })
+}
+
+@Test("matrix drafts report incomplete numeric cells before core validation")
+func matrixDraftsReportInputIssues() {
+    var assignment = AssignmentDraft.blank()
+    assignment.costs[0][0] = "unfinished"
+    #expect(assignment.draftIssues().contains { if case .invalidCost = $0 { true } else { false } })
+
+    var transportation = TransportationDraft.blank()
+    transportation.sources[0].supply = "unfinished"
+    #expect(transportation.draftIssues().contains { if case .invalidSupply = $0 { true } else { false } })
+}
+
+@Test("workspace imports Assignment and Transportation JSON into their native drafts")
+func workspaceLoadsMatrixNetworkDrafts() throws {
+    let assignment = NetworkModelEnvelope.assignment(AssignmentProblem(title: "AP", workers: ["A"], tasks: ["X"], costs: [[1.0]]))
+    let assignmentJSON = String(decoding: try NetworkModelJSON.encodeModel(assignment), as: UTF8.self)
+    let assignmentWorkspace = QSBWorkspace(modelJSON: assignmentJSON)
+    #expect(assignmentWorkspace.assignmentDraft != nil)
+    #expect(assignmentWorkspace.networkDraft == nil)
+
+    let transportation = NetworkModelEnvelope.transportation(TransportationProblem(title: "TP", origins: ["S"], destinations: ["D"], costs: [[2]], supply: [3], demand: [3]))
+    let transportationJSON = String(decoding: try NetworkModelJSON.encodeModel(transportation), as: UTF8.self)
+    let transportationWorkspace = QSBWorkspace(modelJSON: transportationJSON)
+    #expect(transportationWorkspace.transportationDraft != nil)
+    #expect(transportationWorkspace.networkDraft == nil)
+}

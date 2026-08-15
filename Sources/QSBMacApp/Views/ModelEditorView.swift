@@ -8,6 +8,10 @@ struct ModelEditorView: View {
             LinearProgrammingEditorView(workspace: workspace)
         } else if workspace.isInventoryModel, workspace.inventoryDraft != nil {
             InventoryEditorView(workspace: workspace)
+        } else if workspace.assignmentDraft != nil {
+            AssignmentEditorView(workspace: workspace)
+        } else if workspace.transportationDraft != nil {
+            TransportationEditorView(workspace: workspace)
         } else if workspace.isNetworkModel, workspace.networkDraft != nil {
             NetworkEditorView(workspace: workspace)
         } else {

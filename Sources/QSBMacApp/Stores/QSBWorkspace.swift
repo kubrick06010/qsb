@@ -22,6 +22,8 @@ final class QSBWorkspace {
     var lpDraft: LinearProgrammingDraft?
     var inventoryDraft: InventoryDraft?
     var networkDraft: NetworkDraft?
+    var assignmentDraft: AssignmentDraft?
+    var transportationDraft: TransportationDraft?
     var solutionJSON: String = ""
     var validationJSON: String = ""
     var validationDiagnostics: [ValidationDiagnostic] = []
@@ -54,8 +56,12 @@ final class QSBWorkspace {
         }
         if let envelope = try? NetworkModelJSON.decodeModel(from: Data(modelJSON.utf8)) {
             self.networkDraft = NetworkDraft(envelope: envelope)
+            self.assignmentDraft = AssignmentDraft(envelope: envelope)
+            self.transportationDraft = TransportationDraft(envelope: envelope)
         } else {
             self.networkDraft = nil
+            self.assignmentDraft = nil
+            self.transportationDraft = nil
         }
     }
 
@@ -63,6 +69,8 @@ final class QSBWorkspace {
         lpDraft = .blank()
         inventoryDraft = nil
         networkDraft = nil
+        assignmentDraft = nil
+        transportationDraft = nil
         modelJSON = ""
         modelSource = "New · Linear Programming"
         modelState = .editing
@@ -83,6 +91,8 @@ final class QSBWorkspace {
     func startNewInventory(_ kind: InventoryProblemKind) {
         lpDraft = nil
         networkDraft = nil
+        assignmentDraft = nil
+        transportationDraft = nil
         inventoryDraft = .blank(kind)
         modelJSON = ""
         modelSource = "New · Inventory · \(kind.displayName)"
@@ -100,6 +110,8 @@ final class QSBWorkspace {
     func startNewNetwork(_ kind: NetworkDraftKind) {
         lpDraft = nil
         inventoryDraft = nil
+        assignmentDraft = nil
+        transportationDraft = nil
         networkDraft = .blank(kind)
         modelJSON = ""
         modelSource = "New · Network · \(kind.displayName)"
@@ -111,6 +123,38 @@ final class QSBWorkspace {
         lastErrorMessage = nil
         lastResultLabel = nil
         status = "Editing a new \(kind.displayName) model"
+        selectedPane = .model
+    }
+
+    func startNewAssignment() {
+        lpDraft = nil
+        inventoryDraft = nil
+        networkDraft = nil
+        transportationDraft = nil
+        assignmentDraft = .blank()
+        prepareNewNetworkModel(source: "New · Network · Assignment", status: "Editing a new Assignment model")
+    }
+
+    func startNewTransportation() {
+        lpDraft = nil
+        inventoryDraft = nil
+        networkDraft = nil
+        assignmentDraft = nil
+        transportationDraft = .blank()
+        prepareNewNetworkModel(source: "New · Network · Transportation", status: "Editing a new Transportation model")
+    }
+
+    private func prepareNewNetworkModel(source: String, status: String) {
+        modelJSON = ""
+        modelSource = source
+        modelState = .editing
+        runState = .notRun
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        lastErrorMessage = nil
+        lastResultLabel = nil
+        self.status = status
         selectedPane = .model
     }
 
@@ -154,6 +198,31 @@ final class QSBWorkspace {
         lastResultLabel = nil
         lastErrorMessage = nil
         status = "Editing network model"
+    }
+
+    func updateAssignmentDraft(_ update: (inout AssignmentDraft) -> Void) {
+        guard var draft = assignmentDraft else { return }
+        update(&draft)
+        assignmentDraft = draft
+        markMatrixDraftEdited(status: "Editing assignment model")
+    }
+
+    func updateTransportationDraft(_ update: (inout TransportationDraft) -> Void) {
+        guard var draft = transportationDraft else { return }
+        update(&draft)
+        transportationDraft = draft
+        markMatrixDraftEdited(status: "Editing transportation model")
+    }
+
+    private func markMatrixDraftEdited(status: String) {
+        modelState = .editing
+        runState = .notRun
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        lastResultLabel = nil
+        lastErrorMessage = nil
+        self.status = status
     }
 
     func applyModelJSONToNativeEditor() {
@@ -200,10 +269,15 @@ final class QSBWorkspace {
     func applyNetworkJSONToNativeEditor() {
         do {
             let envelope = try NetworkModelJSON.decodeModel(from: Data(modelJSON.utf8))
-            guard let draft = NetworkDraft(envelope: envelope) else {
+            let graphDraft = NetworkDraft(envelope: envelope)
+            let assignment = AssignmentDraft(envelope: envelope)
+            let transportation = TransportationDraft(envelope: envelope)
+            guard graphDraft != nil || assignment != nil || transportation != nil else {
                 throw NetworkModelError.unsupportedProblemType(envelope.kind.rawValue)
             }
-            networkDraft = draft
+            networkDraft = graphDraft
+            assignmentDraft = assignment
+            transportationDraft = transportation
             lpDraft = nil
             inventoryDraft = nil
             modelSource = "Normalized JSON · Network"
@@ -704,6 +778,16 @@ final class QSBWorkspace {
                 ), as: UTF8.self)) ?? ""
                 lastErrorMessage = validationDiagnostics.first?.message
                 status = "Network draft has \(validationDiagnostics.count) input issue(s)"
+            } else if let draftError = error as? AssignmentDraftError {
+                validationDiagnostics = draftError.issues.map { ValidationDiagnostic(severity: .error, code: "network.AP.input", message: $0.message) }
+                validationJSON = (try? String(decoding: Self.jsonEncoder.encode(ValidationReport(backend: .validateOnly, diagnostics: validationDiagnostics)), as: UTF8.self)) ?? ""
+                lastErrorMessage = validationDiagnostics.first?.message
+                status = "Assignment draft has \(validationDiagnostics.count) input issue(s)"
+            } else if let draftError = error as? TransportationDraftError {
+                validationDiagnostics = draftError.issues.map { ValidationDiagnostic(severity: .error, code: "network.TP.input", message: $0.message) }
+                validationJSON = (try? String(decoding: Self.jsonEncoder.encode(ValidationReport(backend: .validateOnly, diagnostics: validationDiagnostics)), as: UTF8.self)) ?? ""
+                lastErrorMessage = validationDiagnostics.first?.message
+                status = "Transportation draft has \(validationDiagnostics.count) input issue(s)"
             } else {
                 lastErrorMessage = Self.message(for: error)
                 status = "Validation failed: \(Self.message(for: error))"
@@ -716,6 +800,8 @@ final class QSBWorkspace {
         lpDraft = nil
         inventoryDraft = nil
         networkDraft = nil
+        assignmentDraft = nil
+        transportationDraft = nil
         switch sample {
         case .linearProgram:
             modelJSON = SampleModels.linearProgramJSON
@@ -812,8 +898,12 @@ final class QSBWorkspace {
             }
             if let envelope = try? NetworkModelJSON.decodeModel(from: normalizedData) {
                 networkDraft = NetworkDraft(envelope: envelope)
+                assignmentDraft = AssignmentDraft(envelope: envelope)
+                transportationDraft = TransportationDraft(envelope: envelope)
             } else {
                 networkDraft = nil
+                assignmentDraft = nil
+                transportationDraft = nil
             }
             solutionJSON = ""
             validationJSON = ""
@@ -899,6 +989,8 @@ final class QSBWorkspace {
     }
 
     private func currentNetworkModel() throws -> NetworkModelEnvelope {
+        if let assignmentDraft { return .assignment(try assignmentDraft.makeModel()) }
+        if let transportationDraft { return .transportation(try transportationDraft.makeModel()) }
         if let networkDraft {
             return try networkDraft.makeNetworkModel()
         }
@@ -922,7 +1014,7 @@ final class QSBWorkspace {
     }
 
     private func syncNetworkDraftToJSON(_ model: NetworkModelEnvelope) throws {
-        guard networkDraft != nil else { return }
+        guard networkDraft != nil || assignmentDraft != nil || transportationDraft != nil else { return }
         modelJSON = String(decoding: try NetworkModelJSON.encodeModel(model), as: UTF8.self)
     }
 
@@ -1140,7 +1232,7 @@ final class QSBWorkspace {
         if let inventoryDraft {
             return .inventory(inventoryDraft.kind)
         }
-        if networkDraft != nil {
+        if networkDraft != nil || assignmentDraft != nil || transportationDraft != nil {
             return .network
         }
         let data = Data(modelJSON.utf8)
@@ -1183,7 +1275,7 @@ final class QSBWorkspace {
     }
 
     var hasModel: Bool {
-        lpDraft != nil || inventoryDraft != nil || networkDraft != nil || !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        lpDraft != nil || inventoryDraft != nil || networkDraft != nil || assignmentDraft != nil || transportationDraft != nil || !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var hasSolution: Bool {
@@ -1205,6 +1297,12 @@ final class QSBWorkspace {
         }
         if let networkDraft, !networkDraft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return networkDraft.title
+        }
+        if let assignmentDraft, !assignmentDraft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return assignmentDraft.title
+        }
+        if let transportationDraft, !transportationDraft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return transportationDraft.title
         }
         return hasModel ? currentModelFamily.displayName : "No model open"
     }
@@ -1257,7 +1355,7 @@ final class QSBWorkspace {
     }
 
     var isNetworkModel: Bool {
-        if networkDraft != nil { return true }
+        if networkDraft != nil || assignmentDraft != nil || transportationDraft != nil { return true }
         guard case .network = currentModelFamily else {
             return false
         }

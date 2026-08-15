@@ -247,3 +247,24 @@ Diagram scaling and compact/wide scrolling are presentation concerns only.
 Parsing, validation, and solving remain in QSBCore behind `NetworkBackend`, and
 normalized JSON remains the universal fallback. Future network modules should
 keep using separate model and solver types behind this family-level seam.
+
+## Native graph editor
+
+The macOS workbench provides a typed, draft-backed graph editor for:
+
+- shortest path (`SPP`);
+- minimum spanning tree (`MST`);
+- maximum flow (`MFP`); and
+- traveling salesperson (`TSP`).
+
+The editor keeps stable draft identities and UI-only deterministic node
+positions separate from the normalized model. Node and arc changes convert
+through the existing QSBCore types before validation, JSON export, or solving.
+For shortest path and maximum flow, the selected source and sink use the
+existing QSBCore convention: source is serialized first and sink last. Layout
+coordinates are not written to normalized JSON.
+
+Assignment (`AP`), transportation (`TP`), and minimum-cost network flow (`CNF`)
+remain available through legacy import, normalized JSON, validation, solving,
+and the existing solution views. Their matrix/balance-oriented native editors
+are deliberately deferred rather than being forced into the graph editor.

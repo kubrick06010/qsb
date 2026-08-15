@@ -21,6 +21,7 @@ final class QSBWorkspace {
     }
     var lpDraft: LinearProgrammingDraft?
     var inventoryDraft: InventoryDraft?
+    var networkDraft: NetworkDraft?
     var solutionJSON: String = ""
     var validationJSON: String = ""
     var validationDiagnostics: [ValidationDiagnostic] = []
@@ -51,11 +52,17 @@ final class QSBWorkspace {
         } else {
             self.inventoryDraft = nil
         }
+        if let envelope = try? NetworkModelJSON.decodeModel(from: Data(modelJSON.utf8)) {
+            self.networkDraft = NetworkDraft(envelope: envelope)
+        } else {
+            self.networkDraft = nil
+        }
     }
 
     func startNewLinearProgram() {
         lpDraft = .blank()
         inventoryDraft = nil
+        networkDraft = nil
         modelJSON = ""
         modelSource = "New · Linear Programming"
         modelState = .editing
@@ -75,9 +82,27 @@ final class QSBWorkspace {
 
     func startNewInventory(_ kind: InventoryProblemKind) {
         lpDraft = nil
+        networkDraft = nil
         inventoryDraft = .blank(kind)
         modelJSON = ""
         modelSource = "New · Inventory · \(kind.displayName)"
+        modelState = .editing
+        runState = .notRun
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        lastErrorMessage = nil
+        lastResultLabel = nil
+        status = "Editing a new \(kind.displayName) model"
+        selectedPane = .model
+    }
+
+    func startNewNetwork(_ kind: NetworkDraftKind) {
+        lpDraft = nil
+        inventoryDraft = nil
+        networkDraft = .blank(kind)
+        modelJSON = ""
+        modelSource = "New · Network · \(kind.displayName)"
         modelState = .editing
         runState = .notRun
         solutionJSON = ""
@@ -117,6 +142,20 @@ final class QSBWorkspace {
         status = "Editing inventory model"
     }
 
+    func updateNetworkDraft(_ update: (inout NetworkDraft) -> Void) {
+        guard var draft = networkDraft else { return }
+        update(&draft)
+        networkDraft = draft
+        modelState = .editing
+        runState = .notRun
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        lastResultLabel = nil
+        lastErrorMessage = nil
+        status = "Editing network model"
+    }
+
     func applyModelJSONToNativeEditor() {
         do {
             let program = try LinearProgramJSON.decodeProgram(from: Data(modelJSON.utf8))
@@ -150,6 +189,31 @@ final class QSBWorkspace {
             validationDiagnostics = []
             lastErrorMessage = nil
             status = "JSON applied to the Inventory editor"
+            selectedPane = .model
+        } catch {
+            lastErrorMessage = Self.message(for: error)
+            status = "JSON was not applied: \(lastErrorMessage ?? "Invalid JSON")"
+            selectedPane = .json
+        }
+    }
+
+    func applyNetworkJSONToNativeEditor() {
+        do {
+            let envelope = try NetworkModelJSON.decodeModel(from: Data(modelJSON.utf8))
+            guard let draft = NetworkDraft(envelope: envelope) else {
+                throw NetworkModelError.unsupportedProblemType(envelope.kind.rawValue)
+            }
+            networkDraft = draft
+            lpDraft = nil
+            inventoryDraft = nil
+            modelSource = "Normalized JSON · Network"
+            modelState = .editing
+            runState = .notRun
+            solutionJSON = ""
+            validationJSON = ""
+            validationDiagnostics = []
+            lastErrorMessage = nil
+            status = "JSON applied to the Network editor"
             selectedPane = .model
         } catch {
             lastErrorMessage = Self.message(for: error)
@@ -211,8 +275,8 @@ final class QSBWorkspace {
     func solveNetwork() {
         beginSolving()
         do {
-            let modelData = Data(modelJSON.utf8)
-            let model = try NetworkModelJSON.decodeModel(from: modelData)
+            let model = try currentNetworkModel()
+            try syncNetworkDraftToJSON(model)
             guard let solver = NetworkBackends.backend(for: selectedBackend) else {
                 showUnavailableExternalBackend()
                 return
@@ -584,7 +648,7 @@ final class QSBWorkspace {
                 let program = try currentLPProgram()
                 try validate(program: program, source: "LP/ILP JSON")
             case .network:
-                let model = try NetworkModelJSON.decodeModel(from: data); let backend = ValidateOnlyNetworkBackend(); try showNetworkValidationReport(backend.validationReport(for: model), model: model)
+                let model = try currentNetworkModel(); let backend = ValidateOnlyNetworkBackend(); try syncNetworkDraftToJSON(model); try showNetworkValidationReport(backend.validationReport(for: model), model: model)
             case .facilities(let kind):
                 let model = try FacilitiesModelJSON.decodeUncheckedModel(from: data); try showFacilitiesValidationReport(ValidateOnlyFacilitiesBackend().validationReport(for: model), kind: kind)
             case .inventory(let kind):
@@ -633,6 +697,13 @@ final class QSBWorkspace {
                 ), as: UTF8.self)) ?? ""
                 lastErrorMessage = validationDiagnostics.first?.message
                 status = "LP draft has \(validationDiagnostics.count) input issue(s)"
+            } else if let draft = networkDraft, let draftError = error as? NetworkDraftError {
+                validationDiagnostics = Self.networkDraftDiagnostics(draftError, kind: draft.kind)
+                validationJSON = (try? String(decoding: Self.jsonEncoder.encode(
+                    NetworkValidationDocument(kind: draft.kind.problemKind, backend: .validateOnly, diagnostics: validationDiagnostics)
+                ), as: UTF8.self)) ?? ""
+                lastErrorMessage = validationDiagnostics.first?.message
+                status = "Network draft has \(validationDiagnostics.count) input issue(s)"
             } else {
                 lastErrorMessage = Self.message(for: error)
                 status = "Validation failed: \(Self.message(for: error))"
@@ -643,6 +714,8 @@ final class QSBWorkspace {
 
     func loadSample(_ sample: SampleModel) {
         lpDraft = nil
+        inventoryDraft = nil
+        networkDraft = nil
         switch sample {
         case .linearProgram:
             modelJSON = SampleModels.linearProgramJSON
@@ -678,6 +751,10 @@ final class QSBWorkspace {
         }
         if case .integerProgram = sample, let program = try? LinearProgramJSON.decodeProgram(from: Data(modelJSON.utf8)) {
             lpDraft = LinearProgrammingDraft(program: program)
+        }
+        if case .travelingSalesperson = sample,
+           let envelope = try? NetworkModelJSON.decodeModel(from: Data(modelJSON.utf8)) {
+            networkDraft = NetworkDraft(envelope: envelope)
         }
         solutionJSON = ""
         validationJSON = ""
@@ -732,6 +809,11 @@ final class QSBWorkspace {
                 inventoryDraft = InventoryDraft(envelope)
             } else {
                 inventoryDraft = nil
+            }
+            if let envelope = try? NetworkModelJSON.decodeModel(from: normalizedData) {
+                networkDraft = NetworkDraft(envelope: envelope)
+            } else {
+                networkDraft = nil
             }
             solutionJSON = ""
             validationJSON = ""
@@ -816,6 +898,13 @@ final class QSBWorkspace {
         return try InventoryModelJSON.decodeUncheckedModel(from: Data(modelJSON.utf8))
     }
 
+    private func currentNetworkModel() throws -> NetworkModelEnvelope {
+        if let networkDraft {
+            return try networkDraft.makeNetworkModel()
+        }
+        return try NetworkModelJSON.decodeModel(from: Data(modelJSON.utf8))
+    }
+
     private func syncInventoryDraftToJSON(_ model: InventoryModelEnvelope) throws {
         guard inventoryDraft != nil else { return }
         modelJSON = String(decoding: try InventoryModelJSON.encodeModel(model), as: UTF8.self)
@@ -830,6 +919,11 @@ final class QSBWorkspace {
     private func syncLPDraftToJSON(_ program: LinearProgram) throws {
         guard lpDraft != nil else { return }
         modelJSON = String(decoding: try LinearProgramJSON.encodeProgram(program), as: UTF8.self)
+    }
+
+    private func syncNetworkDraftToJSON(_ model: NetworkModelEnvelope) throws {
+        guard networkDraft != nil else { return }
+        modelJSON = String(decoding: try NetworkModelJSON.encodeModel(model), as: UTF8.self)
     }
 
     private func validateExtendedModel(_ data: Data) throws {
@@ -887,6 +981,25 @@ final class QSBWorkspace {
         let document = NetworkValidationDocument(kind: model.kind, backend: report.backend, diagnostics: report.diagnostics)
         let output = try NetworkModelJSON.encodeValidation(document)
         showDomainValidationOutput(output, report: report, name: model.kind.rawValue)
+    }
+
+    private static func networkDraftDiagnostics(_ error: NetworkDraftError, kind: NetworkDraftKind) -> [ValidationDiagnostic] {
+        guard case .issues(let issues) = error else { return [] }
+        return issues.map { issue in
+            let code: String
+            switch issue {
+            case .emptyTitle: code = "network.draft.title.empty"
+            case .emptyNodeName: code = "network.draft.node.name.empty"
+            case .duplicateNodeName: code = "network.draft.node.name.duplicate"
+            case .missingArcEndpoint: code = "network.draft.arc.endpoint.missing"
+            case .danglingArcEndpoint: code = "network.draft.arc.endpoint.dangling"
+            case .invalidArcCost: code = "network.draft.arc.cost.invalid"
+            case .missingSource: code = "network.draft.source.missing"
+            case .missingSink: code = "network.draft.sink.missing"
+            case .sourceAndSinkMustDiffer: code = "network.draft.source-sink.distinct"
+            }
+            return ValidationDiagnostic(severity: .error, code: "network.\(kind.problemKind.rawValue).\(code)", message: issue.message)
+        }
     }
 
     private func showInventoryValidationReport(_ report: ValidationReport, kind: InventoryProblemKind) throws {
@@ -1027,6 +1140,9 @@ final class QSBWorkspace {
         if let inventoryDraft {
             return .inventory(inventoryDraft.kind)
         }
+        if networkDraft != nil {
+            return .network
+        }
         let data = Data(modelJSON.utf8)
         if (try? LinearProgramJSON.decodeProgram(from: data)) != nil {
             return .linearProgramming
@@ -1067,7 +1183,7 @@ final class QSBWorkspace {
     }
 
     var hasModel: Bool {
-        lpDraft != nil || inventoryDraft != nil || !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        lpDraft != nil || inventoryDraft != nil || networkDraft != nil || !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var hasSolution: Bool {
@@ -1086,6 +1202,9 @@ final class QSBWorkspace {
             case .lotSizing(let draft): return draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? currentModelFamily.displayName : draft.title
             case .stochasticReview(let model): return model.title
             }
+        }
+        if let networkDraft, !networkDraft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return networkDraft.title
         }
         return hasModel ? currentModelFamily.displayName : "No model open"
     }
@@ -1138,6 +1257,7 @@ final class QSBWorkspace {
     }
 
     var isNetworkModel: Bool {
+        if networkDraft != nil { return true }
         guard case .network = currentModelFamily else {
             return false
         }

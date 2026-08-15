@@ -1,6 +1,7 @@
 # QSB Native Workbench: UI/UX Audit and Design Proposal
 
-Status: design proposal, not an implementation plan committed to code yet.
+Status: design reference. UI Phases 1–3B are implemented incrementally; the
+remaining family editors and refinement work are still roadmap items.
 
 This document records the post-Phase-C product audit of `QSBMacApp`. It
 complements `docs/GUI_UX_GUIDELINES.md`: that document defines visual and
@@ -100,6 +101,12 @@ stochastic review remains an import/JSON/solve surface because its
 policy-specific parameters are materially different. Discount tiers and
 lot-sizing periods are edited as dimensionally safe rows, while QSBCore owns
 semantic validation and all derived calculations.
+
+The Network editor applies the same boundary to graph-native variants:
+shortest path, minimum spanning tree, maximum flow, and traveling salesperson
+use an internal `NetworkDraft` with stable node/arc IDs and UI-only layout
+positions. Assignment, transportation, and minimum-cost flow remain
+import/JSON surfaces until a matrix/balance editor is designed.
 
 ### Validation
 

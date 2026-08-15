@@ -8,6 +8,8 @@ struct ModelEditorView: View {
             LinearProgrammingEditorView(workspace: workspace)
         } else if workspace.isInventoryModel, workspace.inventoryDraft != nil {
             InventoryEditorView(workspace: workspace)
+        } else if workspace.isNetworkModel, workspace.networkDraft != nil {
+            NetworkEditorView(workspace: workspace)
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 HeaderView(

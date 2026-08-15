@@ -455,6 +455,16 @@ Implemented:
 - stochastic review remains available through legacy import, normalized JSON,
   validation, and solving, but its native editor is deliberately deferred.
 
+UI Phase 3B status:
+
+- graph-native Network editing is implemented for shortest path, minimum
+  spanning tree, maximum flow, and traveling salesperson;
+- the editor uses an internal typed `NetworkDraft`, stable draft identities,
+  UI-only deterministic layout, QSBCore validation, normalized JSON, and the
+  existing `NetworkBackend` solution pipeline;
+- Assignment, transportation, and minimum-cost network flow remain available
+  through import/JSON and are deferred to a matrix/balance editor checkpoint.
+
 Recommended next:
 
 - add empirical or non-normal lead-time demand through a future external backend;

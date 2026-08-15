@@ -46,6 +46,27 @@ struct NewModelPickerView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(8)
             }
+            GroupBox("Networks · native graph editor") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Choose a graph-native model")
+                        .font(.headline)
+                    ForEach(NetworkDraftKind.allCases) { kind in
+                        Button {
+                            workspace.startNewNetwork(kind)
+                            dismiss()
+                        } label: {
+                            Label(kind.displayName, systemImage: "point.3.connected.trianglepath.dotted")
+                        }
+                        .buttonStyle(.link)
+                        .accessibilityIdentifier("network-kind-\(kind.rawValue)")
+                    }
+                    Text("Assignment, transportation, and minimum-cost flow remain available through import and JSON; matrix/balance editors are deferred.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+            }
             GroupBox("Other families") {
                 Text("Open and solve are available for existing models. Native creation editors for other families will be added in later phases.")
                     .foregroundStyle(.secondary)

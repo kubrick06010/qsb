@@ -217,6 +217,17 @@ struct JSONRepresentationView: View {
                 }
             }
             .padding(.horizontal, 12)
+        } else if !solution && workspace.isNetworkModel {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Network draft when the variant has a graph editor.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Network Editor") {
+                    workspace.applyNetworkJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
         }
     }
 }

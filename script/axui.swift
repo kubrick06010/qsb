@@ -91,7 +91,7 @@ func read(_ element: AXUIElement, identifier target: String) throws {
 
 let arguments = CommandLine.arguments
 guard arguments.count >= 3 else {
-    fputs("usage: axui.swift <process-name> --press <identifier> | --resize <width> <height> | --list-identifiers\n", stderr)
+    fputs("usage: axui.swift <process-name> --press <identifier> | --resize <width> <height> | --list-identifiers | --read <identifier>\n", stderr)
     exit(2)
 }
 

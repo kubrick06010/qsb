@@ -36,11 +36,20 @@ compatibility fixtures.
 ## CLI
 
 ```sh
-swift run qsb
+swift run qsb inspect <file>
+swift run qsb validate <file>
+swift run qsb export-json <legacy-file>
+swift run qsb solve <legacy-file> [--backend native|validate|external]
+swift run qsb solve-json <json-file> [--backend native|validate|external]
 ```
 
-The CLI exposes import, validation, solving, inventory, and JSON export
-workflows for supported model families.
+These generic commands route through the existing QSBCore import, validation,
+normalized JSON, and family-specific backend layers. Family-specific commands
+remain available as stable shortcuts for established workflows. See the
+[porting roadmap](docs/PORTING_ROADMAP.md) for the broader command inventory.
+
+Legacy WinQSB fixtures are local-only and are not required for the portable
+core tests. When present locally, they can be used with the commands above.
 
 ## Roadmap and Contributions
 

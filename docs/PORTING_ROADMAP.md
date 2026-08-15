@@ -287,6 +287,16 @@ Implemented:
 - legacy WinQSB reference organization under `reference/winqsb`;
 - foundational backend and validation diagnostic types in `QSBCore`;
 - `swift test` verification with 118 passing tests as of 2026-07-16.
+- Phase A structural consolidation is complete for Facilities, Inventory, LP,
+  CLI support files, and legacy tests.
+- Phase B infrastructure convergence is complete, including shared normalized
+  JSON encoder configuration and backend/options audits.
+- Phase C generic CLI routing is complete for inspect, validate, export-json,
+  solve, and solve-json across the normalized QSBCore families; established
+  family-specific commands remain stable shortcuts.
+- Native Decision Tree inspection and portable CI are complete.
+- The repository hygiene checkpoint is complete. External solver integration
+  has not started.
 
 Next:
 
@@ -1076,14 +1086,22 @@ swift run qsb solve-finite-queue-json <file> [--backend native|validate]
 swift run qsb validate-finite-queue <file>
 ```
 
-Future generic direction:
+Implemented generic direction:
 
 ```bash
-swift run qsb inspect <legacy-file>
-swift run qsb validate <legacy-file>
-swift run qsb export-json <legacy-file> [--family auto|lp|network|forecasting|inventory|dp|scheduling|facilities|decision|queue]
-swift run qsb solve <legacy-file> [--family auto] [--backend native|validate|external] [--json]
-swift run qsb solve-json <json-file> [--backend native|validate|external] [--json]
+swift run qsb inspect <file>
+swift run qsb validate <file>
+swift run qsb export-json <legacy-file>
+swift run qsb solve <legacy-file> [--backend native|validate|external]
+swift run qsb solve-json <json-file> [--backend native|validate|external]
+
+The normalized-family detector currently tries the existing typed decoders in
+sequence. No ambiguous normalized schemas are known; the sequential approach
+is retained as acceptable technical debt until a demonstrated collision or
+performance requirement justifies a change.
+
+Future generic direction:
+
 swift run qsb compare-fixture <legacy-file> [--expected <json-or-snapshot>]
 ```
 

@@ -11,6 +11,16 @@
 # Local build outputs
 dist/
 
+# LaTeX manual build products
+manual/*.pdf
+manual/**/*.aux
+manual/**/*.fdb_latexmk
+manual/**/*.fls
+manual/**/*.log
+manual/**/*.out
+manual/**/*.synctex.gz
+manual/**/*.toc
+
 # Local strategy documents not intended for the public remote yet
 goal.md
 docs/ui_ux.md

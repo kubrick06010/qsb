@@ -1,8 +1,9 @@
 # QSB Engineering Guidance
 
 These instructions apply to all work in this repository. They complement
-`CONTRIBUTING.md`, `docs/LEGACY_REFERENCE_POLICY.md`, `goal.md`, and
-`docs/PORTING_ROADMAP.md`.
+`CONTRIBUTING.md`, `docs/LEGACY_REFERENCE_POLICY.md`, and
+`docs/PORTING_ROADMAP.md`. The roadmap is the public project-status source of
+truth; any local `goal.md` remains private working context.
 
 ## Project Intent
 
@@ -40,7 +41,7 @@ usable from SwiftPM, the CLI, the macOS app, tests, and future frontends.
 
 ## Implementation Workflow
 
-1. Read the relevant goal, roadmap, family documentation, and nearby code.
+1. Read the relevant roadmap, family documentation, and nearby code.
 2. Establish the baseline with `swift test` or the narrowest relevant test.
 3. Identify the layer that owns the behavior before editing.
 4. Implement the smallest coherent change using existing patterns.
@@ -104,8 +105,8 @@ record the limitation clearly rather than weakening the test.
 
 - Document public model families, input assumptions, solver character, and
   normalized JSON behavior.
-- Update `goal.md` and `docs/PORTING_ROADMAP.md` only when a checkpoint or
-  roadmap status genuinely changes.
+- Update `docs/PORTING_ROADMAP.md` only when a checkpoint or roadmap status
+  genuinely changes.
 - Keep pull requests narrow, with a readable description of user-facing
   behavior and validation performed.
 - Never hide a behavior change behind a refactor-only description.

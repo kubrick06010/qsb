@@ -1,5 +1,6 @@
 import SwiftUI
 
+// Preview-only UI concept. Model parsing, validation, and solving remain in QSBCore.
 struct LinearProgrammingEntryMockView: View {
     @Environment(\.dismiss) private var dismiss
 

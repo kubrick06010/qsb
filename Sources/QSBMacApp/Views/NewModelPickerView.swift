@@ -29,7 +29,7 @@ struct NewModelPickerView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Choose a model variant")
                         .font(.headline)
-                    ForEach([InventoryProblemKind.eoq, .quantityDiscountEOQ, .newsboy, .lotSizing], id: \.rawValue) { kind in
+                    ForEach([InventoryProblemKind.eoq, .quantityDiscountEOQ, .newsboy, .lotSizing, .stochasticReview], id: \.rawValue) { kind in
                         Button {
                             workspace.startNewInventory(kind)
                             dismiss()
@@ -39,7 +39,7 @@ struct NewModelPickerView: View {
                         .buttonStyle(.link)
                         .accessibilityIdentifier("new-model-inventory-\(kind.rawValue)")
                     }
-                    Text("Stochastic Review remains available through JSON and legacy import; its native editor is deferred.")
+                    Text("Stochastic Review now uses a native policy-aware editor; the existing solver remains the source of all calculations.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -79,7 +79,15 @@ struct NewModelPickerView: View {
                     }
                     .buttonStyle(.link)
                     .accessibilityIdentifier("network-kind-transportation")
-                    Text("Minimum-cost flow remains available through import and JSON; its graph-and-balance editor is deferred.")
+                    Button {
+                        workspace.startNewNetworkFlow()
+                        dismiss()
+                    } label: {
+                        Label("Minimum-Cost Transshipment", systemImage: "arrow.triangle.branch")
+                    }
+                    .buttonStyle(.link)
+                    .accessibilityIdentifier("network-kind-minimum-cost-flow")
+                    Text("CNF uses a balance-aware network table; capacities are not part of the current QSBCore model.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

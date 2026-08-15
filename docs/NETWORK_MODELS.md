@@ -269,6 +269,8 @@ remain available through legacy import, normalized JSON, validation, solving,
 and the existing solution views. Assignment now has a native rectangular cost
 matrix editor, and transportation has a native cost matrix with aligned supply
 and demand fields. Both use separate typed drafts and keep JSON as an explicit
-advanced surface. CNF remains deferred: its node balances and solver-side
-automatic dummy adjustment require a dedicated graph-plus-balances editor and
-are not equivalent to transportation.
+advanced surface. CNF now uses a separate balance-aware node/arc editor: it
+preserves stable identities, directed arc costs, and per-node supply/demand,
+while leaving validation and the solver-side automatic dummy adjustment in
+QSBCore. Capacities and lower bounds are not shown because they are not fields
+in the current QSBCore model.

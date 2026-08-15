@@ -54,10 +54,26 @@ struct InventoryDraftTests {
         #expect(diagnostics[0].path == "demand")
     }
 
-    @Test("stochastic review remains representable without a native editor")
+    @Test("stochastic draft preserves policy-specific values and uses the existing backend")
     func stochasticRoundTrip() throws {
         let model = StochasticInventoryModel(title: "Stochastic", timeUnit: "year", policy: .periodicFixedOrderInterval, demandDistribution: "Normal", meanDemand: 100, demandStandardDeviation: 10, setupCost: 50, acquisitionCost: 2, holdingCost: 1, backorderFraction: 1, backorderCost: 3, lostSalesFraction: 0, lostSalesCost: nil, fixedShortageCost: nil, leadTimeDistribution: "Constant", leadTime: 1, averageOrderSize: nil, reviewCost: 10)
-        #expect(try InventoryDraft(.stochasticReview(model)).makeModel() == .stochasticReview(model))
+        let draft = InventoryStochasticDraft(model)
+        #expect(try draft.makeModel() == model)
+        let envelope = InventoryModelEnvelope.stochasticReview(model)
+        let decoded = try InventoryModelJSON.decodeUncheckedModel(from: InventoryModelJSON.encodeModel(envelope))
+        #expect(try InventoryDraft(decoded).makeModel() == envelope)
+        let solution = try NativeEducationalInventoryBackend().solve(model)
+        #expect(solution.orderQuantity > 0)
+    }
+
+    @Test("stochastic draft supports all existing policy cases")
+    func stochasticPoliciesRoundTrip() throws {
+        for policy in StochasticInventoryPolicy.allCases {
+            var draft = InventoryStochasticDraft(policy: policy)
+            if policy == .continuousOrderUpTo { draft.averageOrderSize = "20" }
+            if policy == .periodicFixedOrderInterval || policy == .periodicOptionalReplenishment { draft.reviewCost = "5" }
+            #expect(try draft.makeModel().policy == policy)
+        }
     }
 
     @Test("draft JSON round trip preserves a lot-sizing envelope")

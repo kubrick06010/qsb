@@ -96,9 +96,9 @@ flow; its concerns were replaced by the native editor without exposing the
 simplex unrestricted-variable transformation.
 
 Inventory follows the same boundary with a discriminated `InventoryDraft`:
-EOQ, quantity-discount EOQ, newsvendor, and lot sizing have native editors;
-stochastic review remains an import/JSON/solve surface because its
-policy-specific parameters are materially different. Discount tiers and
+EOQ, quantity-discount EOQ, newsvendor, lot sizing, and stochastic review have
+native editors. Stochastic review uses policy-aware sections because its
+parameters are materially different. Discount tiers and
 lot-sizing periods are edited as dimensionally safe rows, while QSBCore owns
 semantic validation and all derived calculations.
 
@@ -663,8 +663,11 @@ the inspector is closed. The design must support:
 Status: Inventory and Network matrix/bipartite editing are implemented. Native
 Network editing covers graph variants (shortest path, MST, maximum flow, TSP),
 Assignment’s rectangular matrix, and Transportation’s matrix with balances.
-Stochastic inventory review and Network CNF remain JSON/import-only for native
-editing.
+Stochastic inventory review and Network CNF now have dedicated native editors.
+Stochastic Inventory uses policy-aware form sections and preserves the actual
+QSBCore fields through `InventoryStochasticDraft`. CNF uses a separate
+balance-aware node/arc table rather than overloading the graph or transportation
+drafts; invented capacities remain absent from the model.
 
 Future priorities with high educational and workflow value:
 

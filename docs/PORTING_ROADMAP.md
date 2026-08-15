@@ -455,6 +455,18 @@ Implemented:
 - stochastic review remains available through legacy import, normalized JSON,
   validation, and solving, but its native editor is deliberately deferred.
 
+UI Phase 3D status:
+
+- Stochastic Inventory now has a policy-aware native editor backed by a
+  dedicated `InventoryStochasticDraft`; all four existing policy cases round
+  trip through `StochasticInventoryModel`, normalized JSON, and the existing
+  approximate native backend;
+- the editor exposes the actual demand, shortage, lead-time, and
+  policy-specific fields without duplicating stochastic formulas or validation;
+- CNF now has a dedicated balance-aware Network editor with stable node/arc
+  identities, node supply/demand, directed arc costs, safe incident-arc
+  removal, existing JSON/backend routing, and no invented capacity fields.
+
 UI Phase 3B status:
 
 - graph-native Network editing is implemented for shortest path, minimum
@@ -471,9 +483,9 @@ UI Phase 3C status:
 - both editors use distinct internal typed drafts, QSBCore validation, the
   existing NetworkBackend routes, unchanged normalized JSON, and the existing
   solution views;
-- minimum-cost network flow (`CNF`) remains available through import/JSON and
-  is deferred to a dedicated graph-plus-balances editor because its node
-  balances and solver-side dummy adjustment do not fit either matrix editor.
+- minimum-cost network flow (`CNF`) now has a dedicated balance-aware editor;
+  its node balances and solver-side dummy adjustment remain represented by
+  the existing QSBCore validator and solver.
 
 Recommended next:
 

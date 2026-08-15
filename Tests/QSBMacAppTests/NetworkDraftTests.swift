@@ -210,3 +210,36 @@ func workspaceLoadsMatrixNetworkDrafts() throws {
     #expect(transportationWorkspace.transportationDraft != nil)
     #expect(transportationWorkspace.networkDraft == nil)
 }
+
+@Test("CNF draft preserves node balances and arc semantics")
+func networkFlowDraftRoundTripsAndSolves() throws {
+    let model = MinimumCostNetworkFlowProblem(
+        title: "Flow",
+        nodes: ["Source", "Sink"],
+        arcs: [NetworkArc(from: "Source", to: "Sink", cost: 3)],
+        supply: [5, 0],
+        demand: [0, 5]
+    )
+    let draft = NetworkFlowDraft(model)
+    #expect(try draft.makeModel() == model)
+    let json = try NetworkModelJSON.encodeModel(.minimumCostFlow(model))
+    let restored = try #require(NetworkFlowDraft(envelope: NetworkModelJSON.decodeModel(from: json)))
+    #expect(try restored.makeModel() == model)
+    let solution = try NativeEducationalNetworkBackend().solve(.minimumCostFlow(model))
+    guard case .minimumCostFlow(let value) = solution else {
+        Issue.record("Expected minimum-cost flow solution")
+        return
+    }
+    #expect(value.arcFlows.first?.quantity == 5)
+    #expect(value.totalCost == 15)
+}
+
+@Test("CNF node removal removes incident arcs")
+func networkFlowDraftNodeMutationIsSafe() {
+    var draft = NetworkFlowDraft.blank()
+    let middle = draft.addNode(name: "Middle")
+    _ = draft.addArc(from: middle, to: draft.nodes.first?.id, costText: "2")
+    draft.removeNode(id: middle)
+    #expect(draft.nodes.contains { $0.id == middle } == false)
+    #expect(draft.arcs.allSatisfy { $0.fromNodeID != middle && $0.toNodeID != middle })
+}

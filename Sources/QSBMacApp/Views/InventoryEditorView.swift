@@ -20,7 +20,7 @@ struct InventoryEditorView: View {
                     Text("Quantity Discount EOQ").tag(InventoryProblemKind.quantityDiscountEOQ)
                     Text("Newsvendor").tag(InventoryProblemKind.newsboy)
                     Text("Lot Sizing").tag(InventoryProblemKind.lotSizing)
-                    Text("Stochastic Review · JSON only").tag(InventoryProblemKind.stochasticReview)
+                    Text("Stochastic Review").tag(InventoryProblemKind.stochasticReview)
                 }
                 .pickerStyle(.menu)
                 .padding(.horizontal, 18)
@@ -28,8 +28,7 @@ struct InventoryEditorView: View {
                 .accessibilityLabel("Inventory model variant")
 
                 if case .stochasticReview = draft {
-                    ContentUnavailableView("Stochastic Review editor deferred", systemImage: "tablecells.badge.ellipsis", description: Text("This variant remains available through normalized JSON, validation, and the existing solver. Native editing is deferred because its policy-specific parameters differ materially from the current editors."))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    StochasticInventoryEditorView(workspace: workspace)
                 } else {
                     ScrollView([.vertical, .horizontal]) {
                         editor(draft)
@@ -57,7 +56,7 @@ struct InventoryEditorView: View {
         case .lotSizing:
             LotSizingEditor(workspace: workspace)
         case .stochasticReview:
-            EmptyView()
+            StochasticInventoryEditorView(workspace: workspace)
         }
     }
 }

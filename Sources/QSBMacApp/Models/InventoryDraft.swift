@@ -178,7 +178,7 @@ enum InventoryDraft: Equatable, Sendable {
     case quantityDiscount(InventoryQuantityDiscountDraft)
     case newsboy(InventoryNewsboyDraft)
     case lotSizing(InventoryLotSizingDraft)
-    case stochasticReview(StochasticInventoryModel)
+    case stochasticReview(InventoryStochasticDraft)
 
     static func blank(_ kind: InventoryProblemKind) -> Self {
         switch kind {
@@ -187,13 +187,7 @@ enum InventoryDraft: Equatable, Sendable {
         case .newsboy: .newsboy(InventoryNewsboyDraft())
         case .lotSizing: .lotSizing(InventoryLotSizingDraft())
         case .stochasticReview:
-            .stochasticReview(StochasticInventoryModel(
-                title: "New Stochastic Inventory Model", timeUnit: "year", policy: .continuousFixedOrderQuantity,
-                demandDistribution: "Normal", meanDemand: 100, demandStandardDeviation: 10, setupCost: 100,
-                acquisitionCost: 1, holdingCost: 1, backorderFraction: 1, backorderCost: 1,
-                lostSalesFraction: 0, lostSalesCost: nil, fixedShortageCost: nil,
-                leadTimeDistribution: "Constant", leadTime: 1, averageOrderSize: nil, reviewCost: nil
-            ))
+            .stochasticReview(InventoryStochasticDraft())
         }
     }
 
@@ -203,7 +197,7 @@ enum InventoryDraft: Equatable, Sendable {
         case .quantityDiscountEOQ(let model): self = .quantityDiscount(InventoryQuantityDiscountDraft(model))
         case .newsboy(let model): self = .newsboy(InventoryNewsboyDraft(model))
         case .lotSizing(let model): self = .lotSizing(InventoryLotSizingDraft(model))
-        case .stochasticReview(let model): self = .stochasticReview(model)
+        case .stochasticReview(let model): self = .stochasticReview(InventoryStochasticDraft(model))
         }
     }
 
@@ -223,7 +217,7 @@ enum InventoryDraft: Equatable, Sendable {
         case .quantityDiscount(let draft): .quantityDiscountEOQ(try Self.makeQuantityDiscount(draft))
         case .newsboy(let draft): .newsboy(try Self.makeNewsboy(draft))
         case .lotSizing(let draft): .lotSizing(try Self.makeLotSizing(draft))
-        case .stochasticReview(let model): .stochasticReview(model)
+        case .stochasticReview(let draft): .stochasticReview(try draft.makeModel())
         }
     }
 

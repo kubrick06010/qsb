@@ -12,6 +12,7 @@
 dist/
 
 # LaTeX manual build products
+manual/build/
 manual/*.pdf
 manual/**/*.aux
 manual/**/*.fdb_latexmk

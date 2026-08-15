@@ -101,6 +101,7 @@ struct ContentView: View {
                 } label: {
                     Label("Validate", systemImage: "checkmark.seal")
                 }
+                .help("Validate model (⌘⇧V)")
                 .disabled(!workspace.hasModel || workspace.modelState == .validating)
 
                 Button {

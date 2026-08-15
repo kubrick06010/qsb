@@ -589,6 +589,8 @@ Priority gaps:
 - segmented visual/JSON controls need stable labels across families;
 - keyboard navigation should cover sidebar, inspector, Validate, Run, and
   result sections;
+- Validate uses `Command-Shift-V`; `Command-V` remains the native Paste action
+  for editable fields and tables;
 - review Dynamic Programming, Inventory, and Network canvas alternatives at
   compact sizes;
 - add reduced-motion behavior for future animated runs and transitions.

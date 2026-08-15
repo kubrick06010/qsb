@@ -39,7 +39,8 @@ struct LinearProgrammingEditorView: View {
             }
             HStack {
                 Button("Validate") { workspace.validateCurrentModel() }
-                    .keyboardShortcut("v", modifiers: [.command])
+                    .keyboardShortcut("v", modifiers: [.command, .shift])
+                    .help("Validate model (⌘⇧V)")
                 Button(workspace.lpDraft?.variables.contains(where: { $0.type != .continuous }) == true ? "Run ILP" : "Run LP") {
                     workspace.runCurrentModel()
                 }

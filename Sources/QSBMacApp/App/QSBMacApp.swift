@@ -40,7 +40,7 @@ struct QSBMacApp: App {
                 Button("Validate Model") {
                     workspace.validateCurrentModel()
                 }
-                .keyboardShortcut("v", modifiers: [.command])
+                .keyboardShortcut("v", modifiers: [.command, .shift])
                 .disabled(!workspace.hasModel)
 
                 Divider()

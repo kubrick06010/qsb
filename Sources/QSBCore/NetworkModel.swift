@@ -4,6 +4,12 @@ public struct NetworkArc: Codable, Equatable, Sendable {
     public let from: String
     public let to: String
     public let cost: Double
+
+    public init(from: String, to: String, cost: Double) {
+        self.from = from
+        self.to = to
+        self.cost = cost
+    }
 }
 
 public struct ShortestPathNetwork: Codable, Equatable, Sendable {

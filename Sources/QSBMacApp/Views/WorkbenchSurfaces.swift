@@ -13,7 +13,7 @@ struct EmptyWorkspaceView: View {
             HStack {
                 Button("Open") { workspace.isImportingModel = true }
                     .keyboardShortcut("o", modifiers: [.command])
-                Button("New") { workspace.startNewLinearProgram() }
+                Button("New") { workspace.startNewModelSelection() }
                     .keyboardShortcut("n", modifiers: [.command])
                     .buttonStyle(.borderedProminent)
             }
@@ -183,18 +183,7 @@ struct JSONRepresentationView: View {
                 title: solution ? "Solution JSON" : "Model JSON",
                 subtitle: solution ? "Advanced result representation" : "Advanced model representation"
             )
-            if !solution && workspace.isLinearProgrammingModel {
-                HStack {
-                    Text("JSON changes are applied explicitly to the native LP draft.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Apply JSON to LP Editor") {
-                        workspace.applyModelJSONToNativeEditor()
-                    }
-                }
-                .padding(.horizontal, 12)
-            }
+            jsonApplyBar
             TextEditor(text: solution ? .constant(workspace.solutionJSON) : $workspace.modelJSON)
                 .font(.system(.body, design: .monospaced))
                 .scrollContentBackground(.hidden)
@@ -202,6 +191,33 @@ struct JSONRepresentationView: View {
                 .accessibilityLabel(solution ? "Solution JSON" : "Model JSON")
         }
         .navigationTitle(solution ? "Solution JSON" : "Model JSON")
+    }
+
+    @ViewBuilder
+    private var jsonApplyBar: some View {
+        if !solution && workspace.isLinearProgrammingModel {
+            HStack {
+                Text("JSON changes are applied explicitly to the native LP draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to LP Editor") {
+                    workspace.applyModelJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        } else if !solution && workspace.isInventoryModel {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Inventory draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Inventory Editor") {
+                    workspace.applyInventoryJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        }
     }
 }
 

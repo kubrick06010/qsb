@@ -89,9 +89,10 @@ struct ContentView: View {
                 } label: {
                     Label("Open", systemImage: "folder")
                 }
+                .accessibilityIdentifier("workbench-open")
 
                 Button {
-                    workspace.startNewLinearProgram()
+                    workspace.startNewModelSelection()
                 } label: {
                     Label("New", systemImage: "plus")
                 }
@@ -103,6 +104,7 @@ struct ContentView: View {
                 }
                 .help("Validate model (⌘⇧V)")
                 .disabled(!workspace.hasModel || workspace.modelState == .validating)
+                .accessibilityIdentifier("workbench-validate")
 
                 Button {
                     workspace.runCurrentModel()
@@ -111,6 +113,7 @@ struct ContentView: View {
                 }
                 .help("Solve the current model with the selected backend")
                 .disabled(!workspace.canSolveCurrentModel || workspace.runState == .solving)
+                .accessibilityIdentifier("workbench-run")
 
                 Button {
                     workspace.isExportingModel = true
@@ -118,6 +121,7 @@ struct ContentView: View {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }
                 .disabled(!workspace.hasModel)
+                .accessibilityIdentifier("workbench-export")
 
                 Button {
                     isShowingInspector.toggle()
@@ -130,6 +134,9 @@ struct ContentView: View {
         .inspector(isPresented: $isShowingInspector) {
             WorkbenchInspectorView(workspace: workspace)
                 .inspectorColumnWidth(min: 220, ideal: 280, max: 360)
+        }
+        .sheet(isPresented: $workspace.isShowingNewModelPicker) {
+            NewModelPickerView(workspace: workspace)
         }
         .fileImporter(
             isPresented: $workspace.isImportingModel,

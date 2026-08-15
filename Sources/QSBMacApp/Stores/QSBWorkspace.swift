@@ -20,6 +20,7 @@ final class QSBWorkspace {
         }
     }
     var lpDraft: LinearProgrammingDraft?
+    var inventoryDraft: InventoryDraft?
     var solutionJSON: String = ""
     var validationJSON: String = ""
     var validationDiagnostics: [ValidationDiagnostic] = []
@@ -33,6 +34,7 @@ final class QSBWorkspace {
     var selectedBackend: SolverBackendKind = .nativeEducational
     var selectedLayoutStrategy: FacilityLayoutSolvingStrategy = .initial
     var isImportingModel = false
+    var isShowingNewModelPicker = false
     var isExportingModel = false
     var isExportingSolution = false
 
@@ -44,10 +46,16 @@ final class QSBWorkspace {
         } else {
             self.lpDraft = nil
         }
+        if let envelope = try? InventoryModelJSON.decodeUncheckedModel(from: Data(modelJSON.utf8)) {
+            self.inventoryDraft = InventoryDraft(envelope)
+        } else {
+            self.inventoryDraft = nil
+        }
     }
 
     func startNewLinearProgram() {
         lpDraft = .blank()
+        inventoryDraft = nil
         modelJSON = ""
         modelSource = "New · Linear Programming"
         modelState = .editing
@@ -58,6 +66,26 @@ final class QSBWorkspace {
         lastErrorMessage = nil
         lastResultLabel = nil
         status = "Editing a new linear program"
+        selectedPane = .model
+    }
+
+    func startNewModelSelection() {
+        isShowingNewModelPicker = true
+    }
+
+    func startNewInventory(_ kind: InventoryProblemKind) {
+        lpDraft = nil
+        inventoryDraft = .blank(kind)
+        modelJSON = ""
+        modelSource = "New · Inventory · \(kind.displayName)"
+        modelState = .editing
+        runState = .notRun
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        lastErrorMessage = nil
+        lastResultLabel = nil
+        status = "Editing a new \(kind.displayName) model"
         selectedPane = .model
     }
 
@@ -75,6 +103,20 @@ final class QSBWorkspace {
         status = "Editing linear program"
     }
 
+    func updateInventoryDraft(_ update: (inout InventoryDraft) -> Void) {
+        guard var draft = inventoryDraft else { return }
+        update(&draft)
+        inventoryDraft = draft
+        modelState = .editing
+        runState = .notRun
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        lastResultLabel = nil
+        lastErrorMessage = nil
+        status = "Editing inventory model"
+    }
+
     func applyModelJSONToNativeEditor() {
         do {
             let program = try LinearProgramJSON.decodeProgram(from: Data(modelJSON.utf8))
@@ -87,6 +129,27 @@ final class QSBWorkspace {
             validationDiagnostics = []
             lastErrorMessage = nil
             status = "JSON applied to the LP editor"
+            selectedPane = .model
+        } catch {
+            lastErrorMessage = Self.message(for: error)
+            status = "JSON was not applied: \(lastErrorMessage ?? "Invalid JSON")"
+            selectedPane = .json
+        }
+    }
+
+    func applyInventoryJSONToNativeEditor() {
+        do {
+            let envelope = try InventoryModelJSON.decodeModel(from: Data(modelJSON.utf8))
+            inventoryDraft = InventoryDraft(envelope)
+            lpDraft = nil
+            modelSource = "Normalized JSON · Inventory"
+            modelState = .editing
+            runState = .notRun
+            solutionJSON = ""
+            validationJSON = ""
+            validationDiagnostics = []
+            lastErrorMessage = nil
+            status = "JSON applied to the Inventory editor"
             selectedPane = .model
         } catch {
             lastErrorMessage = Self.message(for: error)
@@ -220,7 +283,7 @@ final class QSBWorkspace {
     func solveInventory() {
         beginSolving()
         do {
-            let model = try InventoryModelJSON.decodeUncheckedModel(from: Data(modelJSON.utf8))
+            let model = try currentInventoryEnvelope()
             guard let solver = InventoryBackends.backend(for: selectedBackend) else {
                 showUnavailableExternalBackend()
                 return
@@ -229,6 +292,7 @@ final class QSBWorkspace {
                 try showInventoryValidationReport(solver.validationReport(for: model), kind: model.kind)
                 return
             }
+            try syncInventoryDraftToJSON(model)
             let solution = try solver.solve(model)
             let output = try InventoryModelJSON.encodeSolutionDocument(solver.solutionDocument(for: model, solution: solution))
             solutionJSON = String(decoding: output, as: UTF8.self)
@@ -504,6 +568,8 @@ final class QSBWorkspace {
                 return
             }
             solve(lpDraft?.variables.contains(where: { $0.type != .continuous }) == true ? .integer : .relaxation)
+        } else if isInventoryModel, inventoryDraft != nil {
+            solveInventory()
         } else {
             solveCurrentModel()
         }
@@ -522,7 +588,7 @@ final class QSBWorkspace {
             case .facilities(let kind):
                 let model = try FacilitiesModelJSON.decodeUncheckedModel(from: data); try showFacilitiesValidationReport(ValidateOnlyFacilitiesBackend().validationReport(for: model), kind: kind)
             case .inventory(let kind):
-                let model = try InventoryModelJSON.decodeUncheckedModel(from: data); try showInventoryValidationReport(ValidateOnlyInventoryBackend().validationReport(for: model), kind: kind)
+                let model = try currentInventoryEnvelope(); try validateInventory(model, kind: kind)
             case .dynamicProgramming(let kind):
                 let model = try DynamicProgrammingModelJSON.decodeUncheckedModel(from: data); try showDynamicProgrammingValidationReport(ValidateOnlyDynamicProgrammingBackend().validationReport(for: model), kind: kind)
             case .forecasting:
@@ -566,7 +632,7 @@ final class QSBWorkspace {
                     ValidationReport(backend: .validateOnly, diagnostics: validationDiagnostics)
                 ), as: UTF8.self)) ?? ""
                 lastErrorMessage = validationDiagnostics.first?.message
-                status = "LP draft has (validationDiagnostics.count) input issue(s)"
+                status = "LP draft has \(validationDiagnostics.count) input issue(s)"
             } else {
                 lastErrorMessage = Self.message(for: error)
                 status = "Validation failed: \(Self.message(for: error))"
@@ -662,6 +728,11 @@ final class QSBWorkspace {
             } else {
                 lpDraft = nil
             }
+            if let envelope = try? InventoryModelJSON.decodeUncheckedModel(from: normalizedData) {
+                inventoryDraft = InventoryDraft(envelope)
+            } else {
+                inventoryDraft = nil
+            }
             solutionJSON = ""
             validationJSON = ""
             validationDiagnostics = []
@@ -736,6 +807,24 @@ final class QSBWorkspace {
             return try lpDraft.makeLinearProgram()
         }
         return try LinearProgramJSON.decodeProgram(from: Data(modelJSON.utf8))
+    }
+
+    private func currentInventoryEnvelope() throws -> InventoryModelEnvelope {
+        if let inventoryDraft {
+            return try inventoryDraft.makeModel()
+        }
+        return try InventoryModelJSON.decodeUncheckedModel(from: Data(modelJSON.utf8))
+    }
+
+    private func syncInventoryDraftToJSON(_ model: InventoryModelEnvelope) throws {
+        guard inventoryDraft != nil else { return }
+        modelJSON = String(decoding: try InventoryModelJSON.encodeModel(model), as: UTF8.self)
+    }
+
+    private func validateInventory(_ model: InventoryModelEnvelope, kind: InventoryProblemKind) throws {
+        let report = ValidateOnlyInventoryBackend().validationReport(for: model)
+        try syncInventoryDraftToJSON(model)
+        try showInventoryValidationReport(report, kind: kind)
     }
 
     private func syncLPDraftToJSON(_ program: LinearProgram) throws {
@@ -935,6 +1024,9 @@ final class QSBWorkspace {
         if lpDraft != nil {
             return .linearProgramming
         }
+        if let inventoryDraft {
+            return .inventory(inventoryDraft.kind)
+        }
         let data = Data(modelJSON.utf8)
         if (try? LinearProgramJSON.decodeProgram(from: data)) != nil {
             return .linearProgramming
@@ -975,7 +1067,7 @@ final class QSBWorkspace {
     }
 
     var hasModel: Bool {
-        lpDraft != nil || !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        lpDraft != nil || inventoryDraft != nil || !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var hasSolution: Bool {
@@ -985,6 +1077,15 @@ final class QSBWorkspace {
     var modelTitle: String {
         if let title = lpDraft?.title.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
             return title
+        }
+        if let inventoryDraft {
+            switch inventoryDraft {
+            case .eoq(let draft): return draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? currentModelFamily.displayName : draft.title
+            case .quantityDiscount(let draft): return draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? currentModelFamily.displayName : draft.title
+            case .newsboy(let draft): return draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? currentModelFamily.displayName : draft.title
+            case .lotSizing(let draft): return draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? currentModelFamily.displayName : draft.title
+            case .stochasticReview(let model): return model.title
+            }
         }
         return hasModel ? currentModelFamily.displayName : "No model open"
     }

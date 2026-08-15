@@ -6,6 +6,8 @@ struct ModelEditorView: View {
     var body: some View {
         if workspace.isLinearProgrammingModel {
             LinearProgrammingEditorView(workspace: workspace)
+        } else if workspace.isInventoryModel, workspace.inventoryDraft != nil {
+            InventoryEditorView(workspace: workspace)
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 HeaderView(

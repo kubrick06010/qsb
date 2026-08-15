@@ -15,7 +15,7 @@ struct QSBMacApp: App {
         .commands {
             CommandMenu("Model") {
                 Button("New Model...") {
-                    workspace.startNewLinearProgram()
+                    workspace.startNewModelSelection()
                 }
                 .keyboardShortcut("n", modifiers: [.command])
 

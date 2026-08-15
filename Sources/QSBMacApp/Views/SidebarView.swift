@@ -30,6 +30,16 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .navigationTitle("QSB")
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                workspace.startNewModelSelection()
+            } label: {
+                Label("New Model", systemImage: "plus")
+            }
+            .accessibilityIdentifier("workbench-new")
+            .keyboardShortcut("n", modifiers: [.command])
+            .padding(10)
+        }
     }
 
     @ViewBuilder

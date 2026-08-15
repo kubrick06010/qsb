@@ -84,8 +84,8 @@ JSON. This is a good advanced/debugging surface and a weak default editor:
 - model identity and assumptions are hidden in JSON;
 - changes are not visibly classified as editing versus validated;
 - there is no dirty state or save/revert model;
-- the LP/ILP family now has a native typed editor; other families still use
-  JSON as their practical editing surface.
+- the LP/ILP and Inventory families now have native typed editors; other
+  families still use JSON as their practical editing surface.
 
 The first production editor is the LP/ILP editor. It keeps an internal
 `LinearProgrammingDraft` only while the user is editing incomplete values, then
@@ -93,6 +93,13 @@ converts through one boundary into `LinearProgram`. QSBCore owns semantic
 validation and solving. The old LP Entry Mock is no longer part of the product
 flow; its concerns were replaced by the native editor without exposing the
 simplex unrestricted-variable transformation.
+
+Inventory follows the same boundary with a discriminated `InventoryDraft`:
+EOQ, quantity-discount EOQ, newsvendor, and lot sizing have native editors;
+stochastic review remains an import/JSON/solve surface because its
+policy-specific parameters are materially different. Discount tiers and
+lot-sizing periods are edited as dimensionally safe rows, while QSBCore owns
+semantic validation and all derived calculations.
 
 ### Validation
 
@@ -640,13 +647,16 @@ the inspector is closed. The design must support:
 
 ### UI Phase 3 — Family editor expansion
 
-Prioritize structured editors with high educational and workflow value:
+Status: Inventory is implemented as the first Phase 3 family editor. It
+provides native EOQ, quantity-discount EOQ, newsvendor, and lot-sizing drafts;
+stochastic review remains JSON/import-only for native editing.
+
+Future priorities with high educational and workflow value:
 
 1. Network and scheduling tables;
-2. Inventory and planning period tables;
-3. Decision analysis/payoff/tree editors;
-4. Forecasting and Markov data editors;
-5. remaining family-specific forms where fixtures and validation make the
+2. Decision analysis/payoff/tree editors;
+3. Forecasting and Markov data editors;
+4. remaining family-specific forms where fixtures and validation make the
    editing contract clear.
 
 ### UI Phase 4 — Refinement

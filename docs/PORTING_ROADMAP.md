@@ -448,6 +448,12 @@ Implemented:
   newsboy demand outcomes, lot-sizing production/inventory series, stacked
   period costs, decision tables, backend context, accessibility values, and
   Analysis/JSON switching.
+- native Inventory editing in `QSBMacApp` for EOQ, quantity-discount EOQ,
+  newsvendor, and lot sizing, using a discriminated `InventoryDraft` that
+  converts into existing QSBCore envelopes; discount tiers and lot-sizing
+  periods preserve dimensions during structural edits;
+- stochastic review remains available through legacy import, normalized JSON,
+  validation, and solving, but its native editor is deliberately deferred.
 
 Recommended next:
 
@@ -624,7 +630,9 @@ UI Phase 2 status:
 
 - LP/ILP native editor implemented in `QSBMacApp`;
 - normalized JSON schema and QSBCore solver behavior unchanged;
-- other family editors remain future work.
+- Inventory is the first Phase 3 family editor, covering EOQ, quantity
+  discount, newsvendor, and lot sizing; other family editors remain future
+  work.
 
 Next refinement:
 

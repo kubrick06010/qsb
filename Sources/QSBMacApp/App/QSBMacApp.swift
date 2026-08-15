@@ -14,6 +14,11 @@ struct QSBMacApp: App {
         }
         .commands {
             CommandMenu("Model") {
+                Button("New Model...") {
+                    workspace.showNewModelPlaceholder()
+                }
+                .keyboardShortcut("n", modifiers: [.command])
+
                 Button("Open Model...") {
                     workspace.isImportingModel = true
                 }
@@ -32,10 +37,25 @@ struct QSBMacApp: App {
             }
 
             CommandMenu("Solve") {
+                Button("Validate Model") {
+                    workspace.validateCurrentModel()
+                }
+                .keyboardShortcut("v", modifiers: [.command])
+                .disabled(!workspace.hasModel)
+
+                Divider()
+
+                Button("Run Current Model") {
+                    workspace.runCurrentModel()
+                }
+                .keyboardShortcut("r", modifiers: [.command])
+                .disabled(!workspace.canSolveCurrentModel)
+
+                Divider()
+
                 Button("Solve LP Relaxation") {
                     workspace.solve(.relaxation)
                 }
-                .keyboardShortcut("r", modifiers: [.command])
                 .disabled(!workspace.isLinearProgrammingModel)
 
                 Button("Solve ILP") {

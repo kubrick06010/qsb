@@ -2,28 +2,69 @@ import SwiftUI
 import QSBCore
 
 enum WorkspacePane: String, CaseIterable, Identifiable {
+    case overview
     case model
+    case validation
+    case run
     case solution
+    case json
+    case runDetails
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .overview:
+            "Overview"
         case .model:
-            "Model"
+            "Definition"
+        case .validation:
+            "Validation"
+        case .run:
+            "Run"
         case .solution:
-            "Solution"
+            "Summary"
+        case .json:
+            "JSON"
+        case .runDetails:
+            "Run Details"
         }
     }
 
     var systemImage: String {
         switch self {
+        case .overview:
+            "rectangle.grid.1x2"
         case .model:
             "doc.text"
+        case .validation:
+            "checkmark.seal"
+        case .run:
+            "play.circle"
         case .solution:
             "function"
+        case .json:
+            "curlybraces"
+        case .runDetails:
+            "info.circle"
         }
     }
+}
+
+enum ModelLifecycleState: String, CaseIterable, Sendable {
+    case empty = "Empty"
+    case editing = "Editing"
+    case validating = "Validating"
+    case invalid = "Invalid"
+    case valid = "Valid"
+}
+
+enum RunLifecycleState: String, CaseIterable, Sendable {
+    case notRun = "Not run"
+    case validating = "Validating"
+    case solving = "Solving"
+    case solved = "Solved"
+    case failed = "Failed"
 }
 
 enum SolveMode {
@@ -61,6 +102,31 @@ enum WorkspaceModelFamily {
     case scheduling(SchedulingProblemKind)
     case queuing(QueuingProblemKind)
     case unknown
+
+    var displayName: String {
+        switch self {
+        case .linearProgramming: "Linear / Integer Programming"
+        case .network: "Network"
+        case .facilities(let kind): kind.displayName
+        case .inventory(let kind): kind.displayName
+        case .dynamicProgramming(let kind): kind.displayName
+        case .forecasting(let method): method.displayName
+        case .decisionAnalysis(let kind): kind.displayName
+        case .simulation: "Simulation"
+        case .quadraticProgramming: "Quadratic Programming"
+        case .nonlinearProgramming: "Nonlinear Programming"
+        case .markov: "Markov Analysis"
+        case .goalProgramming: "Goal Programming"
+        case .projectScheduling(let kind): kind.rawValue
+        case .acceptanceSampling(let kind): kind.rawValue.capitalized
+        case .qualityControl(let kind): kind.rawValue
+        case .aggregatePlanning: "Aggregate Planning"
+        case .materialRequirementsPlanning: "Material Requirements Planning"
+        case .scheduling(let kind): kind.rawValue
+        case .queuing(let kind): kind.rawValue
+        case .unknown: "No model"
+        }
+    }
 
     var editorSubtitle: String {
         switch self {
@@ -182,4 +248,23 @@ enum SampleModel {
     case nonlinearProgramming
     case markov
     case goalProgramming
+
+    var label: String {
+        switch self {
+        case .linearProgram: "Linear Programming"
+        case .integerProgram: "Integer Programming"
+        case .travelingSalesperson: "Traveling Salesperson"
+        case .facilityLayout: "Facility Layout"
+        case .economicOrderQuantity: "Economic Order Quantity"
+        case .boundedKnapsack: "Bounded Knapsack"
+        case .linearTrendForecast: "Linear Trend Forecast"
+        case .payoffAnalysis: "Payoff Analysis"
+        case .decisionTree: "Decision Tree"
+        case .simulation: "Simulation"
+        case .quadraticProgramming: "Quadratic Programming"
+        case .nonlinearProgramming: "Nonlinear Programming"
+        case .markov: "Markov Analysis"
+        case .goalProgramming: "Goal Programming"
+        }
+    }
 }

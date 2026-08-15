@@ -5,16 +5,31 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @Bindable var workspace: QSBWorkspace
     @State private var isShowingLPEntryMock = false
+    @State private var isShowingInspector = false
 
     var body: some View {
         NavigationSplitView {
-            SidebarView(selection: $workspace.selectedPane)
+            SidebarView(selection: $workspace.selectedPane, workspace: workspace)
         } detail: {
             switch workspace.selectedPane ?? .model {
+            case .overview:
+                if workspace.hasModel {
+                    ModelOverviewView(workspace: workspace)
+                } else {
+                    EmptyWorkspaceView(workspace: workspace)
+                }
             case .model:
                 ModelEditorView(workspace: workspace)
+            case .validation:
+                ValidationView(workspace: workspace)
+            case .run:
+                RunConfigurationView(workspace: workspace)
             case .solution:
                 SolutionView(workspace: workspace)
+            case .json:
+                JSONRepresentationView(workspace: workspace, solution: workspace.hasSolution)
+            case .runDetails:
+                RunDetailsView(workspace: workspace)
             }
         }
         .toolbar {
@@ -80,24 +95,9 @@ struct ContentView: View {
                 }
 
                 Button {
-                    workspace.isExportingModel = true
+                    workspace.showNewModelPlaceholder()
                 } label: {
-                    Label("Export Model", systemImage: "square.and.arrow.up")
-                }
-
-                Picker("Backend", selection: $workspace.selectedBackend) {
-                    Text("Native").tag(SolverBackendKind.nativeEducational)
-                    Text("Validate").tag(SolverBackendKind.validateOnly)
-                }
-                .pickerStyle(.segmented)
-
-                if workspace.isFacilityLayoutModel {
-                    Picker("Layout Strategy", selection: $workspace.selectedLayoutStrategy) {
-                        Text("Initial").tag(FacilityLayoutSolvingStrategy.initial)
-                        Text("Pairwise").tag(FacilityLayoutSolvingStrategy.pairwiseSwap)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 180)
+                    Label("New", systemImage: "plus")
                 }
 
                 Button {
@@ -105,20 +105,7 @@ struct ContentView: View {
                 } label: {
                     Label("Validate", systemImage: "checkmark.seal")
                 }
-
-                Button {
-                    workspace.solve(.relaxation)
-                } label: {
-                    Label("Solve LP", systemImage: "play")
-                }
-                .disabled(!workspace.isLinearProgrammingModel)
-
-                Button {
-                    workspace.solve(.integer)
-                } label: {
-                    Label("Solve ILP", systemImage: "number")
-                }
-                .disabled(!workspace.isLinearProgrammingModel)
+                .disabled(!workspace.hasModel || workspace.modelState == .validating)
 
                 Button {
                     workspace.solveCurrentModel()
@@ -126,8 +113,26 @@ struct ContentView: View {
                     Label("Solve", systemImage: "play.circle")
                 }
                 .help("Solve the current model with the selected backend")
-                .disabled(!workspace.canSolveCurrentModel)
+                .disabled(!workspace.canSolveCurrentModel || workspace.runState == .solving)
+
+                Button {
+                    workspace.isExportingModel = true
+                } label: {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                }
+                .disabled(!workspace.hasModel)
+
+                Button {
+                    isShowingInspector.toggle()
+                } label: {
+                    Label("Inspector", systemImage: "sidebar.trailing")
+                }
+                .help("Show or hide the inspector")
             }
+        }
+        .inspector(isPresented: $isShowingInspector) {
+            WorkbenchInspectorView(workspace: workspace)
+                .inspectorColumnWidth(min: 220, ideal: 280, max: 360)
         }
         .fileImporter(
             isPresented: $workspace.isImportingModel,
@@ -159,7 +164,7 @@ struct ContentView: View {
             workspace.recordExportResult(result, label: "solution")
         }
         .safeAreaInset(edge: .bottom) {
-            StatusBar(text: workspace.status)
+            StatusBar(workspace: workspace)
         }
         .sheet(isPresented: $isShowingLPEntryMock) {
             LinearProgrammingEntryMockView()

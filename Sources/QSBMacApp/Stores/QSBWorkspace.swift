@@ -1,32 +1,74 @@
 import Foundation
 import Observation
 import QSBCore
+import SwiftUI
 
 @Observable
 final class QSBWorkspace {
-    var selectedPane: WorkspacePane? = .model
-    var modelJSON: String
+    var selectedPane: WorkspacePane? = .overview
+    var modelJSON: String {
+        didSet {
+            guard oldValue != modelJSON else { return }
+            modelState = modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .empty : .editing
+            runState = .notRun
+            solutionJSON = ""
+            validationJSON = ""
+            validationDiagnostics = []
+            runNotes = []
+            lastResultLabel = nil
+            lastErrorMessage = nil
+        }
+    }
     var solutionJSON: String = ""
+    var validationJSON: String = ""
+    var validationDiagnostics: [ValidationDiagnostic] = []
     var status: String = "Ready"
     var lastResultLabel: String?
+    var modelSource: String = "New model"
+    var modelState: ModelLifecycleState
+    var runState: RunLifecycleState = .notRun
+    var lastErrorMessage: String?
+    var runNotes: [String] = []
     var selectedBackend: SolverBackendKind = .nativeEducational
     var selectedLayoutStrategy: FacilityLayoutSolvingStrategy = .initial
     var isImportingModel = false
     var isExportingModel = false
     var isExportingSolution = false
 
-    init(modelJSON: String = SampleModels.linearProgramJSON) {
+    init(modelJSON: String = "") {
         self.modelJSON = modelJSON
+        self.modelState = modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .empty : .editing
+    }
+
+    func showNewModelPlaceholder() {
+        status = "New Model is planned for a future native editor phase"
+        lastErrorMessage = nil
+        selectedPane = .overview
+    }
+
+    func beginSolving() {
+        runState = .solving
+        modelState = hasModel ? .valid : .empty
+        lastErrorMessage = nil
+        validationDiagnostics = []
+    }
+
+    func beginValidation() {
+        modelState = .validating
+        runState = .validating
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        lastErrorMessage = nil
     }
 
     func solve(_ mode: SolveMode) {
+        beginSolving()
         do {
             let modelData = Data(modelJSON.utf8)
             let program = try LinearProgramJSON.decodeProgram(from: modelData)
             guard let solver = LinearProgrammingBackends.backend(for: selectedBackend) else {
-                solutionJSON = ""
-                status = "External backend is not available yet"
-                selectedPane = .model
+                showUnavailableExternalBackend()
                 return
             }
             guard solver.capabilities.solves else {
@@ -41,17 +83,21 @@ final class QSBWorkspace {
 
             let output = try LinearProgramJSON.encodeSolution(solution)
             solutionJSON = String(decoding: output, as: UTF8.self)
+            markSolved()
             status = "\(mode.label) solved with \(selectedBackend.rawValue): objective \(format(solution.objectiveValue))"
             lastResultLabel = mode.label
             selectedPane = .solution
         } catch {
             solutionJSON = ""
-            status = "Error: \(Self.message(for: error))"
-            selectedPane = .model
+            runState = .failed
+            lastErrorMessage = Self.message(for: error)
+            status = "Run failed: \(lastErrorMessage ?? "Unknown run failure")"
+            selectedPane = .run
         }
     }
 
     func solveNetwork() {
+        beginSolving()
         do {
             let modelData = Data(modelJSON.utf8)
             let model = try NetworkModelJSON.decodeModel(from: modelData)
@@ -66,24 +112,26 @@ final class QSBWorkspace {
             let solution = try solver.solve(model)
             let output = try NetworkModelJSON.encodeSolutionDocument(solver.solutionDocument(for: model, solution: solution))
             solutionJSON = String(decoding: output, as: UTF8.self)
+            markSolved()
             status = "\(model.kind.rawValue) solved with \(selectedBackend.rawValue): \(solution.summary(format: format))"
             lastResultLabel = "\(model.kind.rawValue) Solution"
             selectedPane = .solution
         } catch {
             solutionJSON = ""
-            status = "Error: \(Self.message(for: error))"
-            selectedPane = .model
+            runState = .failed
+            lastErrorMessage = Self.message(for: error)
+            status = "Run failed: \(lastErrorMessage ?? "Unknown run failure")"
+            selectedPane = .run
         }
     }
 
     func solveFacilities() {
+        beginSolving()
         do {
             let data = Data(modelJSON.utf8)
             let envelope = try FacilitiesModelJSON.decodeUncheckedModel(from: data)
             guard let solver = FacilitiesBackends.backend(for: selectedBackend) else {
-                solutionJSON = ""
-                status = "External backend is not available yet"
-                selectedPane = .model
+                showUnavailableExternalBackend()
                 return
             }
             guard solver.capabilities.solves else {
@@ -107,17 +155,21 @@ final class QSBWorkspace {
             )
             let output = try FacilitiesModelJSON.encodeSolutionDocument(document)
             solutionJSON = String(decoding: output, as: UTF8.self)
+            markSolved()
             status = "\(envelope.kind.displayName) solved with \(selectedBackend.rawValue): \(solution.summary(format: format))"
             lastResultLabel = "\(envelope.kind.displayName) Solution"
             selectedPane = .solution
         } catch {
             solutionJSON = ""
-            status = "Error: \(Self.message(for: error))"
-            selectedPane = .model
+            runState = .failed
+            lastErrorMessage = Self.message(for: error)
+            status = "Run failed: \(lastErrorMessage ?? "Unknown run failure")"
+            selectedPane = .run
         }
     }
 
     func solveInventory() {
+        beginSolving()
         do {
             let model = try InventoryModelJSON.decodeUncheckedModel(from: Data(modelJSON.utf8))
             guard let solver = InventoryBackends.backend(for: selectedBackend) else {
@@ -131,6 +183,7 @@ final class QSBWorkspace {
             let solution = try solver.solve(model)
             let output = try InventoryModelJSON.encodeSolutionDocument(solver.solutionDocument(for: model, solution: solution))
             solutionJSON = String(decoding: output, as: UTF8.self)
+            markSolved()
             status = "\(model.kind.displayName) solved with \(selectedBackend.rawValue)"
             lastResultLabel = "\(model.kind.displayName) Solution"
             selectedPane = .solution
@@ -140,6 +193,7 @@ final class QSBWorkspace {
     }
 
     func solveDynamicProgramming() {
+        beginSolving()
         do {
             let model = try DynamicProgrammingModelJSON.decodeUncheckedModel(from: Data(modelJSON.utf8))
             guard let solver = DynamicProgrammingBackends.backend(for: selectedBackend) else {
@@ -153,6 +207,7 @@ final class QSBWorkspace {
             let solution = try solver.solve(model)
             let output = try DynamicProgrammingModelJSON.encodeSolutionDocument(solver.solutionDocument(for: model, solution: solution))
             solutionJSON = String(decoding: output, as: UTF8.self)
+            markSolved()
             status = "\(model.kind.displayName) solved with \(selectedBackend.rawValue)"
             lastResultLabel = "\(model.kind.displayName) Solution"
             selectedPane = .solution
@@ -162,6 +217,7 @@ final class QSBWorkspace {
     }
 
     func solveForecasting() {
+        beginSolving()
         do {
             let request = try ForecastingModelJSON.decodeRequest(from: Data(modelJSON.utf8))
             guard let solver = ForecastingBackends.backend(for: selectedBackend) else {
@@ -177,6 +233,7 @@ final class QSBWorkspace {
                 solver.solutionDocument(for: request, solution: solution)
             )
             solutionJSON = String(decoding: output, as: UTF8.self)
+            markSolved()
             status = "\(request.method.displayName) solved with \(selectedBackend.rawValue)"
             lastResultLabel = "\(request.method.displayName) Solution"
             selectedPane = .solution
@@ -186,6 +243,7 @@ final class QSBWorkspace {
     }
 
     func solveDecisionAnalysis() {
+        beginSolving()
         do {
             let model = try DecisionAnalysisModelJSON.decodeModel(from: Data(modelJSON.utf8))
             guard let solver = DecisionAnalysisBackends.backend(for: selectedBackend) else {
@@ -201,6 +259,7 @@ final class QSBWorkspace {
                 solver.solutionDocument(for: model, solution: solution)
             )
             solutionJSON = String(decoding: output, as: UTF8.self)
+            markSolved()
             status = "\(model.kind.displayName) solved with \(selectedBackend.rawValue)"
             lastResultLabel = "\(model.kind.displayName) Solution"
             selectedPane = .solution
@@ -210,6 +269,7 @@ final class QSBWorkspace {
     }
 
     func solveSimulation() {
+        beginSolving()
         do {
             let model = try SimulationJSON.decodeUncheckedModel(from: Data(modelJSON.utf8))
             guard let solver = SimulationBackends.backend(for: selectedBackend) else {
@@ -223,6 +283,7 @@ final class QSBWorkspace {
             let solution = try solver.solve(model)
             let output = try SimulationJSON.encodeSolution(solver.solutionDocument(for: model, solution: solution))
             solutionJSON = String(decoding: output, as: UTF8.self)
+            markSolved()
             status = "Simulation completed with \(selectedBackend.rawValue): \(solution.completedEntities) entities"
             lastResultLabel = "Simulation Solution"
             selectedPane = .solution
@@ -232,6 +293,7 @@ final class QSBWorkspace {
     }
 
     func solveQuadraticProgramming() {
+        beginSolving()
         do {
             let model = try QuadraticProgrammingJSON.decodeUncheckedModel(from: Data(modelJSON.utf8))
             guard let solver = QuadraticProgrammingBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
@@ -243,6 +305,7 @@ final class QSBWorkspace {
     }
 
     func solveNonlinearProgramming() {
+        beginSolving()
         do {
             let model = try NonlinearProgrammingJSON.decodeUncheckedModel(from: Data(modelJSON.utf8))
             guard let solver = NonlinearProgrammingBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
@@ -254,6 +317,7 @@ final class QSBWorkspace {
     }
 
     func solveMarkov() {
+        beginSolving()
         do {
             let request = try MarkovJSON.decodeRequest(from: Data(modelJSON.utf8))
             guard let solver = MarkovBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
@@ -265,6 +329,7 @@ final class QSBWorkspace {
     }
 
     func solveGoalProgramming() {
+        beginSolving()
         do {
             let model = try GoalProgrammingJSON.decodeModel(from: Data(modelJSON.utf8))
             guard let solver = GoalProgrammingBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
@@ -276,6 +341,7 @@ final class QSBWorkspace {
     }
 
     func solveProjectScheduling() {
+        beginSolving()
         do {
             let model = try ProjectSchedulingJSON.decodeModel(from: Data(modelJSON.utf8))
             guard let solver = ProjectSchedulingBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
@@ -287,6 +353,7 @@ final class QSBWorkspace {
     }
 
     func solveAcceptanceSampling() {
+        beginSolving()
         do {
             let model = try AcceptanceSamplingJSON.decodeModel(from: Data(modelJSON.utf8))
             guard let solver = AcceptanceSamplingBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
@@ -298,6 +365,7 @@ final class QSBWorkspace {
     }
 
     func solveQualityControl() {
+        beginSolving()
         do {
             let model = try QualityControlJSON.decodeModel(from: Data(modelJSON.utf8))
             guard let solver = QualityControlBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
@@ -309,6 +377,7 @@ final class QSBWorkspace {
     }
 
     func solveAggregatePlanning() {
+        beginSolving()
         do {
             let model = try AggregatePlanningJSON.decodeModel(from: Data(modelJSON.utf8))
             guard let solver = AggregatePlanningBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
@@ -320,6 +389,7 @@ final class QSBWorkspace {
     }
 
     func solveMaterialRequirementsPlanning() {
+        beginSolving()
         do {
             let model = try MaterialRequirementsPlanningJSON.decodeModel(from: Data(modelJSON.utf8))
             guard let solver = MaterialRequirementsPlanningBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
@@ -331,6 +401,7 @@ final class QSBWorkspace {
     }
 
     func solveScheduling() {
+        beginSolving()
         do {
             let model = try SchedulingModelJSON.decodeModel(from: Data(modelJSON.utf8))
             guard let solver = SchedulingBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
@@ -342,6 +413,7 @@ final class QSBWorkspace {
     }
 
     func solveQueuing() {
+        beginSolving()
         do {
             let model = try QueuingModelJSON.decodeModel(from: Data(modelJSON.utf8))
             guard let solver = QueuingBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
@@ -376,7 +448,16 @@ final class QSBWorkspace {
         }
     }
 
+    func runCurrentModel() {
+        if isLinearProgrammingModel {
+            solve(.relaxation)
+        } else {
+            solveCurrentModel()
+        }
+    }
+
     func validateCurrentModel() {
+        beginValidation()
         do {
             let data = Data(modelJSON.utf8)
             switch currentModelFamily {
@@ -424,8 +505,11 @@ final class QSBWorkspace {
             }
         } catch {
             solutionJSON = ""
+            modelState = .invalid
+            runState = .notRun
+            lastErrorMessage = Self.message(for: error)
             status = "Validation failed: \(Self.message(for: error))"
-            selectedPane = .model
+            selectedPane = .validation
         }
     }
 
@@ -461,9 +545,14 @@ final class QSBWorkspace {
             modelJSON = SampleModels.goalProgrammingJSON
         }
         solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        modelSource = "Sample · \(sample.label)"
         lastResultLabel = nil
         status = "Loaded sample model"
-        selectedPane = .model
+        modelState = .editing
+        runState = .notRun
+        selectedPane = .overview
     }
 
     func importModel(from url: URL) {
@@ -500,12 +589,21 @@ final class QSBWorkspace {
             }
             modelJSON = String(decoding: normalizedData, as: UTF8.self)
             solutionJSON = ""
+            validationJSON = ""
+            validationDiagnostics = []
+            modelSource = importDescription
+            modelState = .valid
+            runState = .notRun
+            lastErrorMessage = nil
             lastResultLabel = nil
             status = "Imported \(importDescription)"
-            selectedPane = .model
+            selectedPane = .overview
         } catch {
+            modelState = .invalid
+            runState = .notRun
+            lastErrorMessage = Self.message(for: error)
             status = "Import failed: \(Self.message(for: error))"
-            selectedPane = .model
+            selectedPane = .validation
         }
     }
 
@@ -576,13 +674,16 @@ final class QSBWorkspace {
 
     private func showValidationReport(_ report: ValidationReport, source: String) throws {
         let output = try Self.jsonEncoder.encode(report)
-        solutionJSON = String(decoding: output, as: UTF8.self)
+        validationJSON = String(decoding: output, as: UTF8.self)
+        validationDiagnostics = report.diagnostics
         let errorCount = report.diagnostics.filter { $0.severity == .error }.count
+        modelState = report.isValid ? .valid : .invalid
+        runState = .notRun
         status = report.isValid
             ? "\(source) is valid"
             : "\(source) has \(errorCount) validation error(s)"
         lastResultLabel = "\(source) Validation"
-        selectedPane = .solution
+        selectedPane = .validation
     }
 
     private func showFacilitiesValidationReport(
@@ -595,13 +696,16 @@ final class QSBWorkspace {
             diagnostics: report.diagnostics
         )
         let output = try FacilitiesModelJSON.encodeValidation(document)
-        solutionJSON = String(decoding: output, as: UTF8.self)
+        validationJSON = String(decoding: output, as: UTF8.self)
+        validationDiagnostics = report.diagnostics
         let errorCount = report.diagnostics.filter { $0.severity == .error }.count
+        modelState = report.isValid ? .valid : .invalid
+        runState = .notRun
         status = report.isValid
             ? "\(kind.displayName) is valid"
             : "\(kind.displayName) has \(errorCount) validation error(s)"
         lastResultLabel = "\(kind.displayName) Validation"
-        selectedPane = .solution
+        selectedPane = .validation
     }
 
     private func showNetworkValidationReport(_ report: ValidationReport, model: NetworkModelEnvelope) throws {
@@ -699,29 +803,46 @@ final class QSBWorkspace {
     }
 
     private func showSolvedStatus(_ name: String, detail: String) {
+        markSolved()
         status = "\(name) solved with \(selectedBackend.rawValue): \(detail)"
         lastResultLabel = "\(name) Solution"
         selectedPane = .solution
     }
 
     private func showDomainValidationOutput(_ output: Data, report: ValidationReport, name: String) {
-        solutionJSON = String(decoding: output, as: UTF8.self)
+        validationJSON = String(decoding: output, as: UTF8.self)
+        validationDiagnostics = report.diagnostics
         let errorCount = report.diagnostics.filter { $0.severity == .error }.count
+        modelState = report.isValid ? .valid : .invalid
+        runState = .notRun
         status = report.isValid ? "\(name) is valid" : "\(name) has \(errorCount) validation error(s)"
         lastResultLabel = "\(name) Validation"
-        selectedPane = .solution
+        selectedPane = .validation
     }
 
     private func showUnavailableExternalBackend() {
         solutionJSON = ""
-        status = "External backend is not available yet"
-        selectedPane = .model
+        runState = .failed
+        lastErrorMessage = "External solver is unavailable in this build"
+        status = lastErrorMessage ?? "External solver is unavailable in this build"
+        selectedPane = .run
     }
 
     private func showSolveError(_ error: Error) {
         solutionJSON = ""
-        status = "Error: \(Self.message(for: error))"
-        selectedPane = .model
+        runState = .failed
+        lastErrorMessage = Self.message(for: error)
+        status = "Run failed: \(lastErrorMessage ?? "Unknown run failure")"
+        selectedPane = .run
+    }
+
+    private func markSolved() {
+        modelState = .valid
+        runState = .solved
+        lastErrorMessage = nil
+        validationDiagnostics = []
+        validationJSON = ""
+        runNotes = ["Backend: \(runBackendLabel)"]
     }
 
     var currentModelFamily: WorkspaceModelFamily {
@@ -762,6 +883,50 @@ final class QSBWorkspace {
         if let model = try? SchedulingModelJSON.decodeModel(from: data) { return .scheduling(model.kind) }
         if let model = try? QueuingModelJSON.decodeModel(from: data) { return .queuing(model.kind) }
         return .unknown
+    }
+
+    var hasModel: Bool {
+        !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var hasSolution: Bool {
+        !solutionJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var modelTitle: String {
+        hasModel ? currentModelFamily.displayName : "No model open"
+    }
+
+    var validationSummary: String {
+        switch modelState {
+        case .empty: "No model to validate"
+        case .editing: "Draft requires validation"
+        case .validating: "Validation in progress"
+        case .invalid: "\(validationDiagnostics.count) diagnostic(s) require attention"
+        case .valid: "Model is valid"
+        }
+    }
+
+    var runBackendLabel: String {
+        switch selectedBackend {
+        case .nativeEducational: "QSB Native"
+        case .validateOnly: "Validate only"
+        case .externalHighPerformance: "External solver"
+        }
+    }
+
+    var statusSystemImage: String {
+        if runState == .failed || modelState == .invalid { return "exclamationmark.octagon" }
+        if runState == .solved { return "checkmark.circle" }
+        if modelState == .valid { return "checkmark.seal" }
+        if modelState == .editing { return "pencil" }
+        return "circle.dashed"
+    }
+
+    var statusColor: Color {
+        if runState == .failed || modelState == .invalid { return .red }
+        if runState == .solved || modelState == .valid { return .green }
+        return .secondary
     }
 
     var isFacilityLayoutModel: Bool {
@@ -824,8 +989,8 @@ final class QSBWorkspace {
 
     var canSolveCurrentModel: Bool {
         switch currentModelFamily {
-        case .linearProgramming, .unknown: false
-        default: true
+        case .unknown: false
+        default: hasModel && modelState != .invalid && runState != .solving
         }
     }
 

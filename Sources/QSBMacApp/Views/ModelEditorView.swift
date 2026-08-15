@@ -6,14 +6,19 @@ struct ModelEditorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HeaderView(
-                title: "Model",
-                subtitle: workspace.currentModelFamily.editorSubtitle
+                title: workspace.modelTitle,
+                subtitle: "Model JSON · \(workspace.modelState.rawValue)"
             )
 
-            TextEditor(text: $workspace.modelJSON)
-                .font(.system(.body, design: .monospaced))
-                .scrollContentBackground(.hidden)
-                .padding(12)
+            if workspace.hasModel {
+                TextEditor(text: $workspace.modelJSON)
+                    .font(.system(.body, design: .monospaced))
+                    .scrollContentBackground(.hidden)
+                    .padding(12)
+                    .accessibilityLabel("Normalized model JSON definition")
+            } else {
+                EmptyWorkspaceView(workspace: workspace)
+            }
         }
         .navigationTitle("Model")
     }

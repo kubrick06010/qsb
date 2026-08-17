@@ -16,6 +16,39 @@ func blankNetworkDraftConverts() throws {
     #expect(network.arcs.count == 1)
 }
 
+@Test("dense shortest path stress sample is deterministic and solvable")
+func denseShortestPathStressSampleIsValid() throws {
+    let draft = NetworkStressSamples.denseShortestPath()
+    let model = try draft.makeNetworkModel()
+
+    #expect(draft.kind == .shortestPath)
+    #expect(draft.title == "Dense Shortest Path Demo")
+    #expect(draft.nodes.count == 20)
+    #expect(draft.arcs.count == 37)
+    #expect(draft.nodes.map(\.name) == (1...20).map { "Node \($0)" })
+    #expect(Set(draft.nodes.map(\.id)).count == draft.nodes.count)
+    #expect(Set(draft.arcs.map(\.id)).count == draft.arcs.count)
+    #expect(draft.draftIssues().isEmpty)
+    #expect(draft.sourceNodeID == draft.nodes.first?.id)
+    #expect(draft.sinkNodeID == draft.nodes.last?.id)
+
+    guard case .shortestPath(let network) = model else {
+        Issue.record("Expected a Shortest Path network")
+        return
+    }
+    #expect(network.nodes.count == 20)
+    #expect(network.arcs.count == 37)
+
+    let backend = try #require(NetworkBackends.backend(for: .nativeEducational))
+    guard case .shortestPath(let solution) = try backend.solve(model) else {
+        Issue.record("Expected a Shortest Path solution")
+        return
+    }
+    #expect(solution.path.first == "Node 1")
+    #expect(solution.path.last == "Node 20")
+    #expect(solution.totalCost == 43.75)
+}
+
 @Test("network draft round trips graph variants without changing semantics")
 func networkDraftRoundTripsGraphVariants() throws {
     let models: [NetworkModelEnvelope] = [

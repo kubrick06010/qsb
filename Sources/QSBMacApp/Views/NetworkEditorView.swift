@@ -368,9 +368,7 @@ struct NetworkEditorView: View {
         selectedArcID = nil
         canvasInteracted = true
         gestureFeedback = nil
-        DispatchQueue.main.async {
-            focusedField = .nodeName(id)
-        }
+        focusedField = nil
     }
 
     private func fastConnect(to destination: UUID) {
@@ -485,14 +483,16 @@ private struct NetworkGraphCanvas: View {
                 (node.id, CGPoint(x: node.position.x * canvasSize.width, y: node.position.y * canvasSize.height))
             })
             ZStack(alignment: .topLeading) {
-                // Interactive nodes, arcs, labels, and the connection handle are
-                // layered above this backstop so their gestures cannot create a
-                // node through the empty-canvas double-click handler.
+                // The canvas backstop observes empty double-clicks without
+                // becoming a consuming sibling that can starve node controls.
                 Color.clear
                     .contentShape(Rectangle())
-                    .gesture(SpatialTapGesture(count: 2).onEnded { value in
-                        onCreateNode(value.location, canvasSize)
-                    })
+                    .simultaneousGesture(
+                        SpatialTapGesture(count: 2).onEnded { value in
+                            guard !isOccupied(value.location, points: points, size: canvasSize) else { return }
+                            onCreateNode(value.location, canvasSize)
+                        }
+                    )
                     .zIndex(0)
                     .help("Double-click empty space to add a node.")
 
@@ -563,6 +563,30 @@ private struct NetworkGraphCanvas: View {
         }
     }
 
+    private func isOccupied(_ location: CGPoint, points: [UUID: CGPoint], size: CGSize) -> Bool {
+        if points.values.contains(where: { distance(from: $0, to: location) <= 28 }) {
+            return true
+        }
+        if let selectedNodeID, let source = points[selectedNodeID] {
+            let handle = CGPoint(x: min(max(source.x + 30, 14), size.width - 14), y: min(max(source.y - 26, 14), size.height - 14))
+            if distance(from: handle, to: location) <= 11 { return true }
+        }
+        return draft.arcs.contains { arc in
+            guard let from = arc.fromNodeID.flatMap({ points[$0] }), let to = arc.toNodeID.flatMap({ points[$0] }) else { return false }
+            return distanceToSegment(from: from, to: to, point: location) <= 14
+        }
+    }
+
+    private func distanceToSegment(from: CGPoint, to: CGPoint, point: CGPoint) -> CGFloat {
+        let dx = to.x - from.x
+        let dy = to.y - from.y
+        let lengthSquared = dx * dx + dy * dy
+        guard lengthSquared > 0 else { return distance(from: from, to: point) }
+        let projection = max(0, min(1, ((point.x - from.x) * dx + (point.y - from.y) * dy) / lengthSquared))
+        let closest = CGPoint(x: from.x + projection * dx, y: from.y + projection * dy)
+        return distance(from: closest, to: point)
+    }
+
     private func graphNodeButton(_ node: NetworkNodeDraft, at point: CGPoint) -> some View {
         let label = node.name.isEmpty ? "?" : node.name
         let selected = selectedNodeID == node.id
@@ -580,6 +604,8 @@ private struct NetworkGraphCanvas: View {
                 .overlay(Circle().stroke(selected ? Color.accentColor : (hovered ? Color.accentColor : Color.secondary), lineWidth: selected ? 3 : (hovered ? 2 : 1)))
         }
         .buttonStyle(.plain)
+        .frame(width: 52, height: 42)
+        .contentShape(Circle())
         .highPriorityGesture(
             TapGesture().modifiers(.control).onEnded {
                 onFastConnect(node.id)
@@ -642,6 +668,9 @@ private struct NetworkGraphCanvas: View {
                     }
                 }
         )
+        // Keep the handle's hit region at its visible size; without a fixed
+        // layout frame, the positioned gesture view can cover the canvas.
+        .fixedSize()
         .accessibilityElement()
         .accessibilityLabel("Connect from \(node.name.isEmpty ? "node" : node.name)")
         .accessibilityHint("Drag to another node to create an arc.")
@@ -664,6 +693,8 @@ private struct NetworkGraphCanvas: View {
         let dx = to.x - from.x
         let dy = to.y - from.y
         let length = max(sqrt(dx * dx + dy * dy), 1)
+        // Keep the wide target away from node bodies so endpoint clicks remain
+        // node selections rather than being claimed by an incident arc.
         let endpointInset = min(28, length / 2)
         let hitFrom = CGPoint(x: from.x + dx / length * endpointInset, y: from.y + dy / length * endpointInset)
         let hitTo = CGPoint(x: to.x - dx / length * endpointInset, y: to.y - dy / length * endpointInset)

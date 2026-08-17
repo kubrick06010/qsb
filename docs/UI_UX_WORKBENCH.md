@@ -692,6 +692,13 @@ connection, a selected-node visual connection handle, and inline arc-value
 editing. Explicit Add Node, Add Arc, Delete, and inspector paths remain
 available for discoverability and accessible fallback.
 
+The dense Network stress fixture remains development/test infrastructure rather
+than a production sample. Its verification exposed two non-blocking polish
+items for later work: reduce label ambiguity where many arcs cross, and improve
+large-graph ergonomics at compact sizes. The existing Workbench Inspector
+toolbar toggle is the intended way to close the inspector; Network does not
+add a second toggle.
+
 ### UI Phase 4 — Refinement
 
 - complete keyboard-first paths and focus restoration;

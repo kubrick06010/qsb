@@ -10,6 +10,8 @@ struct NetworkEditorView: View {
     @State private var addArcTo: UUID?
     @State private var gestureFeedback: String?
     @State private var canvasInteracted = false
+    // This is a transient editing buffer: NetworkDraft remains authoritative and
+    // is mutated only after a valid Return commit; Escape or invalid input leaves it unchanged.
     @State private var inlineArcID: UUID?
     @State private var inlineArcValue = ""
     @State private var inlineArcOriginalValue = ""
@@ -483,6 +485,9 @@ private struct NetworkGraphCanvas: View {
                 (node.id, CGPoint(x: node.position.x * canvasSize.width, y: node.position.y * canvasSize.height))
             })
             ZStack(alignment: .topLeading) {
+                // Interactive nodes, arcs, labels, and the connection handle are
+                // layered above this backstop so their gestures cannot create a
+                // node through the empty-canvas double-click handler.
                 Color.clear
                     .contentShape(Rectangle())
                     .gesture(SpatialTapGesture(count: 2).onEnded { value in
@@ -614,6 +619,9 @@ private struct NetworkGraphCanvas: View {
         )
         .contentShape(Circle())
         .gesture(
+            // Handle-local coordinates are too small for reliable destination
+            // hit testing; the named space keeps the drag location aligned with
+            // the node points used by the canvas.
             DragGesture(minimumDistance: 2, coordinateSpace: .named("networkCanvas"))
                 .onChanged { value in
                     connectionDragSourceID = node.id
@@ -658,6 +666,8 @@ private struct NetworkGraphCanvas: View {
         }
         .buttonStyle(.plain)
         .frame(width: size.width, height: size.height)
+        // Keep the visible edge thin while giving pointer users a practical
+        // hit target instead of requiring pixel-perfect clicks.
         .contentShape(ArcLineShape(from: from, to: to).stroke(lineWidth: 28))
         .simultaneousGesture(
             TapGesture(count: 2).onEnded {

@@ -70,6 +70,30 @@ Keep unrelated user changes intact.
 - Avoid force unwraps and hidden global mutable state in production paths.
 - Use comments only for non-obvious decisions or compatibility constraints.
 
+## Code Comments
+
+Comments should primarily explain why, not merely what the code does. Add
+comments for non-obvious mathematical transformations, numerical-stability
+decisions, legacy or WinQSB compatibility constraints, parsing quirks,
+solver assumptions or limitations, maintenance-sensitive invariants,
+deliberate deviations from simpler implementations, macOS or SwiftUI
+gesture-precedence and coordinate-space decisions, accessibility or AX
+workarounds, and compatibility bridges or intentionally temporary
+architectural compromises.
+
+Avoid comments that restate obvious code, narrate every function, justify dead
+code, preserve obsolete history, or compensate for unclear naming. Prefer
+nearby comments over large prose blocks. For public APIs, use Swift
+documentation comments (`///`) when callers need semantics, units,
+invariants, ownership, or limitations. Comments inside tests are reserved for
+non-obvious regressions, important legacy edge cases, or otherwise arbitrary
+expected values; descriptive test names should carry the rest.
+
+A non-obvious mathematical transformation, compatibility workaround, or
+architectural invariant should be understandable from the code and its nearby
+comments without requiring the maintainer to reconstruct the reason from Git
+history.
+
 ## Testing Standards
 
 For core behavior, prefer tests that cover:

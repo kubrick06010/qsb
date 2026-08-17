@@ -260,10 +260,10 @@ struct NetworkDraft: Equatable, Sendable {
         }
     }
 
-    mutating func addNode(name: String? = nil) -> UUID {
+    mutating func addNode(name: String? = nil, position: NetworkDraftPosition? = nil) -> UUID {
         let node = NetworkNodeDraft(
-            name: name ?? "Node \(nodes.count + 1)",
-            position: Self.deterministicPosition(index: nodes.count, count: nodes.count + 1)
+            name: name ?? nextNodeName(),
+            position: position ?? Self.deterministicPosition(index: nodes.count, count: nodes.count + 1)
         )
         nodes.append(node)
         if kind.requiresSource && sourceNodeID == nil { sourceNodeID = node.id }
@@ -282,6 +282,34 @@ struct NetworkDraft: Equatable, Sendable {
         let arc = NetworkArcDraft(id: UUID(), fromNodeID: from, toNodeID: to, costText: costText)
         arcs.append(arc)
         return arc.id
+    }
+
+    mutating func addArcIfMissing(from: UUID, to: UUID, costText: String = "0") -> (id: UUID, created: Bool) {
+        if let existing = existingArcID(from: from, to: to) {
+            return (existing, false)
+        }
+        return (addArc(from: from, to: to, costText: costText), true)
+    }
+
+    /// Commits the domain-specific primary arc value without mutating malformed input.
+    /// The editor keeps the original text so users can see and correct validation errors.
+    @discardableResult
+    mutating func commitArcCost(id: UUID, value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let number = Double(trimmed), number.isFinite, number >= 0,
+              let index = arcs.firstIndex(where: { $0.id == id }) else { return false }
+        arcs[index].costText = value
+        return true
+    }
+
+    func existingArcID(from: UUID, to: UUID) -> UUID? {
+        arcs.first { arc in
+            guard let arcFrom = arc.fromNodeID, let arcTo = arc.toNodeID else { return false }
+            if kind.usesDirectedArcs {
+                return arcFrom == from && arcTo == to
+            }
+            return (arcFrom == from && arcTo == to) || (arcFrom == to && arcTo == from)
+        }?.id
     }
 
     mutating func removeArc(id: UUID) {
@@ -306,5 +334,14 @@ struct NetworkDraft: Equatable, Sendable {
 
     private static func number(_ value: Double) -> String {
         value.rounded() == value ? String(Int(value)) : String(value)
+    }
+
+    private func nextNodeName() -> String {
+        var number = nodes.count + 1
+        let existingNames = Set(nodes.map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) })
+        while existingNames.contains("Node \(number)") {
+            number += 1
+        }
+        return "Node \(number)"
     }
 }

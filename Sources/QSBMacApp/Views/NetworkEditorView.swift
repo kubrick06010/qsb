@@ -8,6 +8,13 @@ struct NetworkEditorView: View {
     @State private var selectedArcID: UUID?
     @State private var addArcFrom: UUID?
     @State private var addArcTo: UUID?
+    @State private var gestureFeedback: String?
+    @State private var canvasInteracted = false
+    @State private var inlineArcID: UUID?
+    @State private var inlineArcValue = ""
+    @State private var inlineArcOriginalValue = ""
+    @State private var inlineArcError: String?
+    @FocusState private var focusedField: NetworkEditorFocusField?
 
     private var draft: NetworkDraft? { workspace.networkDraft }
 
@@ -23,7 +30,18 @@ struct NetworkEditorView: View {
                             selectedNodeID: selectedNodeID,
                             selectedArcID: selectedArcID,
                             onSelectNode: selectNode,
-                            onSelectArc: selectArc
+                            onSelectArc: { selectArc($0, focusValue: false) },
+                            onEditArc: beginInlineArcEdit,
+                            onCreateNode: createNode,
+                            onFastConnect: fastConnect,
+                            inlineArcID: inlineArcID,
+                            inlineArcValue: $inlineArcValue,
+                            inlineArcError: inlineArcError,
+                            onCommitInlineArc: commitInlineArc,
+                            onCancelInlineArc: cancelInlineArcEdit,
+                            gestureFeedback: gestureFeedback,
+                            sourceNodeName: selectedNodeID.map { nodeName(for: $0) },
+                            showInitialHint: !canvasInteracted
                         )
                         .frame(minWidth: 580, minHeight: 440)
                         .padding(18)
@@ -171,11 +189,13 @@ struct NetworkEditorView: View {
             nodePicker(title: "To", selection: $addArcTo, draft: draft)
             Button("Add \(draft.kind.usesDirectedArcs ? "Arc" : "Edge")", systemImage: "arrow.right.circle") {
                 guard let from = addArcFrom, let to = addArcTo else { return }
+                var result: (id: UUID, created: Bool)?
                 workspace.updateNetworkDraft { draft in
-                    let id = draft.addArc(from: from, to: to)
-                    selectedArcID = id
-                    selectedNodeID = nil
+                    result = draft.addArcIfMissing(from: from, to: to)
                 }
+                guard let result else { return }
+                selectArc(result.id, focusValue: false)
+                gestureFeedback = result.created ? nil : "That connection already exists."
             }
             .disabled(addArcFrom == nil || addArcTo == nil)
             .accessibilityIdentifier("network-add-arc")
@@ -187,7 +207,9 @@ struct NetworkEditorView: View {
             Text("Node properties").font(.headline)
             TextField("Name", text: nodeNameBinding(index))
                 .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: .nodeName(draft.nodes[index].id))
                 .accessibilityLabel("Node \(index + 1) name")
+                .accessibilityIdentifier("network-selected-node-name")
             Text("Node \(index + 1) of \(draft.nodes.count)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -203,7 +225,9 @@ struct NetworkEditorView: View {
             nodePicker(title: "To", selection: arcToBinding(index), draft: draft)
             TextField(draft.kind == .maxFlow ? "Capacity" : "Cost", text: arcCostBinding(index))
                 .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: .arcValue(draft.arcs[index].id))
                 .accessibilityLabel(draft.kind == .maxFlow ? "Arc capacity" : "Arc cost")
+                .accessibilityIdentifier("network-selected-arc-value")
             Button("Delete \(draft.kind.usesDirectedArcs ? "Arc" : "Edge")", role: .destructive) { deleteSelection() }
         }
     }
@@ -231,6 +255,7 @@ struct NetworkEditorView: View {
                 }
                 .buttonStyle(.link)
                 .accessibilityLabel("Node \(node.name.isEmpty ? "\(index + 1)" : node.name)")
+                .accessibilityIdentifier("network-node-\(index + 1)")
             }
         }
     }
@@ -242,12 +267,13 @@ struct NetworkEditorView: View {
                 let from = arc.fromNodeID.flatMap { id in draft.nodes.first { $0.id == id }?.name } ?? "?"
                 let to = arc.toNodeID.flatMap { id in draft.nodes.first { $0.id == id }?.name } ?? "?"
                 Button {
-                    selectArc(arc.id)
+                    selectArc(arc.id, focusValue: false)
                 } label: {
                     Label("\(from) \(draft.kind.usesDirectedArcs ? "→" : "—") \(to) · \(arc.costText)", systemImage: selectedArcID == arc.id ? "line.diagonal" : "arrow.left.and.right")
                 }
                 .buttonStyle(.link)
                 .accessibilityLabel("Connection \(index + 1), \(from) to \(to), \(arc.costText)")
+                .accessibilityIdentifier("network-arc-\(index + 1)")
             }
         }
     }
@@ -302,16 +328,113 @@ struct NetworkEditorView: View {
     }
 
     private func selectNode(_ id: UUID) {
+        cancelInlineArcEdit()
         selectedNodeID = id
         selectedArcID = nil
+        canvasInteracted = true
+        gestureFeedback = nil
+        focusedField = nil
     }
 
-    private func selectArc(_ id: UUID) {
+    private func selectArc(_ id: UUID, focusValue: Bool) {
+        if inlineArcID != id { cancelInlineArcEdit() }
         selectedArcID = id
         selectedNodeID = nil
+        canvasInteracted = true
+        gestureFeedback = nil
+        if focusValue {
+            DispatchQueue.main.async {
+                focusedField = .arcValue(id)
+            }
+        } else {
+            focusedField = nil
+        }
+    }
+
+    private func createNode(at point: CGPoint, in size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        let position = NetworkDraftPosition(
+            x: min(max(Double(point.x / size.width), 0.06), 0.94),
+            y: min(max(Double(point.y / size.height), 0.08), 0.92)
+        )
+        var id: UUID?
+        workspace.updateNetworkDraft { draft in
+            id = draft.addNode(position: position)
+        }
+        guard let id else { return }
+        selectedNodeID = id
+        selectedArcID = nil
+        canvasInteracted = true
+        gestureFeedback = nil
+        DispatchQueue.main.async {
+            focusedField = .nodeName(id)
+        }
+    }
+
+    private func fastConnect(to destination: UUID) {
+        canvasInteracted = true
+        guard let source = selectedNodeID else { return }
+        guard source != destination else {
+            gestureFeedback = "Choose another node to connect from \(nodeName(for: source))."
+            return
+        }
+
+        let result = workspace.networkDraft.map { draft in
+            draft.existingArcID(from: source, to: destination)
+        } ?? nil
+        if let existing = result {
+            selectArc(existing, focusValue: false)
+            gestureFeedback = "That connection already exists."
+            return
+        }
+
+        workspace.updateNetworkDraft { draft in
+            _ = draft.addArcIfMissing(from: source, to: destination)
+        }
+        selectedNodeID = source
+        selectedArcID = nil
+        focusedField = nil
+        gestureFeedback = "Connected \(nodeName(for: source)) to \(nodeName(for: destination))."
+    }
+
+    private func beginInlineArcEdit(_ id: UUID) {
+        guard let value = workspace.networkDraft?.arcs.first(where: { $0.id == id })?.costText else { return }
+        selectArc(id, focusValue: true)
+        inlineArcID = id
+        inlineArcValue = value
+        inlineArcOriginalValue = value
+        inlineArcError = nil
+        DispatchQueue.main.async { focusedField = .arcValue(id) }
+    }
+
+    private func commitInlineArc() {
+        guard let id = inlineArcID else { return }
+        var committed = false
+        workspace.updateNetworkDraft { draft in
+            committed = draft.commitArcCost(id: id, value: inlineArcValue)
+        }
+        guard committed else {
+            inlineArcError = "Enter a non-negative number."
+            return
+        }
+        inlineArcID = nil
+        inlineArcError = nil
+        gestureFeedback = nil
+    }
+
+    private func cancelInlineArcEdit() {
+        guard inlineArcID != nil else { return }
+        inlineArcValue = inlineArcOriginalValue
+        inlineArcID = nil
+        inlineArcError = nil
+    }
+
+    private func nodeName(for id: UUID) -> String {
+        workspace.networkDraft?.nodes.first(where: { $0.id == id })?.name ?? "node"
     }
 
     private func deleteSelection() {
+        cancelInlineArcEdit()
         if let selectedNodeID {
             workspace.updateNetworkDraft { $0.removeNode(id: selectedNodeID) }
         } else if let selectedArcID {
@@ -323,12 +446,35 @@ struct NetworkEditorView: View {
     }
 }
 
+private enum NetworkEditorFocusField: Hashable {
+    case nodeName(UUID)
+    case arcValue(UUID)
+}
+
 private struct NetworkGraphCanvas: View {
     let draft: NetworkDraft
     let selectedNodeID: UUID?
     let selectedArcID: UUID?
     let onSelectNode: (UUID) -> Void
     let onSelectArc: (UUID) -> Void
+    let onEditArc: (UUID) -> Void
+    let onCreateNode: (CGPoint, CGSize) -> Void
+    let onFastConnect: (UUID) -> Void
+    let inlineArcID: UUID?
+    @Binding var inlineArcValue: String
+    let inlineArcError: String?
+    let onCommitInlineArc: () -> Void
+    let onCancelInlineArc: () -> Void
+    let gestureFeedback: String?
+    let sourceNodeName: String?
+    let showInitialHint: Bool
+
+    @State private var hoveredNodeID: UUID?
+    @State private var hoveredArcID: UUID?
+    @State private var connectionDragSourceID: UUID?
+    @State private var connectionDragLocation: CGPoint?
+    @State private var connectionDestinationID: UUID?
+    @FocusState private var inlineEditorFocused: Bool
 
     var body: some View {
         GeometryReader { geometry in
@@ -337,6 +483,13 @@ private struct NetworkGraphCanvas: View {
                 (node.id, CGPoint(x: node.position.x * canvasSize.width, y: node.position.y * canvasSize.height))
             })
             ZStack(alignment: .topLeading) {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(SpatialTapGesture(count: 2).onEnded { value in
+                        onCreateNode(value.location, canvasSize)
+                    })
+                    .help("Double-click empty space to add a node.")
+
                 Canvas { context, _ in
                     for arc in draft.arcs {
                         guard let from = arc.fromNodeID.flatMap({ points[$0] }), let to = arc.toNodeID.flatMap({ points[$0] }) else { continue }
@@ -344,7 +497,8 @@ private struct NetworkGraphCanvas: View {
                         path.move(to: from)
                         path.addLine(to: to)
                         let isSelected = selectedArcID == arc.id
-                        context.stroke(path, with: .color(isSelected ? .accentColor : .secondary), lineWidth: isSelected ? 3 : 1.5)
+                        let isHovered = hoveredArcID == arc.id
+                        context.stroke(path, with: .color(isSelected ? .accentColor : .secondary), lineWidth: isSelected ? 3 : (isHovered ? 2.5 : 1.5))
                         if draft.kind.usesDirectedArcs {
                             let angle = atan2(to.y - from.y, to.x - from.x)
                             let tip = CGPoint(x: to.x - cos(angle) * 28, y: to.y - sin(angle) * 28)
@@ -359,21 +513,53 @@ private struct NetworkGraphCanvas: View {
                         }
                     }
                 }
+                .allowsHitTesting(false)
+
+                ForEach(draft.arcs) { arc in
+                    if let from = arc.fromNodeID.flatMap({ points[$0] }), let to = arc.toNodeID.flatMap({ points[$0] }) {
+                        arcHitTarget(arc, from: from, to: to, in: canvasSize)
+                        arcLabel(arc, from: from, to: to)
+                    }
+                }
+                if let sourceID = connectionDragSourceID,
+                   let source = points[sourceID],
+                   let location = connectionDragLocation {
+                    Path { path in
+                        path.move(to: source)
+                        path.addLine(to: location)
+                    }
+                    .stroke(Color.accentColor.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    .allowsHitTesting(false)
+                }
                 ForEach(draft.nodes) { node in
                     if let point = points[node.id] {
                         graphNodeButton(node, at: point)
+                        if selectedNodeID == node.id {
+                            connectionHandle(node, at: point, in: canvasSize, points: points)
+                        }
                     }
                 }
             }
             .frame(width: canvasSize.width, height: canvasSize.height)
+            .coordinateSpace(name: "networkCanvas")
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Network graph editor")
+            .overlay(alignment: .bottomLeading) {
+                if let gestureFeedback {
+                    canvasHint(gestureFeedback, isFeedback: true)
+                } else if let sourceNodeName {
+                    canvasHint("Drag the connector or Control-click another node to connect from \(sourceNodeName)", isFeedback: false)
+                } else if showInitialHint {
+                    canvasHint("Double-click to add nodes · Select a node to connect", isFeedback: false)
+                }
+            }
         }
     }
 
     private func graphNodeButton(_ node: NetworkNodeDraft, at point: CGPoint) -> some View {
         let label = node.name.isEmpty ? "?" : node.name
         let selected = selectedNodeID == node.id
+        let hovered = hoveredNodeID == node.id
         return Button {
             onSelectNode(node.id)
         } label: {
@@ -383,12 +569,169 @@ private struct NetworkGraphCanvas: View {
                 .minimumScaleFactor(0.55)
                 .padding(7)
                 .frame(minWidth: 52, minHeight: 42)
-                .background(selected ? Color.accentColor.opacity(0.22) : Color(nsColor: .controlBackgroundColor), in: Circle())
-                .overlay(Circle().stroke(selected ? Color.accentColor : Color.secondary, lineWidth: selected ? 3 : 1))
+                .background(selected ? Color.accentColor.opacity(0.22) : (hovered ? Color.accentColor.opacity(0.10) : Color(nsColor: .controlBackgroundColor)), in: Circle())
+                .overlay(Circle().stroke(selected ? Color.accentColor : (hovered ? Color.accentColor : Color.secondary), lineWidth: selected ? 3 : (hovered ? 2 : 1)))
         }
         .buttonStyle(.plain)
+        .highPriorityGesture(
+            TapGesture().modifiers(.control).onEnded {
+                onFastConnect(node.id)
+            }
+        )
+        .onHover { isHovered in
+            hoveredNodeID = isHovered ? node.id : nil
+        }
         .position(point)
         .accessibilityLabel("Graph node \(label)")
+        .accessibilityIdentifier("network-graph-node-\(node.id.uuidString)")
+        .accessibilityHint(selected ? "Selected source node. Control-click another node to create an arc." : "Click to select. Control-click another node to create an arc.")
+        .help(selected ? "Selected source node. Control-click another node to create an arc." : "Click to select. Control-click another node to create an arc.")
+    }
+
+    private func connectionHandle(
+        _ node: NetworkNodeDraft,
+        at point: CGPoint,
+        in size: CGSize,
+        points: [UUID: CGPoint]
+    ) -> some View {
+        let active = connectionDragSourceID == node.id
+        let target = connectionDestinationID != nil && connectionDestinationID != node.id
+        let sourceLabel = node.name.isEmpty ? "this node" : node.name
+        let handleHelp = "Drag to another node to connect from " + sourceLabel + "."
+        return ZStack {
+            Circle()
+                .fill(Color.accentColor.opacity(active ? 0.32 : 0.18))
+            Image(systemName: "arrow.turn.down.right")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(Color.accentColor)
+        }
+        .frame(width: 22, height: 22)
+        .overlay(Circle().stroke(Color.accentColor.opacity(active ? 0.9 : 0.55), lineWidth: active ? 2 : 1))
+        .scaleEffect(target ? 1.08 : 1)
+        .position(
+            x: min(max(point.x + 30, 14), size.width - 14),
+            y: min(max(point.y - 26, 14), size.height - 14)
+        )
+        .contentShape(Circle())
+        .gesture(
+            DragGesture(minimumDistance: 2, coordinateSpace: .named("networkCanvas"))
+                .onChanged { value in
+                    connectionDragSourceID = node.id
+                    connectionDragLocation = value.location
+                    connectionDestinationID = destinationID(at: value.location, excluding: node.id, points: points)
+                }
+                .onEnded { value in
+                    let destination = destinationID(at: value.location, excluding: node.id, points: points)
+                    connectionDragSourceID = nil
+                    connectionDragLocation = nil
+                    connectionDestinationID = nil
+                    if let destination {
+                        onFastConnect(destination)
+                    }
+                }
+        )
+        .accessibilityElement()
+        .accessibilityLabel("Connect from \(node.name.isEmpty ? "node" : node.name)")
+        .accessibilityHint("Drag to another node to create an arc.")
+        .help(handleHelp)
+    }
+
+    private func destinationID(at location: CGPoint, excluding sourceID: UUID, points: [UUID: CGPoint]) -> UUID? {
+        points
+            .filter { $0.key != sourceID }
+            .min { lhs, rhs in distance(from: lhs.value, to: location) < distance(from: rhs.value, to: location) }
+            .flatMap { distance(from: $0.value, to: location) <= 34 ? $0.key : nil }
+    }
+
+    private func distance(from lhs: CGPoint, to rhs: CGPoint) -> CGFloat {
+        hypot(lhs.x - rhs.x, lhs.y - rhs.y)
+    }
+
+    private func arcHitTarget(_ arc: NetworkArcDraft, from: CGPoint, to: CGPoint, in size: CGSize) -> some View {
+        let isSelected = selectedArcID == arc.id
+        return Button {
+            onSelectArc(arc.id)
+        } label: {
+            ArcLineShape(from: from, to: to)
+                .stroke(.clear, lineWidth: 28)
+                .contentShape(ArcLineShape(from: from, to: to).stroke(lineWidth: 28))
+        }
+        .buttonStyle(.plain)
+        .frame(width: size.width, height: size.height)
+        .contentShape(ArcLineShape(from: from, to: to).stroke(lineWidth: 28))
+        .simultaneousGesture(
+            TapGesture(count: 2).onEnded {
+                onEditArc(arc.id)
+            }
+        )
+        .onHover { isHovered in
+            hoveredArcID = isHovered ? arc.id : nil
+        }
+        .opacity(isSelected ? 0.45 : (hoveredArcID == arc.id ? 0.08 : 0.01))
+        .accessibilityLabel("Connection, \(arc.costText)")
+        .accessibilityIdentifier("network-graph-arc-\(arc.id.uuidString)")
+        .accessibilityHint("Double-click to edit arc properties.")
+        .help("Double-click to edit.")
+    }
+
+    private func arcLabel(_ arc: NetworkArcDraft, from: CGPoint, to: CGPoint) -> some View {
+        let midpoint = CGPoint(x: (from.x + to.x) / 2, y: (from.y + to.y) / 2)
+        let dx = to.x - from.x
+        let dy = to.y - from.y
+        let length = max(sqrt(dx * dx + dy * dy), 1)
+        let offset = CGPoint(x: -dy / length * 10, y: dx / length * 10)
+        return Group {
+            if inlineArcID == arc.id {
+                VStack(alignment: .leading, spacing: 3) {
+                    TextField(draft.kind == .maxFlow ? "Capacity" : "Cost", text: $inlineArcValue)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption2.monospacedDigit())
+                        .frame(width: 88)
+                        .focused($inlineEditorFocused)
+                        .onSubmit(onCommitInlineArc)
+                        .onExitCommand(perform: onCancelInlineArc)
+                        .onAppear { inlineEditorFocused = true }
+                        .accessibilityLabel(draft.kind == .maxFlow ? "Inline arc capacity" : "Inline arc cost")
+                        .accessibilityIdentifier("network-inline-arc-value")
+                    if let inlineArcError {
+                        Text(inlineArcError)
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                    }
+                }
+            } else {
+                Text(arc.costText)
+                    .font(.caption2.monospacedDigit())
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(.thinMaterial, in: Capsule())
+            }
+        }
+            .position(x: midpoint.x + offset.x, y: midpoint.y + offset.y)
+            .allowsHitTesting(inlineArcID == arc.id)
+    }
+
+    private func canvasHint(_ text: String, isFeedback: Bool) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(isFeedback ? .primary : .secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(.thinMaterial, in: Capsule())
+            .padding(10)
+            .allowsHitTesting(false)
+    }
+}
+
+private struct ArcLineShape: Shape {
+    let from: CGPoint
+    let to: CGPoint
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: from)
+        path.addLine(to: to)
+        return path
     }
 }
 

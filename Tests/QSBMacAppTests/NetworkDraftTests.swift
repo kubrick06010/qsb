@@ -55,6 +55,80 @@ func networkDraftNodeMutationIsSafe() throws {
     #expect(draft.arcs.allSatisfy { $0.fromNodeID != middle && $0.toNodeID != middle })
 }
 
+@Test("positioned node creation uses unique default names")
+func networkDraftPositionedNodeCreationIsUnique() throws {
+    var draft = NetworkDraft.blank(.shortestPath)
+    let first = draft.addNode(position: NetworkDraftPosition(x: 0.2, y: 0.3))
+    let second = draft.addNode(position: NetworkDraftPosition(x: 0.8, y: 0.7))
+
+    let firstNode = try #require(draft.nodes.first { $0.id == first })
+    let secondNode = try #require(draft.nodes.first { $0.id == second })
+    #expect(firstNode.name == "Node 3")
+    #expect(secondNode.name == "Node 4")
+    #expect(firstNode.position == NetworkDraftPosition(x: 0.2, y: 0.3))
+    #expect(secondNode.position == NetworkDraftPosition(x: 0.8, y: 0.7))
+}
+
+@Test("fast connection creates one arc and rejects duplicate destinations")
+func networkDraftFastConnectionIsDuplicateSafe() throws {
+    var draft = NetworkDraft.blank(.shortestPath)
+    let source = try #require(draft.nodes.first?.id)
+    let firstDestination = draft.addNode(name: "Node 3")
+    let secondDestination = draft.addNode(name: "Node 4")
+
+    let originalCount = draft.arcs.count
+    let firstResult = draft.addArcIfMissing(from: source, to: secondDestination)
+    let duplicateResult = draft.addArcIfMissing(from: source, to: secondDestination)
+    let secondResult = draft.addArcIfMissing(from: source, to: firstDestination)
+
+    #expect(firstResult.created)
+    #expect(!duplicateResult.created)
+    #expect(firstResult.id == duplicateResult.id)
+    #expect(secondResult.created)
+    #expect(draft.arcs.count == originalCount + 2)
+}
+
+@Test("undirected fast connection treats reversed endpoints as the same edge")
+func networkDraftUndirectedConnectionIsDuplicateSafe() throws {
+    var draft = NetworkDraft.blank(.minimumSpanningTree)
+    let first = try #require(draft.nodes.first?.id)
+    let second = try #require(draft.nodes.dropFirst().first?.id)
+
+    let result = draft.addArcIfMissing(from: second, to: first)
+
+    #expect(!result.created)
+    #expect(draft.arcs.count == 1)
+    #expect(result.id == draft.arcs[0].id)
+}
+
+@Test("inline arc value commit changes the existing draft field")
+func networkDraftArcValueEditingUsesExistingField() throws {
+    var draft = NetworkDraft.blank(.maxFlow)
+    let arcID = try #require(draft.arcs.first?.id)
+    let committed = draft.commitArcCost(id: arcID, value: "12.5")
+    #expect(committed)
+
+    #expect(draft.arcs[0].costText == "12.5")
+    #expect(draft.draftIssues().isEmpty)
+}
+
+@Test("invalid or cancelled inline arc edits do not mutate the draft")
+func networkDraftInlineArcValueRejectsInvalidInput() throws {
+    var draft = NetworkDraft.blank(.shortestPath)
+    let arcID = try #require(draft.arcs.first?.id)
+    let original = draft.arcs[0].costText
+
+    let malformed = draft.commitArcCost(id: arcID, value: "unfinished")
+    #expect(!malformed)
+    #expect(draft.arcs[0].costText == original)
+    let negative = draft.commitArcCost(id: arcID, value: "-1")
+    #expect(!negative)
+    #expect(draft.arcs[0].costText == original)
+    let valid = draft.commitArcCost(id: arcID, value: " 4.25 ")
+    #expect(valid)
+    #expect(draft.arcs[0].costText == " 4.25 ")
+}
+
 @Test("draft reports incomplete endpoints and invalid costs before core validation")
 func networkDraftReportsStructuralIssues() {
     var draft = NetworkDraft.blank(.shortestPath)

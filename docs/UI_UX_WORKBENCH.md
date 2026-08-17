@@ -685,6 +685,13 @@ Future priorities with high educational and workflow value:
 4. remaining family-specific forms where fixtures and validation make the
    editing contract clear.
 
+Network direct manipulation follows the principle that a domain-natural
+gesture should complement explicit keyboard and accessibility alternatives.
+The graph editor supports double-click node creation, Control-click fast
+connection, a selected-node visual connection handle, and inline arc-value
+editing. Explicit Add Node, Add Arc, Delete, and inspector paths remain
+available for discoverability and accessible fallback.
+
 ### UI Phase 4 — Refinement
 
 - complete keyboard-first paths and focus restoration;

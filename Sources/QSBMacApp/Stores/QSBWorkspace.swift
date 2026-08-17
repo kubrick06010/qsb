@@ -25,6 +25,7 @@ final class QSBWorkspace {
     var networkFlowDraft: NetworkFlowDraft?
     var assignmentDraft: AssignmentDraft?
     var transportationDraft: TransportationDraft?
+    var forecastingDraft: ForecastingDraft?
     var solutionJSON: String = ""
     var validationJSON: String = ""
     var validationDiagnostics: [ValidationDiagnostic] = []
@@ -66,6 +67,11 @@ final class QSBWorkspace {
             self.assignmentDraft = nil
             self.transportationDraft = nil
         }
+        if let request = try? ForecastingModelJSON.decodeRequest(from: Data(modelJSON.utf8)) {
+            self.forecastingDraft = ForecastingDraft(request)
+        } else {
+            self.forecastingDraft = nil
+        }
     }
 
     func startNewLinearProgram() {
@@ -75,6 +81,7 @@ final class QSBWorkspace {
         networkFlowDraft = nil
         assignmentDraft = nil
         transportationDraft = nil
+        forecastingDraft = nil
         modelJSON = ""
         modelSource = "New · Linear Programming"
         modelState = .editing
@@ -98,6 +105,7 @@ final class QSBWorkspace {
         networkFlowDraft = nil
         assignmentDraft = nil
         transportationDraft = nil
+        forecastingDraft = nil
         inventoryDraft = .blank(kind)
         modelJSON = ""
         modelSource = "New · Inventory · \(kind.displayName)"
@@ -117,6 +125,7 @@ final class QSBWorkspace {
         inventoryDraft = nil
         assignmentDraft = nil
         transportationDraft = nil
+        forecastingDraft = nil
         networkDraft = .blank(kind)
         networkFlowDraft = nil
         modelJSON = ""
@@ -159,7 +168,29 @@ final class QSBWorkspace {
         networkFlowDraft = .blank()
         assignmentDraft = nil
         transportationDraft = nil
+        forecastingDraft = nil
         prepareNewNetworkModel(source: "New · Network · Minimum-Cost Transshipment", status: "Editing a new minimum-cost transshipment model")
+    }
+
+    func startNewForecasting(_ method: ForecastingMethod) {
+        lpDraft = nil
+        inventoryDraft = nil
+        networkDraft = nil
+        networkFlowDraft = nil
+        assignmentDraft = nil
+        transportationDraft = nil
+        forecastingDraft = .blank(method)
+        modelJSON = ""
+        modelSource = "New · Forecasting · (method.displayName)"
+        modelState = .editing
+        runState = .notRun
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        lastErrorMessage = nil
+        lastResultLabel = nil
+        status = "Editing a new (method.displayName) model"
+        selectedPane = .model
     }
 
     private func prepareNewNetworkModel(source: String, status: String) {
@@ -239,6 +270,13 @@ final class QSBWorkspace {
         markMatrixDraftEdited(status: "Editing transportation model")
     }
 
+    func updateForecastingDraft(_ update: (inout ForecastingDraft) -> Void) {
+        guard var draft = forecastingDraft else { return }
+        update(&draft)
+        forecastingDraft = draft
+        markMatrixDraftEdited(status: "Editing forecasting model")
+    }
+
     private func markMatrixDraftEdited(status: String) {
         modelState = .editing
         runState = .notRun
@@ -315,6 +353,21 @@ final class QSBWorkspace {
             validationDiagnostics = []
             lastErrorMessage = nil
             status = "JSON applied to the Network editor"
+            selectedPane = .model
+        } catch {
+            lastErrorMessage = Self.message(for: error)
+            status = "JSON was not applied: \(lastErrorMessage ?? "Invalid JSON")"
+            selectedPane = .json
+        }
+    }
+
+    func applyForecastingJSONToNativeEditor() {
+        do {
+            forecastingDraft = ForecastingDraft(try ForecastingModelJSON.decodeRequest(from: Data(modelJSON.utf8)))
+            lpDraft = nil; inventoryDraft = nil; networkDraft = nil; networkFlowDraft = nil; assignmentDraft = nil; transportationDraft = nil
+            modelSource = "Normalized JSON · Forecasting"
+            modelState = .editing; runState = .notRun; solutionJSON = ""; validationJSON = ""; validationDiagnostics = []; lastErrorMessage = nil
+            status = "JSON applied to the Forecasting editor"
             selectedPane = .model
         } catch {
             lastErrorMessage = Self.message(for: error)
@@ -497,7 +550,8 @@ final class QSBWorkspace {
     func solveForecasting() {
         beginSolving()
         do {
-            let request = try ForecastingModelJSON.decodeRequest(from: Data(modelJSON.utf8))
+            let request = try currentForecastingRequest()
+            try syncForecastingDraftToJSON(request)
             guard let solver = ForecastingBackends.backend(for: selectedBackend) else {
                 showUnavailableExternalBackend()
                 return
@@ -735,6 +789,8 @@ final class QSBWorkspace {
             solve(lpDraft?.variables.contains(where: { $0.type != .continuous }) == true ? .integer : .relaxation)
         } else if isInventoryModel, inventoryDraft != nil {
             solveInventory()
+        } else if forecastingDraft != nil {
+            solveForecasting()
         } else {
             solveCurrentModel()
         }
@@ -757,7 +813,7 @@ final class QSBWorkspace {
             case .dynamicProgramming(let kind):
                 let model = try DynamicProgrammingModelJSON.decodeUncheckedModel(from: data); try showDynamicProgrammingValidationReport(ValidateOnlyDynamicProgrammingBackend().validationReport(for: model), kind: kind)
             case .forecasting:
-                let request = try ForecastingModelJSON.decodeRequest(from: data); try showForecastingValidationReport(ValidateOnlyForecastingBackend().validationReport(for: request), request: request)
+                let request = try currentForecastingRequest(); try syncForecastingDraftToJSON(request); try showForecastingValidationReport(ValidateOnlyForecastingBackend().validationReport(for: request), request: request)
             case .decisionAnalysis:
                 let model = try DecisionAnalysisModelJSON.decodeModel(from: data); try showDecisionAnalysisValidationReport(ValidateOnlyDecisionAnalysisBackend().validationReport(for: model), model: model)
             case .simulation:
@@ -875,6 +931,12 @@ final class QSBWorkspace {
            let envelope = try? NetworkModelJSON.decodeModel(from: Data(modelJSON.utf8)) {
             networkDraft = NetworkDraft(envelope: envelope)
         }
+        if case .linearTrendForecast = sample,
+           let request = try? ForecastingModelJSON.decodeRequest(from: Data(modelJSON.utf8)) {
+            forecastingDraft = ForecastingDraft(request)
+        } else if case .linearTrendForecast = sample {
+            forecastingDraft = nil
+        }
         solutionJSON = ""
         validationJSON = ""
         validationDiagnostics = []
@@ -939,6 +1001,11 @@ final class QSBWorkspace {
                 networkFlowDraft = nil
                 assignmentDraft = nil
                 transportationDraft = nil
+            }
+            if let request = try? ForecastingModelJSON.decodeRequest(from: normalizedData) {
+                forecastingDraft = ForecastingDraft(request)
+            } else {
+                forecastingDraft = nil
             }
             solutionJSON = ""
             validationJSON = ""
@@ -1033,6 +1100,11 @@ final class QSBWorkspace {
         return try NetworkModelJSON.decodeModel(from: Data(modelJSON.utf8))
     }
 
+    private func currentForecastingRequest() throws -> ForecastingRequest {
+        if let forecastingDraft { return try forecastingDraft.makeRequest() }
+        return try ForecastingModelJSON.decodeRequest(from: Data(modelJSON.utf8))
+    }
+
     private func syncInventoryDraftToJSON(_ model: InventoryModelEnvelope) throws {
         guard inventoryDraft != nil else { return }
         modelJSON = String(decoding: try InventoryModelJSON.encodeModel(model), as: UTF8.self)
@@ -1052,6 +1124,11 @@ final class QSBWorkspace {
     private func syncNetworkDraftToJSON(_ model: NetworkModelEnvelope) throws {
         guard networkDraft != nil || networkFlowDraft != nil || assignmentDraft != nil || transportationDraft != nil else { return }
         modelJSON = String(decoding: try NetworkModelJSON.encodeModel(model), as: UTF8.self)
+    }
+
+    private func syncForecastingDraftToJSON(_ request: ForecastingRequest) throws {
+        guard forecastingDraft != nil else { return }
+        modelJSON = String(decoding: try ForecastingModelJSON.encodeRequest(request), as: UTF8.self)
     }
 
     private func validateExtendedModel(_ data: Data) throws {
@@ -1271,6 +1348,7 @@ final class QSBWorkspace {
         if networkDraft != nil || networkFlowDraft != nil || assignmentDraft != nil || transportationDraft != nil {
             return .network
         }
+        if let forecastingDraft { return .forecasting(forecastingDraft.method) }
         let data = Data(modelJSON.utf8)
         if (try? LinearProgramJSON.decodeProgram(from: data)) != nil {
             return .linearProgramming
@@ -1311,7 +1389,7 @@ final class QSBWorkspace {
     }
 
     var hasModel: Bool {
-        lpDraft != nil || inventoryDraft != nil || networkDraft != nil || networkFlowDraft != nil || assignmentDraft != nil || transportationDraft != nil || !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        lpDraft != nil || inventoryDraft != nil || networkDraft != nil || networkFlowDraft != nil || assignmentDraft != nil || transportationDraft != nil || forecastingDraft != nil || !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var hasSolution: Bool {
@@ -1330,6 +1408,9 @@ final class QSBWorkspace {
             case .lotSizing(let draft): return draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? currentModelFamily.displayName : draft.title
             case .stochasticReview(let model): return model.title
             }
+        }
+        if let forecastingDraft, !forecastingDraft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return forecastingDraft.title
         }
         if let networkDraft, !networkDraft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return networkDraft.title

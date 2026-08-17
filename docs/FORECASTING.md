@@ -148,6 +148,13 @@ backend and offers a native Chart/JSON presentation for every supported method.
   or OLS R-squared, SSE, intercept, and coefficients as applicable.
 - Visibility checkboxes and horizontal scale controls support both compact and
   wide windows; the normalized JSON document remains available at all times.
+- The native Forecasting definition editor supports all five methods with a
+  discriminated app-internal draft, ordered historical rows, typed method
+  parameters, explicit forecast horizon controls where supported, and a
+  structured accessible values table.
+- Normalized and legacy imports populate the same editor. JSON is an explicit
+  advanced surface and Apply JSON updates the draft only after decoding
+  succeeds. Bulk tabular paste is deferred.
 
 Swift Charts is used only to present typed results. Parsing, validation,
 forecasting, regression, and metric calculation remain in QSBCore behind

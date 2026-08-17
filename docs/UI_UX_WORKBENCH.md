@@ -1,6 +1,6 @@
 # QSB Native Workbench: UI/UX Audit and Design Proposal
 
-Status: design reference. UI Phases 1–3B are implemented incrementally; the
+Status: design reference. UI Phases 1–3E are implemented incrementally; the
 remaining family editors and refinement work are still roadmap items.
 
 This document records the post-Phase-C product audit of `QSBMacApp`. It
@@ -669,11 +669,19 @@ QSBCore fields through `InventoryStochasticDraft`. CNF uses a separate
 balance-aware node/arc table rather than overloading the graph or transportation
 drafts; invented capacities remain absent from the model.
 
+Forecasting now has a native editor for all five current QSBCore methods. Its
+ordered historical table, regression predictor table, and method-specific
+controls convert through `ForecastingDraft` into the existing typed request.
+Semantic validation, normalized JSON, and backend routing remain in QSBCore.
+The result surface prioritizes actual/fitted/forecast chart series, a forecast
+boundary marker, existing fit metrics, residuals, and an accessible structured
+value table.
+
 Future priorities with high educational and workflow value:
 
 1. Network minimum-cost flow graph-plus-balances editor;
 2. Decision analysis/payoff/tree editors;
-3. Forecasting and Markov data editors;
+3. Markov data editors;
 4. remaining family-specific forms where fixtures and validation make the
    editing contract clear.
 

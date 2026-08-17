@@ -195,7 +195,18 @@ struct JSONRepresentationView: View {
 
     @ViewBuilder
     private var jsonApplyBar: some View {
-        if !solution && workspace.isLinearProgrammingModel {
+        if !solution && workspace.isForecastingModel {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Forecasting draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Forecasting Editor") {
+                    workspace.applyForecastingJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        } else if !solution && workspace.isLinearProgrammingModel {
             HStack {
                 Text("JSON changes are applied explicitly to the native LP draft.")
                     .font(.callout)

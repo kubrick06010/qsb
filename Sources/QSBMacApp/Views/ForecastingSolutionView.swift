@@ -162,6 +162,12 @@ struct ForecastingSolutionView: View {
                 }
 
                 if showForecast {
+                    if !presentation.forecast.isEmpty {
+                        RuleMark(x: .value("Forecast boundary", presentation.forecastBoundary))
+                            .foregroundStyle(.secondary)
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                            .accessibilityLabel("Forecast boundary")
+                    }
                     ForEach(presentation.forecastLine) { point in
                         LineMark(
                             x: .value("Period", point.index),
@@ -290,6 +296,30 @@ struct ForecastingSolutionView: View {
                     }
                 }
             }
+
+            DisclosureGroup("Structured values") {
+                LazyVStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Period").frame(width: 140, alignment: .leading)
+                        Text("Observed").frame(width: 100, alignment: .trailing)
+                        Text(presentation.fittedLabel).frame(width: 100, alignment: .trailing)
+                        Text("Forecast").frame(width: 100, alignment: .trailing)
+                    }
+                    .font(.caption.bold())
+                    ForEach(presentation.accessibleRows) { row in
+                        HStack {
+                            Text(row.label).frame(width: 140, alignment: .leading)
+                            Text(row.actual).frame(width: 100, alignment: .trailing)
+                            Text(row.fitted).frame(width: 100, alignment: .trailing)
+                            Text(row.forecast).frame(width: 100, alignment: .trailing)
+                        }
+                        .font(.callout.monospacedDigit())
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Period \(row.label), observed \(row.actual), \(presentation.fittedLabel.lowercased()) \(row.fitted), forecast \(row.forecast)")
+                    }
+                }
+                .padding(.top, 6)
+            }
         }
     }
 
@@ -330,6 +360,18 @@ private struct ForecastingChartPresentation {
     let forecast: [ForecastChartPoint]
     let residuals: [ForecastChartPoint]
     let details: [ForecastDetail]
+
+    var forecastBoundary: Int { (actual.count + 1) }
+
+    var accessibleRows: [ForecastStructuredRow] {
+        let labels = Dictionary(uniqueKeysWithValues: (actual + fitted + forecast).map { ($0.index, $0.label) })
+        let actualByIndex = Dictionary(uniqueKeysWithValues: actual.map { ($0.index, $0.value) })
+        let fittedByIndex = Dictionary(uniqueKeysWithValues: fitted.map { ($0.index, $0.value) })
+        let forecastByIndex = Dictionary(uniqueKeysWithValues: forecast.map { ($0.index, $0.value) })
+        return labels.keys.sorted().map { index in
+            ForecastStructuredRow(index: index, label: labels[index] ?? "\(index)", actual: actualByIndex[index].map(Self.number) ?? "—", fitted: fittedByIndex[index].map(Self.number) ?? "—", forecast: forecastByIndex[index].map(Self.number) ?? "—")
+        }
+    }
 
     var forecastLine: [ForecastChartPoint] {
         guard let lastFitted = fitted.last, !forecast.isEmpty else { return forecast }
@@ -490,6 +532,16 @@ private struct ForecastDetail: Identifiable {
     let value: String
 
     var id: String { "\(label):\(value)" }
+}
+
+private struct ForecastStructuredRow: Identifiable {
+    let index: Int
+    let label: String
+    let actual: String
+    let fitted: String
+    let forecast: String
+
+    var id: Int { index }
 }
 
 private extension SolverExactness {

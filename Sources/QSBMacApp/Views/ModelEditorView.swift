@@ -14,6 +14,8 @@ struct ModelEditorView: View {
             TransportationEditorView(workspace: workspace)
         } else if workspace.networkFlowDraft != nil {
             NetworkFlowEditorView(workspace: workspace)
+        } else if workspace.forecastingDraft != nil {
+            ForecastingEditorView(workspace: workspace)
         } else if workspace.isNetworkModel, workspace.networkDraft != nil {
             NetworkEditorView(workspace: workspace)
         } else {

@@ -94,6 +94,26 @@ struct NewModelPickerView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(8)
             }
+            GroupBox("Forecasting") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Choose a supported forecasting method").font(.headline)
+                    ForEach(ForecastingMethod.allCases, id: \.rawValue) { method in
+                        Button {
+                            workspace.startNewForecasting(method)
+                            dismiss()
+                        } label: {
+                            Label(method.displayName, systemImage: "chart.xyaxis.line")
+                        }
+                        .buttonStyle(.link)
+                        .accessibilityIdentifier("new-model-forecasting-\(method.rawValue)")
+                    }
+                    Text("The native editor covers all current QSBCore forecasting methods; validation and solving remain in QSBCore.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+            }
             GroupBox("Other families") {
                 Text("Open and solve are available for existing models. Native creation editors for other families will be added in later phases.")
                     .foregroundStyle(.secondary)

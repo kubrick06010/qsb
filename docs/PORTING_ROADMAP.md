@@ -467,6 +467,24 @@ UI Phase 3D status:
   identities, node supply/demand, directed arc costs, safe incident-arc
   removal, existing JSON/backend routing, and no invented capacity fields.
 
+UI Phase 3E status:
+
+- Forecasting has a native editor for every current QSBCore method: linear
+  trend, moving average, exponential smoothing, multiplicative seasonal
+  decomposition, and ordinary least squares regression;
+- `ForecastingDraft` is discriminated between time-series and regression
+  shapes, preserves ordered observations across method switches, and converts
+  explicitly to/from the existing `ForecastingRequest`;
+- normalized and legacy imports populate the editor, JSON Apply is explicit
+  and transactional, and editor-created requests use the existing
+  `ForecastingBackend` and solution document;
+- the solved view prioritizes actual/fitted/forecast chart series, residuals,
+  existing metrics where present, and an accessible structured values table.
+
+Deferred: bulk tabular paste. Methods and parameters absent from the current
+QSBCore request schema, including weighted moving average and confidence
+intervals, are not advertised.
+
 UI Phase 3B status:
 
 - graph-native Network editing is implemented for shortest path, minimum

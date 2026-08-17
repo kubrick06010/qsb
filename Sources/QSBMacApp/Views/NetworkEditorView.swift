@@ -32,7 +32,7 @@ struct NetworkEditorView: View {
                             selectedNodeID: selectedNodeID,
                             selectedArcID: selectedArcID,
                             onSelectNode: selectNode,
-                            onSelectArc: { selectArc($0, focusValue: false) },
+                            onSelectArc: selectArc,
                             onEditArc: beginInlineArcEdit,
                             onCreateNode: createNode,
                             onFastConnect: fastConnect,
@@ -58,6 +58,11 @@ struct NetworkEditorView: View {
         }
         .navigationTitle("Network Definition")
         .onAppear(perform: setDefaultArcEndpoints)
+        // The inline field is created by the inlineArcID state transition;
+        // focus after that transition keeps the editor mounted before focus is requested.
+        .onChange(of: inlineArcID) { _, id in
+            focusedField = id.map(NetworkEditorFocusField.arcValue)
+        }
     }
 
     private var header: some View {
@@ -196,7 +201,7 @@ struct NetworkEditorView: View {
                     result = draft.addArcIfMissing(from: from, to: to)
                 }
                 guard let result else { return }
-                selectArc(result.id, focusValue: false)
+                selectArc(result.id)
                 gestureFeedback = result.created ? nil : "That connection already exists."
             }
             .disabled(addArcFrom == nil || addArcTo == nil)
@@ -269,7 +274,7 @@ struct NetworkEditorView: View {
                 let from = arc.fromNodeID.flatMap { id in draft.nodes.first { $0.id == id }?.name } ?? "?"
                 let to = arc.toNodeID.flatMap { id in draft.nodes.first { $0.id == id }?.name } ?? "?"
                 Button {
-                    selectArc(arc.id, focusValue: false)
+                    selectArc(arc.id)
                 } label: {
                     Label("\(from) \(draft.kind.usesDirectedArcs ? "→" : "—") \(to) · \(arc.costText)", systemImage: selectedArcID == arc.id ? "line.diagonal" : "arrow.left.and.right")
                 }
@@ -338,19 +343,13 @@ struct NetworkEditorView: View {
         focusedField = nil
     }
 
-    private func selectArc(_ id: UUID, focusValue: Bool) {
+    private func selectArc(_ id: UUID) {
         if inlineArcID != id { cancelInlineArcEdit() }
         selectedArcID = id
         selectedNodeID = nil
         canvasInteracted = true
         gestureFeedback = nil
-        if focusValue {
-            DispatchQueue.main.async {
-                focusedField = .arcValue(id)
-            }
-        } else {
-            focusedField = nil
-        }
+        focusedField = nil
     }
 
     private func createNode(at point: CGPoint, in size: CGSize) {
@@ -383,7 +382,7 @@ struct NetworkEditorView: View {
             draft.existingArcID(from: source, to: destination)
         } ?? nil
         if let existing = result {
-            selectArc(existing, focusValue: false)
+            selectArc(existing)
             gestureFeedback = "That connection already exists."
             return
         }
@@ -399,12 +398,11 @@ struct NetworkEditorView: View {
 
     private func beginInlineArcEdit(_ id: UUID) {
         guard let value = workspace.networkDraft?.arcs.first(where: { $0.id == id })?.costText else { return }
-        selectArc(id, focusValue: true)
+        selectArc(id)
         inlineArcID = id
         inlineArcValue = value
         inlineArcOriginalValue = value
         inlineArcError = nil
-        DispatchQueue.main.async { focusedField = .arcValue(id) }
     }
 
     private func commitInlineArc() {

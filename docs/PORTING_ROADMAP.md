@@ -480,10 +480,15 @@ UI Phase 3E status:
   `ForecastingBackend` and solution document;
 - the solved view prioritizes actual/fitted/forecast chart series, residuals,
   existing metrics where present, and an accessible structured values table.
+- plain-text clipboard bulk entry is supported for the historical-data editor:
+  one-column numeric values and two-column period/value TSV are accepted with
+  atomic validation, exact row ordering, and useful failure diagnostics;
+- Command-V remains Paste and Command-Shift-V remains Validate.
 
-Deferred: bulk tabular paste. Methods and parameters absent from the current
-QSBCore request schema, including weighted moving average and confidence
-intervals, are not advertised.
+Future work: extend this proven tabular paste interaction to the existing LP,
+Assignment, Transportation, Lot Sizing, and other appropriate editors. Methods
+and parameters absent from the current QSBCore request schema, including
+weighted moving average and confidence intervals, are not advertised.
 
 UI Phase 3B status:
 

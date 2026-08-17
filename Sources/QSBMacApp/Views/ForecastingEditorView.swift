@@ -133,6 +133,9 @@ struct ForecastingEditorView: View {
             }
             .padding(8)
         }
+        .onPasteCommand(of: [.plainText]) { _ in
+            workspace.pasteForecastingHistoricalDataFromClipboard()
+        }
     }
 
     private var regressionEditor: some View {

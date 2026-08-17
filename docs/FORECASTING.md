@@ -154,7 +154,12 @@ backend and offers a native Chart/JSON presentation for every supported method.
   structured accessible values table.
 - Normalized and legacy imports populate the same editor. JSON is an explicit
   advanced surface and Apply JSON updates the draft only after decoding
-  succeeds. Bulk tabular paste is deferred.
+  succeeds.
+- The historical-data editor supports standard macOS Command-V plain-text
+  paste from Excel, Numbers, and other tabular applications. One numeric
+  column replaces values in order; two tab-separated columns replace period
+  labels and values. The complete paste is parsed and validated atomically,
+  with malformed or extra-column input rejected without partial mutation.
 
 Swift Charts is used only to present typed results. Parsing, validation,
 forecasting, regression, and metric calculation remain in QSBCore behind

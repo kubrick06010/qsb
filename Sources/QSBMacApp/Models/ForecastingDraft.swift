@@ -30,6 +30,16 @@ enum ForecastingDraftError: Error, Equatable, CustomStringConvertible {
     var description: String { message }
 }
 
+enum ForecastingPasteError: Error, Equatable, CustomStringConvertible {
+    case regressionNotSupported
+
+    var description: String {
+        switch self {
+        case .regressionNotSupported: "Bulk historical paste is available for time-series methods, not regression predictors."
+        }
+    }
+}
+
 struct ForecastingObservationDraft: Equatable, Sendable {
     var label: String
     var value: String
@@ -150,6 +160,13 @@ enum ForecastingDraft: Equatable, Sendable {
         switch self { case .linearTrend: .linearTrend; case .movingAverage: .movingAverage; case .exponentialSmoothing: .exponentialSmoothing; case .multiplicativeSeasonalDecomposition: .multiplicativeSeasonalDecomposition; case .ordinaryLeastSquares: .ordinaryLeastSquares }
     }
 
+    private var timeSeriesBase: ForecastingTimeSeriesBaseDraft? {
+        switch self {
+        case .linearTrend(let base, _), .movingAverage(let base, _, _), .exponentialSmoothing(let base, _, _), .multiplicativeSeasonalDecomposition(let base, _, _): base
+        case .ordinaryLeastSquares: nil
+        }
+    }
+
     var observationsCount: Int {
         switch self { case .ordinaryLeastSquares(let draft): draft.observations.count; case .linearTrend(let draft, _), .movingAverage(let draft, _, _), .exponentialSmoothing(let draft, _, _), .multiplicativeSeasonalDecomposition(let draft, _, _): draft.observations.count }
     }
@@ -190,6 +207,25 @@ enum ForecastingDraft: Equatable, Sendable {
             self = .ordinaryLeastSquares(draft)
         default:
             updateTimeSeries { if $0.observations.indices.contains(index) { $0.observations.remove(at: index) } }
+        }
+    }
+
+    mutating func replaceTimeSeriesObservations(with clipboardText: String) throws {
+        let table = try ClipboardTable(text: clipboardText)
+        guard let base = timeSeriesBase else { throw ForecastingPasteError.regressionNotSupported }
+        let existingLabels = base.observations.map(\.label)
+        let observations = try table.rows.enumerated().map { index, row in
+            let label = row.count == 2 ? row[0] : (existingLabels.indices.contains(index) ? existingLabels[index] : "Period \(index + 1)")
+            let value = try Self.number(row[row.count - 1], path: "observations.\(index).value")
+            return ForecastingObservationDraft(label: label, value: Self.format(value))
+        }
+        let replacement = ForecastingTimeSeriesBaseDraft(title: base.title, timeUnit: base.timeUnit, valueName: base.valueName, observations: observations)
+        switch self {
+        case .linearTrend(_, let periodsAhead): self = .linearTrend(replacement, periodsAhead: periodsAhead)
+        case .movingAverage(_, let windowSize, let periodsAhead): self = .movingAverage(replacement, windowSize: windowSize, periodsAhead: periodsAhead)
+        case .exponentialSmoothing(_, let alpha, let periodsAhead): self = .exponentialSmoothing(replacement, alpha: alpha, periodsAhead: periodsAhead)
+        case .multiplicativeSeasonalDecomposition(_, let seasonLength, let periodsAhead): self = .multiplicativeSeasonalDecomposition(replacement, seasonLength: seasonLength, periodsAhead: periodsAhead)
+        case .ordinaryLeastSquares: throw ForecastingPasteError.regressionNotSupported
         }
     }
 

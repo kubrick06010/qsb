@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Observation
 import QSBCore
 import SwiftUI
@@ -275,6 +276,27 @@ final class QSBWorkspace {
         update(&draft)
         forecastingDraft = draft
         markMatrixDraftEdited(status: "Editing forecasting model")
+    }
+
+    func pasteForecastingHistoricalDataFromClipboard() {
+        guard let text = NSPasteboard.general.string(forType: .string) else {
+            status = "Paste not applied: The clipboard is empty."
+            lastErrorMessage = "The clipboard is empty."
+            return
+        }
+        pasteForecastingHistoricalData(text)
+    }
+
+    func pasteForecastingHistoricalData(_ text: String) {
+        guard var draft = forecastingDraft else { return }
+        do {
+            try draft.replaceTimeSeriesObservations(with: text)
+            forecastingDraft = draft
+            markMatrixDraftEdited(status: "Pasted forecasting observations")
+        } catch {
+            lastErrorMessage = Self.message(for: error)
+            status = "Paste not applied: " + (lastErrorMessage ?? "Invalid tabular data")
+        }
     }
 
     private func markMatrixDraftEdited(status: String) {

@@ -364,7 +364,10 @@ private struct ForecastingChartPresentation {
     var forecastBoundary: Int { (actual.count + 1) }
 
     var accessibleRows: [ForecastStructuredRow] {
-        let labels = Dictionary(uniqueKeysWithValues: (actual + fitted + forecast).map { ($0.index, $0.label) })
+        // Fitted points intentionally share indexes with actual points. Build
+        // the label index with an explicit merge instead of assuming every
+        // chart series has unique keys.
+        let labels = Dictionary((actual + fitted + forecast).map { ($0.index, $0.label) }, uniquingKeysWith: { first, _ in first })
         let actualByIndex = Dictionary(uniqueKeysWithValues: actual.map { ($0.index, $0.value) })
         let fittedByIndex = Dictionary(uniqueKeysWithValues: fitted.map { ($0.index, $0.value) })
         let forecastByIndex = Dictionary(uniqueKeysWithValues: forecast.map { ($0.index, $0.value) })
@@ -379,7 +382,7 @@ private struct ForecastingChartPresentation {
     }
 
     var allLabels: [Int: String] {
-        Dictionary(uniqueKeysWithValues: (actual + forecast).map { ($0.index, $0.label) })
+        Dictionary((actual + forecast).map { ($0.index, $0.label) }, uniquingKeysWith: { first, _ in first })
     }
 
     func label(for index: Int) -> String {

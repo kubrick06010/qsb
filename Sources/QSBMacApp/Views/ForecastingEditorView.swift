@@ -107,6 +107,13 @@ struct ForecastingEditorView: View {
                         Label("Add observation", systemImage: "plus")
                     }
                     .accessibilityIdentifier("forecasting-add-observation")
+                    Button {
+                        workspace.pasteForecastingHistoricalDataFromClipboard()
+                    } label: {
+                        Label("Paste TSV", systemImage: "doc.on.clipboard")
+                    }
+                    .help("Replace the historical observations with one-column values or period/value TSV from Excel or Numbers")
+                    .accessibilityIdentifier("forecasting-paste-tsv")
                 }
                 HStack(spacing: 8) {
                     Text("Period").frame(width: 180, alignment: .leading)

@@ -95,6 +95,16 @@ struct ForecastingDraftTests {
         #expect(draft == original)
     }
 
+    @Test("empty clipboard input is rejected without mutation")
+    func emptyClipboardIsAtomic() throws {
+        var draft = ForecastingDraft.blank(.linearTrend)
+        let original = draft
+        #expect(throws: ClipboardTableError.emptyClipboard) {
+            try draft.replaceTimeSeriesObservations(with: "")
+        }
+        #expect(draft == original)
+    }
+
     @Test("empty, inconsistent, and extra-column clipboard input is rejected")
     func invalidClipboardShapes() {
         #expect(throws: ClipboardTableError.emptyClipboard) { try ClipboardTable(text: "") }

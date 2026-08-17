@@ -182,7 +182,7 @@ final class QSBWorkspace {
         transportationDraft = nil
         forecastingDraft = .blank(method)
         modelJSON = ""
-        modelSource = "New · Forecasting · (method.displayName)"
+        modelSource = "New · Forecasting · \(method.displayName)"
         modelState = .editing
         runState = .notRun
         solutionJSON = ""
@@ -190,7 +190,7 @@ final class QSBWorkspace {
         validationDiagnostics = []
         lastErrorMessage = nil
         lastResultLabel = nil
-        status = "Editing a new (method.displayName) model"
+        status = "Editing a new \(method.displayName) model"
         selectedPane = .model
     }
 

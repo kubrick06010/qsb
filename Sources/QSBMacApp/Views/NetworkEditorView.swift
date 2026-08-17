@@ -493,6 +493,7 @@ private struct NetworkGraphCanvas: View {
                     .gesture(SpatialTapGesture(count: 2).onEnded { value in
                         onCreateNode(value.location, canvasSize)
                     })
+                    .zIndex(0)
                     .help("Double-click empty space to add a node.")
 
                 Canvas { context, _ in
@@ -519,6 +520,7 @@ private struct NetworkGraphCanvas: View {
                     }
                 }
                 .allowsHitTesting(false)
+                .zIndex(1)
 
                 ForEach(draft.arcs) { arc in
                     if let from = arc.fromNodeID.flatMap({ points[$0] }), let to = arc.toNodeID.flatMap({ points[$0] }) {
@@ -587,6 +589,7 @@ private struct NetworkGraphCanvas: View {
             hoveredNodeID = isHovered ? node.id : nil
         }
         .position(point)
+        .zIndex(4)
         .accessibilityLabel("Graph node \(label)")
         .accessibilityIdentifier("network-graph-node-\(node.id.uuidString)")
         .accessibilityHint(selected ? "Selected source node. Control-click another node to create an arc." : "Click to select. Control-click another node to create an arc.")
@@ -618,6 +621,7 @@ private struct NetworkGraphCanvas: View {
             y: min(max(point.y - 26, 14), size.height - 14)
         )
         .contentShape(Circle())
+        .zIndex(5)
         .gesture(
             // Handle-local coordinates are too small for reliable destination
             // hit testing; the named space keeps the drag location aligned with
@@ -657,19 +661,27 @@ private struct NetworkGraphCanvas: View {
 
     private func arcHitTarget(_ arc: NetworkArcDraft, from: CGPoint, to: CGPoint, in size: CGSize) -> some View {
         let isSelected = selectedArcID == arc.id
+        let dx = to.x - from.x
+        let dy = to.y - from.y
+        let length = max(sqrt(dx * dx + dy * dy), 1)
+        let endpointInset = min(28, length / 2)
+        let hitFrom = CGPoint(x: from.x + dx / length * endpointInset, y: from.y + dy / length * endpointInset)
+        let hitTo = CGPoint(x: to.x - dx / length * endpointInset, y: to.y - dy / length * endpointInset)
+        let hitShape = ArcLineShape(from: hitFrom, to: hitTo)
         return Button {
             onSelectArc(arc.id)
         } label: {
-            ArcLineShape(from: from, to: to)
+            hitShape
                 .stroke(.clear, lineWidth: 28)
-                .contentShape(ArcLineShape(from: from, to: to).stroke(lineWidth: 28))
+                .contentShape(hitShape.stroke(lineWidth: 28))
         }
         .buttonStyle(.plain)
         .frame(width: size.width, height: size.height)
         // Keep the visible edge thin while giving pointer users a practical
         // hit target instead of requiring pixel-perfect clicks.
-        .contentShape(ArcLineShape(from: from, to: to).stroke(lineWidth: 28))
-        .simultaneousGesture(
+        .contentShape(hitShape.stroke(lineWidth: 28))
+        .zIndex(2)
+        .highPriorityGesture(
             TapGesture(count: 2).onEnded {
                 onEditArc(arc.id)
             }
@@ -718,6 +730,7 @@ private struct NetworkGraphCanvas: View {
             }
         }
             .position(x: midpoint.x + offset.x, y: midpoint.y + offset.y)
+            .zIndex(inlineArcID == arc.id ? 6 : 3)
             .allowsHitTesting(inlineArcID == arc.id)
     }
 

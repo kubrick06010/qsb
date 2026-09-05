@@ -10,6 +10,13 @@ multi-level MRP model. The parser covers:
 - overdue and period scheduled receipts;
 - finite or unlimited item capacity.
 
+MPS, Inventory, and Capacity rows must have nonempty, unique item identifiers
+within each section. Duplicate rows are rejected with an error identifying the
+item and section. BOM components accept an item identifier alone (usage one) or
+`identifier/quantity`, with a nonempty identifier and a finite, positive quantity.
+Malformed components and duplicate rows return parser errors rather than
+terminating the importing process.
+
 The native backend processes parents before components and adds each parent's
 planned order releases to component gross requirements. It supports the five
 rules present in the fixture: lot-for-lot (LFL), economic order quantity (EOQ),

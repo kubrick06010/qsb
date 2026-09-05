@@ -158,8 +158,8 @@ public enum WinQSBMaterialRequirementsPlanningParser {
             return MRPBillOfMaterial(parentIdentifier: row[0], components: components)
         }
         let mps = try keyedVectors(rows[(mpsStart + 1)..<inventoryStart], count: bucketCount)
-        let inventoryRows = Dictionary(uniqueKeysWithValues: rows[(inventoryStart + 1)..<capacityStart].map { ($0[0], $0) })
-        let capacityRows = Dictionary(uniqueKeysWithValues: rows[(capacityStart + 1)...].map { ($0[0], $0) })
+        let inventoryRows = try keyedRows(rows[(inventoryStart + 1)..<capacityStart], section: "Inventory")
+        let capacityRows = try keyedRows(rows[(capacityStart + 1)...], section: "Capacity")
 
         let items = try masters.map { master -> MRPItem in
             guard let inventory = inventoryRows[master.identifier], inventory.count >= 3,
@@ -190,19 +190,33 @@ public enum WinQSBMaterialRequirementsPlanningParser {
     }
 
     private static func parseComponent(_ raw: String) throws -> MRPComponent {
-        let parts = raw.split(separator: "/", maxSplits: 1).map(String.init)
+        let parts = raw.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
         let quantity = parts.count == 2 ? Double(parts[1]) : 1
-        guard let quantity, quantity.isFinite, quantity > 0 else {
+        guard let identifier = parts.first, !identifier.isEmpty,
+              let quantity, quantity.isFinite, quantity > 0 else {
             throw MaterialRequirementsPlanningError.invalidModel("Invalid BOM component '\(raw)'")
         }
-        return MRPComponent(itemIdentifier: parts[0], quantityPerParent: quantity)
+        return MRPComponent(itemIdentifier: identifier, quantityPerParent: quantity)
+    }
+
+    private static func keyedRows(_ rows: ArraySlice<[String]>, section: String) throws -> [String: [String]] {
+        var result: [String: [String]] = [:]
+        for row in rows {
+            guard let identifier = row.first, !identifier.isEmpty else {
+                throw MaterialRequirementsPlanningError.invalidModel("Missing item identifier in \(section)")
+            }
+            guard result[identifier] == nil else {
+                throw MaterialRequirementsPlanningError.invalidModel("Duplicate item '\(identifier)' in \(section)")
+            }
+            result[identifier] = row
+        }
+        return result
     }
 
     private static func keyedVectors(_ rows: ArraySlice<[String]>, count: Int) throws -> [String: [Double]] {
-        try Dictionary(uniqueKeysWithValues: rows.map { row in
-            guard let identifier = row.first else { throw MaterialRequirementsPlanningError.unsupportedFormat }
-            return (identifier, try numericVector(Array(row.dropFirst()), count: count))
-        })
+        try keyedRows(rows, section: "MPS").mapValues { row in
+            try numericVector(Array(row.dropFirst()), count: count)
+        }
     }
 
     private static func numericVector(_ raw: [String], count: Int) throws -> [Double] {

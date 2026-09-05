@@ -33,7 +33,35 @@ public enum QualityControlModelEnvelope: Codable, Equatable, Sendable {
 }
 
 public struct ControlChartPoint: Codable, Equatable, Sendable { public let index: Int; public let value: Double; public let lowerControlLimit: Double; public let centerLine: Double; public let upperControlLimit: Double; public let isOutsideLimits: Bool }
-public struct ControlChartSolution: Codable, Equatable, Sendable { public let points: [ControlChartPoint]; public let outsideLimitIndexes: [Int] }
+public struct WesternElectricRuleViolation: Codable, Equatable, Sendable {
+    public let rule: String
+    public let indexes: [Int]
+
+    public init(rule: String, indexes: [Int]) {
+        self.rule = rule
+        self.indexes = indexes
+    }
+}
+public struct ControlChartSolution: Codable, Equatable, Sendable {
+    public let points: [ControlChartPoint]
+    public let outsideLimitIndexes: [Int]
+    public let westernElectricViolations: [WesternElectricRuleViolation]
+
+    public init(points: [ControlChartPoint], outsideLimitIndexes: [Int], westernElectricViolations: [WesternElectricRuleViolation] = []) {
+        self.points = points
+        self.outsideLimitIndexes = outsideLimitIndexes
+        self.westernElectricViolations = westernElectricViolations
+    }
+
+    private enum CodingKeys: String, CodingKey { case points, outsideLimitIndexes, westernElectricViolations }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        points = try container.decode([ControlChartPoint].self, forKey: .points)
+        outsideLimitIndexes = try container.decode([Int].self, forKey: .outsideLimitIndexes)
+        westernElectricViolations = try container.decodeIfPresent([WesternElectricRuleViolation].self, forKey: .westernElectricViolations) ?? []
+    }
+}
 public struct XbarRChartSolution: Codable, Equatable, Sendable { public let meanChart: ControlChartSolution; public let rangeChart: ControlChartSolution; public let grandMean: Double; public let averageRange: Double }
 public struct ParetoCategory: Codable, Equatable, Sendable { public let name: String; public let count: Double; public let percentage: Double; public let cumulativePercentage: Double }
 public struct ParetoSolution: Codable, Equatable, Sendable { public let totalCount: Double; public let categories: [ParetoCategory] }
@@ -120,7 +148,71 @@ public enum QualityControlSolver {
         case .normalProbabilityPlot(let x): return .normalProbabilityPlot(probabilityPlot(x.values))
         }
     }
-    private static func chart(values: [Double], centers: [Double], lowers: [Double], uppers: [Double]) -> ControlChartSolution { let points = values.indices.map { i in ControlChartPoint(index: i + 1, value: values[i], lowerControlLimit: lowers[i], centerLine: centers[i], upperControlLimit: uppers[i], isOutsideLimits: values[i] < lowers[i] || values[i] > uppers[i]) }; return ControlChartSolution(points: points, outsideLimitIndexes: points.filter(\.isOutsideLimits).map(\.index)) }
+    private static func chart(values: [Double], centers: [Double], lowers: [Double], uppers: [Double]) -> ControlChartSolution {
+        let points = values.indices.map { i in
+            ControlChartPoint(index: i + 1, value: values[i], lowerControlLimit: lowers[i], centerLine: centers[i], upperControlLimit: uppers[i], isOutsideLimits: values[i] < lowers[i] || values[i] > uppers[i])
+        }
+        return ControlChartSolution(
+            points: points,
+            outsideLimitIndexes: points.filter(\.isOutsideLimits).map(\.index),
+            westernElectricViolations: westernElectricViolations(points)
+        )
+    }
+
+    private static func westernElectricViolations(_ points: [ControlChartPoint]) -> [WesternElectricRuleViolation] {
+        guard !points.isEmpty else { return [] }
+        var violations: [WesternElectricRuleViolation] = []
+        let beyondTwoSigma: [(index: Int, side: Int)?] = points.indices.map { index in
+            let point = points[index]
+            let sigma = max(abs(point.upperControlLimit - point.centerLine), abs(point.centerLine - point.lowerControlLimit)) / 3
+            guard sigma > 1e-12 else { return nil }
+            let distance = point.value - point.centerLine
+            guard abs(distance) > 2 * sigma && abs(distance) <= 3 * sigma + 1e-12 else { return nil }
+            return (index, distance > 0 ? 1 : -1)
+        }
+        var ruleTwoOfThree: Set<Int> = []
+        if points.count >= 3 {
+            for start in 0...(points.count - 3) {
+                let window = beyondTwoSigma[start..<(start + 3)]
+                for side in [1, -1] where window.compactMap({ $0 }).filter({ $0.side == side }).count >= 2 {
+                    ruleTwoOfThree.formUnion(window.compactMap { $0.map { $0.index + 1 } })
+                }
+            }
+        }
+        if !ruleTwoOfThree.isEmpty { violations.append(WesternElectricRuleViolation(rule: "twoOfThreeBeyondTwoSigma", indexes: ruleTwoOfThree.sorted())) }
+
+        var beyondOneSigma: [(index: Int, side: Int)?] = []
+        beyondOneSigma.reserveCapacity(points.count)
+        for index in points.indices {
+            let point = points[index]
+            let sigma = max(abs(point.upperControlLimit - point.centerLine), abs(point.centerLine - point.lowerControlLimit)) / 3
+            let distance = point.value - point.centerLine
+            beyondOneSigma.append(sigma > 1e-12 && abs(distance) > sigma && abs(distance) <= 3 * sigma + 1e-12 ? (index, distance > 0 ? 1 : -1) : nil)
+        }
+        var ruleFourOfFive: Set<Int> = []
+        if points.count >= 5 {
+            for start in 0...(points.count - 5) {
+                let window = beyondOneSigma[start..<(start + 5)]
+                for side in [1, -1] where window.filter({ $0?.side == side }).count >= 4 {
+                    ruleFourOfFive.formUnion(window.compactMap { $0.map { $0.index + 1 } })
+                }
+            }
+        }
+        if !ruleFourOfFive.isEmpty { violations.append(WesternElectricRuleViolation(rule: "fourOfFiveBeyondOneSigma", indexes: ruleFourOfFive.sorted())) }
+
+        var ruleEight: Set<Int> = []
+        var runSide = 0
+        var runIndexes: [Int] = []
+        for point in points {
+            let side = point.value > point.centerLine + 1e-12 ? 1 : point.value < point.centerLine - 1e-12 ? -1 : 0
+            if side != 0 && side == runSide { runIndexes.append(point.index) }
+            else if side != 0 { runSide = side; runIndexes = [point.index] }
+            else { runSide = 0; runIndexes = [] }
+            if runIndexes.count >= 8 { ruleEight.formUnion(runIndexes) }
+        }
+        if !ruleEight.isEmpty { violations.append(WesternElectricRuleViolation(rule: "eightOnOneSide", indexes: ruleEight.sorted())) }
+        return violations
+    }
     private static func mean(_ x: [Double]) -> Double { x.reduce(0, +) / Double(x.count) }
     private static func constantsForSubgroupSize(_ n: Int) -> (a2: Double, d3: Double, d4: Double) { let values: [Int: (Double, Double, Double)] = [2:(1.880,0,3.267),3:(1.023,0,2.574),4:(0.729,0,2.282),5:(0.577,0,2.114),6:(0.483,0,2.004),7:(0.419,0.076,1.924),8:(0.373,0.136,1.864),9:(0.337,0.184,1.816),10:(0.308,0.223,1.777)]; return values[n]! }
     private static func probabilityPlot(_ values: [Double]) -> NormalProbabilityPlotSolution { let sorted = values.sorted(), n = Double(sorted.count), scores = sorted.indices.map { inverseNormal((Double($0 + 1) - 0.375) / (n + 0.25)) }, scoreMean = mean(scores), valueMean = mean(sorted), covariance = zip(scores, sorted).reduce(0) { $0 + ($1.0 - scoreMean) * ($1.1 - valueMean) }, scoreSS = scores.reduce(0) { $0 + pow($1 - scoreMean, 2) }, valueSS = sorted.reduce(0) { $0 + pow($1 - valueMean, 2) }, slope = covariance / scoreSS, intercept = valueMean - slope * scoreMean, correlation = covariance / sqrt(scoreSS * valueSS), points = sorted.indices.map { ProbabilityPlotPoint(rank: $0 + 1, value: sorted[$0], cumulativeProbability: (Double($0 + 1) - 0.375) / (n + 0.25), normalScore: scores[$0], fittedValue: intercept + slope * scores[$0]) }; return NormalProbabilityPlotSolution(mean: valueMean, sampleStandardDeviation: sqrt(valueSS / Double(sorted.count - 1)), intercept: intercept, slope: slope, correlation: correlation, points: points) }
@@ -129,7 +221,7 @@ public enum QualityControlSolver {
 
 public protocol QualityControlBackend: Sendable { var capabilities: SolverCapabilities { get }; func validationReport(for model: QualityControlModelEnvelope) -> ValidationReport; func solve(_ model: QualityControlModelEnvelope, options: SolverOptions) throws -> QualityControlSolutionEnvelope; func runMetadata(for model: QualityControlModelEnvelope) -> SolverRunMetadata }
 public extension QualityControlBackend { func validationReport(for model: QualityControlModelEnvelope) -> ValidationReport { ValidationReport(backend: capabilities.backendKind, diagnostics: QualityControlValidator.diagnostics(for: model)) }; func solve(_ model: QualityControlModelEnvelope) throws -> QualityControlSolutionEnvelope { try solve(model, options: SolverOptions()) }; func solutionDocument(for model: QualityControlModelEnvelope, solution: QualityControlSolutionEnvelope) -> QualityControlSolutionDocument { QualityControlSolutionDocument(backend: runMetadata(for: model), model: model, solution: solution) } }
-public struct NativeEducationalQualityControlBackend: QualityControlBackend { public init() {}; public var capabilities: SolverCapabilities { SolverCapabilities(backendKind: .nativeEducational, solves: true, validates: true, exportsStructuredSolution: true, notes: ["Transparent classical quality-control statistics."]) }; public func solve(_ model: QualityControlModelEnvelope, options _: SolverOptions = SolverOptions()) throws -> QualityControlSolutionEnvelope { try QualityControlSolver.solve(model) }; public func runMetadata(for model: QualityControlModelEnvelope) -> SolverRunMetadata { let algorithm: String = switch model.kind { case .cChart:"threeSigmaCChart"; case .pChart:"threeSigmaPChart"; case .xbarRChart:"xbarRControlChart"; case .pareto:"descendingParetoAggregation"; case .normalProbabilityPlot:"normalScoreLeastSquares" }; return SolverRunMetadata(backendKind: .nativeEducational, algorithm: algorithm, exactness: model.kind == .normalProbabilityPlot ? .approximate : .exact, notes: ["Configured Western Electric rules and cause/action metadata are preserved only in legacy payloads and are not evaluated yet."]) } }
+public struct NativeEducationalQualityControlBackend: QualityControlBackend { public init() {}; public var capabilities: SolverCapabilities { SolverCapabilities(backendKind: .nativeEducational, solves: true, validates: true, exportsStructuredSolution: true, notes: ["Transparent classical quality-control statistics."]) }; public func solve(_ model: QualityControlModelEnvelope, options _: SolverOptions = SolverOptions()) throws -> QualityControlSolutionEnvelope { try QualityControlSolver.solve(model) }; public func runMetadata(for model: QualityControlModelEnvelope) -> SolverRunMetadata { let algorithm: String = switch model.kind { case .cChart:"threeSigmaCChart"; case .pChart:"threeSigmaPChart"; case .xbarRChart:"xbarRControlChart"; case .pareto:"descendingParetoAggregation"; case .normalProbabilityPlot:"normalScoreLeastSquares" }; return SolverRunMetadata(backendKind: .nativeEducational, algorithm: algorithm, exactness: model.kind == .normalProbabilityPlot ? .approximate : .exact, notes: ["Control-chart solutions include standard Western Electric rule signals; cause/action metadata remains an optional future schema extension."]) } }
 public struct ValidateOnlyQualityControlBackend: QualityControlBackend { public init() {}; public var capabilities: SolverCapabilities { SolverCapabilities(backendKind: .validateOnly, solves: false, validates: true, exportsStructuredSolution: false) }; public func solve(_ model: QualityControlModelEnvelope, options _: SolverOptions = SolverOptions()) throws -> QualityControlSolutionEnvelope { throw QualityControlError.invalidModel("validateOnly backend does not evaluate quality-control models") }; public func runMetadata(for _: QualityControlModelEnvelope) -> SolverRunMetadata { SolverRunMetadata(backendKind: .validateOnly, algorithm: "validationOnly", exactness: .exact) } }
 public enum QualityControlBackends { public static func backend(for kind: SolverBackendKind) -> (any QualityControlBackend)? { switch kind { case .nativeEducational: NativeEducationalQualityControlBackend(); case .validateOnly: ValidateOnlyQualityControlBackend(); case .externalHighPerformance: nil } } }
 public enum QualityControlJSON { public static func encodeModel(_ x: QualityControlModelEnvelope) throws -> Data { try encoder.encode(x) }; public static func decodeModel(from x: Data) throws -> QualityControlModelEnvelope { try JSONDecoder().decode(QualityControlModelEnvelope.self, from: x) }; public static func encodeSolution(_ x: QualityControlSolutionDocument) throws -> Data { try encoder.encode(x) }; public static func decodeSolution(from x: Data) throws -> QualityControlSolutionDocument { try JSONDecoder().decode(QualityControlSolutionDocument.self, from: x) }; public static func encodeValidation(_ x: QualityControlValidationDocument) throws -> Data { try encoder.encode(x) }; private static var encoder: JSONEncoder { let x=JSONEncoder();x.outputFormatting=[.prettyPrinted,.sortedKeys];return x } }

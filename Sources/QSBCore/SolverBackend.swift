@@ -12,19 +12,23 @@ public struct SolverOptions: Codable, Equatable, Sendable {
     public let tolerance: Double?
     public let randomSeed: Int?
     public let explain: Bool
+    /// Optional simulation-only control. Other model families ignore it.
+    public let replications: Int?
 
     public init(
         timeLimitSeconds: Double? = nil,
         nodeLimit: Int? = nil,
         tolerance: Double? = nil,
         randomSeed: Int? = nil,
-        explain: Bool = false
+        explain: Bool = false,
+        replications: Int? = nil
     ) {
         self.timeLimitSeconds = timeLimitSeconds
         self.nodeLimit = nodeLimit
         self.tolerance = tolerance
         self.randomSeed = randomSeed
         self.explain = explain
+        self.replications = replications
     }
 }
 

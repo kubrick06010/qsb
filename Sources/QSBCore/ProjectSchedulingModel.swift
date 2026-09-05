@@ -119,6 +119,55 @@ public struct ProjectSchedulingSolution: Codable, Equatable, Sendable {
     public let totalNormalCost: Double?
 }
 
+public struct CPMCrashActivityPlan: Codable, Equatable, Sendable {
+    public let name: String
+    public let normalTime: Double
+    public let plannedTime: Double
+    public let reduction: Double
+    public let normalCost: Double
+    public let plannedCost: Double
+    public let marginalCostPerTime: Double
+
+    public init(name: String, normalTime: Double, plannedTime: Double, reduction: Double, normalCost: Double, plannedCost: Double, marginalCostPerTime: Double) {
+        self.name = name
+        self.normalTime = normalTime
+        self.plannedTime = plannedTime
+        self.reduction = reduction
+        self.normalCost = normalCost
+        self.plannedCost = plannedCost
+        self.marginalCostPerTime = marginalCostPerTime
+    }
+}
+
+/// Continuous CPM time-cost trade-off optimization for a requested deadline.
+///
+/// Every source-to-sink path is represented as a linear deadline constraint;
+/// the native LP backend then chooses activity durations between crash and
+/// normal bounds while minimizing incremental crash cost.  This is exact for
+/// the continuous linear cost model (and remains fixture-scale because path
+/// enumeration can grow exponentially on very large DAGs).
+public struct CPMCrashOptimization: Codable, Equatable, Sendable {
+    public let targetDuration: Double
+    public let normalProjectDuration: Double
+    public let plannedProjectDuration: Double
+    public let normalCost: Double
+    public let plannedCost: Double
+    public let incrementalCost: Double
+    public let isFeasible: Bool
+    public let activityPlans: [CPMCrashActivityPlan]
+
+    public init(targetDuration: Double, normalProjectDuration: Double, plannedProjectDuration: Double, normalCost: Double, plannedCost: Double, incrementalCost: Double, isFeasible: Bool, activityPlans: [CPMCrashActivityPlan]) {
+        self.targetDuration = targetDuration
+        self.normalProjectDuration = normalProjectDuration
+        self.plannedProjectDuration = plannedProjectDuration
+        self.normalCost = normalCost
+        self.plannedCost = plannedCost
+        self.incrementalCost = incrementalCost
+        self.isFeasible = isFeasible
+        self.activityPlans = activityPlans
+    }
+}
+
 public struct ProjectSchedulingSolutionDocument: Codable, Equatable, Sendable {
     public let backend: SolverRunMetadata
     public let model: ProjectSchedulingModelEnvelope
@@ -321,6 +370,125 @@ public enum ProjectSchedulingSolver {
     }
 }
 
+public enum CPMCrashSolver {
+    public static func solve(_ project: CPMProject, targetDuration: Double) throws -> CPMCrashOptimization {
+        try ProjectSchedulingValidator.validate(.cpm(project))
+        guard targetDuration.isFinite, targetDuration >= 0 else {
+            throw ProjectSchedulingError.invalidModel("crash target duration must be finite and nonnegative")
+        }
+        guard project.activities.allSatisfy({ $0.crashCost + 1e-12 >= $0.normalCost }) else {
+            throw ProjectSchedulingError.invalidModel("crash cost must not be below normal cost")
+        }
+
+        let names = project.activities.map(\.name)
+        let predecessors = project.activities.map(\.predecessors)
+        let normalDurations = project.activities.map(\.normalTime)
+        let normalCost = project.activities.reduce(0) { $0 + $1.normalCost }
+        let normalDuration = projectDuration(names: names, predecessors: predecessors, durations: normalDurations)
+
+        func plan(for durations: [Double], plannedCost: Double) -> CPMCrashOptimization {
+            let activityPlans = project.activities.enumerated().map { index, activity in
+                let planned = min(max(durations[index], activity.crashTime), activity.normalTime)
+                let reduction = max(0, activity.normalTime - planned)
+                let span = activity.normalTime - activity.crashTime
+                let marginal = span > 1e-12 ? (activity.crashCost - activity.normalCost) / span : 0
+                return CPMCrashActivityPlan(
+                    name: activity.name,
+                    normalTime: activity.normalTime,
+                    plannedTime: planned,
+                    reduction: reduction,
+                    normalCost: activity.normalCost,
+                    plannedCost: activity.normalCost + marginal * reduction,
+                    marginalCostPerTime: marginal
+                )
+            }
+            let duration = projectDuration(names: names, predecessors: predecessors, durations: durations)
+            return CPMCrashOptimization(
+                targetDuration: targetDuration,
+                normalProjectDuration: normalDuration,
+                plannedProjectDuration: duration,
+                normalCost: normalCost,
+                plannedCost: plannedCost,
+                incrementalCost: plannedCost - normalCost,
+                isFeasible: duration <= targetDuration + 1e-7,
+                activityPlans: activityPlans
+            )
+        }
+
+        if targetDuration >= normalDuration - 1e-9 {
+            return plan(for: normalDurations, plannedCost: normalCost)
+        }
+
+        let crashDurations = project.activities.map(\.crashTime)
+        let minimumDuration = projectDuration(names: names, predecessors: predecessors, durations: crashDurations)
+        guard targetDuration >= minimumDuration - 1e-9 else {
+            throw ProjectSchedulingError.invalidModel("target duration (targetDuration) is below the all-crash project duration (minimumDuration)")
+        }
+
+        let paths = allSourceToSinkPaths(names: names, predecessors: predecessors)
+        guard !paths.isEmpty else { throw ProjectSchedulingError.invalidModel("project has no source-to-sink path") }
+        let objective = project.activities.map { activity in
+            let span = activity.normalTime - activity.crashTime
+            return span > 1e-12 ? -(activity.crashCost - activity.normalCost) / span : 0
+        }
+        let constraints = paths.enumerated().map { index, path in
+            var coefficients = Array(repeating: 0.0, count: names.count)
+            for activityIndex in path { coefficients[activityIndex] = 1 }
+            return LinearConstraint(name: "path_\(index + 1)", coefficients: coefficients, relation: .lessThanOrEqual, rhs: targetDuration)
+        }
+        let program = LinearProgram(
+            title: "\(project.title) crash time-cost trade-off",
+            sense: .minimize,
+            variableNames: names,
+            objectiveCoefficients: objective,
+            constraints: constraints,
+            lowerBounds: crashDurations,
+            upperBounds: normalDurations
+        )
+        let solution = try NativeEducationalLinearProgrammingBackend().solve(program, mode: .continuous)
+        let durations = names.indices.map { index in
+            min(max(solution.variableValues[names[index]] ?? normalDurations[index], crashDurations[index]), normalDurations[index])
+        }
+        let plannedCost = project.activities.enumerated().reduce(0) { total, item in
+            let activity = item.element
+            let span = activity.normalTime - activity.crashTime
+            let marginal = span > 1e-12 ? (activity.crashCost - activity.normalCost) / span : 0
+            return total + activity.normalCost + marginal * (activity.normalTime - durations[item.offset])
+        }
+        return plan(for: durations, plannedCost: plannedCost)
+    }
+
+    private static func projectDuration(names: [String], predecessors: [[String]], durations: [Double]) -> Double {
+        guard let order = ProjectSchedulingValidator.topologicalOrder(names: names, predecessors: predecessors) else { return .infinity }
+        let indexes = Dictionary(uniqueKeysWithValues: names.enumerated().map { ($0.element, $0.offset) })
+        var finishes = Array(repeating: 0.0, count: names.count)
+        for index in order {
+            let start = predecessors[index].compactMap { indexes[$0] }.map { finishes[$0] }.max() ?? 0
+            finishes[index] = start + durations[index]
+        }
+        return finishes.max() ?? 0
+    }
+
+    private static func allSourceToSinkPaths(names: [String], predecessors: [[String]]) -> [[Int]] {
+        let indexes = Dictionary(uniqueKeysWithValues: names.enumerated().map { ($0.element, $0.offset) })
+        var successors = Array(repeating: [Int](), count: names.count)
+        for (index, values) in predecessors.enumerated() {
+            for predecessor in values {
+                if let source = indexes[predecessor] { successors[source].append(index) }
+            }
+        }
+        let sinks = Set(names.indices.filter { successors[$0].isEmpty })
+        let sources = names.indices.filter { predecessors[$0].isEmpty }
+
+        func visit(_ node: Int, _ path: [Int]) -> [[Int]] {
+            let nextPath = path + [node]
+            if sinks.contains(node) { return [nextPath] }
+            return successors[node].flatMap { visit($0, nextPath) }
+        }
+        return sources.flatMap { visit($0, []) }
+    }
+}
+
 public protocol ProjectSchedulingBackend: Sendable {
     var capabilities: SolverCapabilities { get }
     func validationReport(for model: ProjectSchedulingModelEnvelope) -> ValidationReport
@@ -359,6 +527,7 @@ public enum ProjectSchedulingJSON {
     public static func decodeModel(from data: Data) throws -> ProjectSchedulingModelEnvelope { try JSONDecoder().decode(ProjectSchedulingModelEnvelope.self, from: data) }
     public static func encodeSolution(_ value: ProjectSchedulingSolutionDocument) throws -> Data { try encoder.encode(value) }
     public static func decodeSolution(from data: Data) throws -> ProjectSchedulingSolutionDocument { try JSONDecoder().decode(ProjectSchedulingSolutionDocument.self, from: data) }
+    public static func encodeCrashOptimization(_ value: CPMCrashOptimization) throws -> Data { try encoder.encode(value) }
     public static func encodeValidation(_ value: ProjectSchedulingValidationDocument) throws -> Data { try encoder.encode(value) }
     private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }

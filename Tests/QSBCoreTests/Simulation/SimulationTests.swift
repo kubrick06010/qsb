@@ -26,3 +26,17 @@ import Testing
     #expect(matrixSolution.serverMetrics.first { $0.name == "Station 5" }?.completed ?? 0 > 0)
     #expect(graphicSolution.serverMetrics.first { $0.name == "Station 5" }?.completed ?? 0 > 0)
 }
+
+@Test func supportsDeterministicSimulationReplicationsWithConfidenceIntervals() throws {
+    let model = try legacySimulation("QSS3.QS_")
+    let solution = try NativeEducationalSimulationBackend().solve(
+        model,
+        options: SolverOptions(timeLimitSeconds: 100, randomSeed: 10, replications: 3)
+    )
+    #expect(solution.replications == 3)
+    #expect(solution.queueLengthConfidenceIntervals.values.allSatisfy { $0.lower <= $0.estimate && $0.estimate <= $0.upper })
+    #expect(solution.serverUtilizationConfidenceIntervals.values.allSatisfy { $0.lower <= $0.estimate && $0.estimate <= $0.upper })
+    let encoded = try SimulationJSON.encodeSolution(SimulationSolutionDocument(backend: NativeEducationalSimulationBackend().runMetadata(for: model), model: model, solution: solution))
+    let decoded = try JSONDecoder().decode(SimulationSolutionDocument.self, from: encoded)
+    #expect(decoded.solution == solution)
+}

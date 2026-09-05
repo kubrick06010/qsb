@@ -16,6 +16,94 @@ public struct MarkovChainModel: Codable, Equatable, Sendable {
     }
 }
 
+/// A strongly connected component of the transition graph.  A closed class
+/// has no positive-probability transition to another class and is therefore a
+/// recurrent class of the finite chain.
+public struct MarkovCommunicatingClass: Codable, Equatable, Sendable {
+    public let stateIndexes: [Int]
+    public let stateNames: [String]
+    public let isClosed: Bool
+
+    public init(stateIndexes: [Int], stateNames: [String], isClosed: Bool) {
+        self.stateIndexes = stateIndexes
+        self.stateNames = stateNames
+        self.isClosed = isClosed
+    }
+}
+
+public enum MarkovChainStructure {
+    /// Returns communicating classes in deterministic state-index order.
+    /// Edges with probability at most `epsilon` are ignored so numerical
+    /// noise cannot create spurious reachability between classes.
+    public static func communicatingClasses(
+        of model: MarkovChainModel,
+        epsilon: Double = 1e-12
+    ) -> [MarkovCommunicatingClass] {
+        let count = model.states.count
+        guard count > 0, model.transitionMatrix.count == count,
+              model.transitionMatrix.allSatisfy({ $0.count == count }) else { return [] }
+
+        var adjacency = Array(repeating: [Int](), count: count)
+        var reverse = Array(repeating: [Int](), count: count)
+        for row in 0..<count {
+            for column in 0..<count where model.transitionMatrix[row][column] > epsilon {
+                adjacency[row].append(column)
+                reverse[column].append(row)
+            }
+        }
+
+        var visited = Array(repeating: false, count: count)
+        var finishOrder: [Int] = []
+        for start in 0..<count where !visited[start] {
+            var stack: [(node: Int, next: Int)] = [(start, 0)]
+            visited[start] = true
+            while let last = stack.last {
+                if last.next < adjacency[last.node].count {
+                    let next = adjacency[last.node][last.next]
+                    stack[stack.count - 1].next += 1
+                    if !visited[next] {
+                        visited[next] = true
+                        stack.append((next, 0))
+                    }
+                } else {
+                    finishOrder.append(last.node)
+                    stack.removeLast()
+                }
+            }
+        }
+
+        visited = Array(repeating: false, count: count)
+        var components: [[Int]] = []
+        for start in finishOrder.reversed() where !visited[start] {
+            var component: [Int] = []
+            var stack = [start]
+            visited[start] = true
+            while let node = stack.popLast() {
+                component.append(node)
+                for next in reverse[node] where !visited[next] {
+                    visited[next] = true
+                    stack.append(next)
+                }
+            }
+            component.sort()
+            components.append(component)
+        }
+
+        components.sort { ($0.first ?? .max) < ($1.first ?? .max) }
+        return components.map { component in
+            let members = Set(component)
+            let closed = component.allSatisfy { node in
+                adjacency[node].allSatisfy { members.contains($0) }
+            }
+            return MarkovCommunicatingClass(
+                stateIndexes: component,
+                stateNames: component.compactMap { model.states.indices.contains($0) ? model.states[$0] : nil },
+                isClosed: closed
+            )
+        }
+    }
+}
+
 public struct MarkovAnalysisRequest: Codable, Equatable, Sendable {
     public let model: MarkovChainModel
     public let periods: Int
@@ -127,7 +215,26 @@ public enum MarkovValidator {
         }
         if request.periods < 0 { result.append(error("periods.nonnegative", "Analysis periods must be nonnegative.", "periods")) }
         guard !result.contains(where: { $0.severity == .error }) else { return result }
-        return [ValidationDiagnostic(severity: .info, code: "markov.valid", message: "Markov analysis request is valid")]
+        let classes = MarkovChainStructure.communicatingClasses(of: model)
+        if classes.count > 1 {
+            let closedCount = classes.filter(\.isClosed).count
+            result.append(ValidationDiagnostic(
+                severity: .warning,
+                code: "markov.chain.reducible",
+                message: "Transition graph has \(classes.count) communicating classes (\(closedCount) closed); stationary behavior is class-dependent unless there is exactly one closed class.",
+                path: "model.transitionMatrix"
+            ))
+            if closedCount != 1 {
+                result.append(ValidationDiagnostic(
+                    severity: .warning,
+                    code: "markov.stationary.nonUnique",
+                    message: "Native stationary analysis requires exactly one closed communicating class and will reject this chain.",
+                    path: "model.transitionMatrix"
+                ))
+            }
+        }
+        result.append(ValidationDiagnostic(severity: .info, code: "markov.valid", message: "Markov analysis request is valid"))
+        return result
     }
 
     public static func validate(_ request: MarkovAnalysisRequest) throws {
@@ -143,6 +250,10 @@ public enum MarkovSolver {
     public static func solve(_ request: MarkovAnalysisRequest) throws -> MarkovAnalysisSolution {
         try MarkovValidator.validate(request)
         let model = request.model
+        let classes = MarkovChainStructure.communicatingClasses(of: model)
+        guard classes.filter(\.isClosed).count == 1 else {
+            throw MarkovModelError.noUniqueStationaryDistribution
+        }
         let stationary = try stationaryDistribution(matrix: model.transitionMatrix)
         var transient: [MarkovPeriodResult] = []
         if var current = model.initialProbabilities {

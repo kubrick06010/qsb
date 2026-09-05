@@ -51,9 +51,74 @@ public struct SimulationModel: Codable, Equatable, Sendable {
 
 public struct SimulationQueueMetrics: Codable, Equatable, Sendable { public let name: String; public let averageLength: Double; public let maximumLength: Int; public let entered: Int; public let rejected: Int }
 public struct SimulationServerMetrics: Codable, Equatable, Sendable { public let name: String; public let completed: Int; public let utilization: Double }
+public struct SimulationConfidenceInterval: Codable, Equatable, Sendable {
+    public let estimate: Double
+    public let lower: Double
+    public let upper: Double
+    public let halfWidth: Double
+
+    public init(estimate: Double, lower: Double, upper: Double, halfWidth: Double) {
+        self.estimate = estimate
+        self.lower = lower
+        self.upper = upper
+        self.halfWidth = halfWidth
+    }
+}
+
 public struct SimulationSolution: Codable, Equatable, Sendable {
-    public let horizon: Double; public let seed: Int; public let generatedEntities: Int; public let completedEntities: Int
-    public let queueMetrics: [SimulationQueueMetrics]; public let serverMetrics: [SimulationServerMetrics]
+    public let horizon: Double
+    public let seed: Int
+    public let generatedEntities: Int
+    public let completedEntities: Int
+    public let queueMetrics: [SimulationQueueMetrics]
+    public let serverMetrics: [SimulationServerMetrics]
+    public let replications: Int
+    public let warmupTime: Double
+    public let queueLengthConfidenceIntervals: [String: SimulationConfidenceInterval]
+    public let serverUtilizationConfidenceIntervals: [String: SimulationConfidenceInterval]
+
+    public init(
+        horizon: Double,
+        seed: Int,
+        generatedEntities: Int,
+        completedEntities: Int,
+        queueMetrics: [SimulationQueueMetrics],
+        serverMetrics: [SimulationServerMetrics],
+        replications: Int = 1,
+        warmupTime: Double = 0,
+        queueLengthConfidenceIntervals: [String: SimulationConfidenceInterval] = [:],
+        serverUtilizationConfidenceIntervals: [String: SimulationConfidenceInterval] = [:]
+    ) {
+        self.horizon = horizon
+        self.seed = seed
+        self.generatedEntities = generatedEntities
+        self.completedEntities = completedEntities
+        self.queueMetrics = queueMetrics
+        self.serverMetrics = serverMetrics
+        self.replications = replications
+        self.warmupTime = warmupTime
+        self.queueLengthConfidenceIntervals = queueLengthConfidenceIntervals
+        self.serverUtilizationConfidenceIntervals = serverUtilizationConfidenceIntervals
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case horizon, seed, generatedEntities, completedEntities, queueMetrics, serverMetrics
+        case replications, warmupTime, queueLengthConfidenceIntervals, serverUtilizationConfidenceIntervals
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        horizon = try container.decode(Double.self, forKey: .horizon)
+        seed = try container.decode(Int.self, forKey: .seed)
+        generatedEntities = try container.decode(Int.self, forKey: .generatedEntities)
+        completedEntities = try container.decode(Int.self, forKey: .completedEntities)
+        queueMetrics = try container.decode([SimulationQueueMetrics].self, forKey: .queueMetrics)
+        serverMetrics = try container.decode([SimulationServerMetrics].self, forKey: .serverMetrics)
+        replications = try container.decodeIfPresent(Int.self, forKey: .replications) ?? 1
+        warmupTime = try container.decodeIfPresent(Double.self, forKey: .warmupTime) ?? 0
+        queueLengthConfidenceIntervals = try container.decodeIfPresent([String: SimulationConfidenceInterval].self, forKey: .queueLengthConfidenceIntervals) ?? [:]
+        serverUtilizationConfidenceIntervals = try container.decodeIfPresent([String: SimulationConfidenceInterval].self, forKey: .serverUtilizationConfidenceIntervals) ?? [:]
+    }
 }
 public struct SimulationSolutionDocument: Codable, Equatable, Sendable { public let backend: SolverRunMetadata; public let model: SimulationModel; public let solution: SimulationSolution }
 public struct SimulationValidationDocument: Codable, Equatable, Sendable { public let model: SimulationModel; public let report: ValidationReport; public init(model: SimulationModel, report: ValidationReport) { self.model = model; self.report = report } }
@@ -114,6 +179,72 @@ public enum DiscreteEventSimulationSolver {
         try SimulationValidator.validate(model); var state = Engine(model: model, horizon: horizon, seed: UInt64(bitPattern: Int64(seed))); return state.run(seed: seed)
     }
 
+    /// Runs independent seeded replications and aggregates the metrics.  The
+    /// original single-replication API remains unchanged; this opt-in wrapper
+    /// adds reproducible 95% normal-approximation intervals for the metrics
+    /// where replication variability is meaningful.
+    public static func solveReplicated(
+        _ model: SimulationModel,
+        horizon: Double = 1_000,
+        seed: Int = 1,
+        replications: Int = 1
+    ) throws -> SimulationSolution {
+        guard replications > 0 else { throw SimulationError.invalidModel("replications must be positive") }
+        let runs = try (0..<replications).map { offset in
+            try solve(model, horizon: horizon, seed: seed &+ offset)
+        }
+        guard let first = runs.first else { throw SimulationError.invalidModel("replications must be positive") }
+        guard replications > 1 else { return first }
+
+        let queueMetrics = first.queueMetrics.map { metric in
+            let values = runs.compactMap { run in run.queueMetrics.first(where: { $0.name == metric.name }) }
+            return SimulationQueueMetrics(
+                name: metric.name,
+                averageLength: values.map(\.averageLength).reduce(0, +) / Double(values.count),
+                maximumLength: values.map(\.maximumLength).max() ?? metric.maximumLength,
+                entered: Int((values.map { Double($0.entered) }.reduce(0, +) / Double(values.count)).rounded()),
+                rejected: Int((values.map { Double($0.rejected) }.reduce(0, +) / Double(values.count)).rounded())
+            )
+        }
+        let serverMetrics = first.serverMetrics.map { metric in
+            let values = runs.compactMap { run in run.serverMetrics.first(where: { $0.name == metric.name }) }
+            return SimulationServerMetrics(
+                name: metric.name,
+                completed: Int((values.map { Double($0.completed) }.reduce(0, +) / Double(values.count)).rounded()),
+                utilization: values.map(\.utilization).reduce(0, +) / Double(values.count)
+            )
+        }
+        var queueIntervals: [String: SimulationConfidenceInterval] = [:]
+        for metric in first.queueMetrics {
+            let values = runs.compactMap { $0.queueMetrics.first(where: { $0.name == metric.name })?.averageLength }
+            if let interval = confidenceInterval(values) { queueIntervals[metric.name] = interval }
+        }
+        var serverIntervals: [String: SimulationConfidenceInterval] = [:]
+        for metric in first.serverMetrics {
+            let values = runs.compactMap { $0.serverMetrics.first(where: { $0.name == metric.name })?.utilization }
+            if let interval = confidenceInterval(values) { serverIntervals[metric.name] = interval }
+        }
+        return SimulationSolution(
+            horizon: horizon,
+            seed: seed,
+            generatedEntities: Int((runs.map { Double($0.generatedEntities) }.reduce(0, +) / Double(runs.count)).rounded()),
+            completedEntities: Int((runs.map { Double($0.completedEntities) }.reduce(0, +) / Double(runs.count)).rounded()),
+            queueMetrics: queueMetrics,
+            serverMetrics: serverMetrics,
+            replications: replications,
+            queueLengthConfidenceIntervals: queueIntervals,
+            serverUtilizationConfidenceIntervals: serverIntervals
+        )
+    }
+
+    private static func confidenceInterval(_ values: [Double]) -> SimulationConfidenceInterval? {
+        guard values.count > 1 else { return nil }
+        let estimate = values.reduce(0, +) / Double(values.count)
+        let variance = values.reduce(0) { $0 + ($1 - estimate) * ($1 - estimate) } / Double(values.count - 1)
+        let halfWidth = 1.96 * sqrt(max(0, variance) / Double(values.count))
+        return SimulationConfidenceInterval(estimate: estimate, lower: estimate - halfWidth, upper: estimate + halfWidth, halfWidth: halfWidth)
+    }
+
     private struct Entity { let type: String; let entered: Double }
     private enum EventKind { case source(Int), enter(String, Entity), complete(Int, [Entity]) }
     private struct Event { let time: Double; let serial: Int; let kind: EventKind }
@@ -144,7 +275,7 @@ public enum DiscreteEventSimulationSolver {
 
 public protocol SimulationBackend: Sendable { var capabilities: SolverCapabilities { get }; func validationReport(for model: SimulationModel) -> ValidationReport; func solve(_ model: SimulationModel, options: SolverOptions) throws -> SimulationSolution; func runMetadata(for model: SimulationModel) -> SolverRunMetadata }
 public extension SimulationBackend { func validationReport(for model: SimulationModel) -> ValidationReport { ValidationReport(backend: capabilities.backendKind, diagnostics: SimulationValidator.diagnostics(for: model)) }; func solve(_ model: SimulationModel) throws -> SimulationSolution { try solve(model, options: SolverOptions()) }; func solutionDocument(for model: SimulationModel, solution: SimulationSolution) -> SimulationSolutionDocument { SimulationSolutionDocument(backend: runMetadata(for: model), model: model, solution: solution) } }
-public struct NativeEducationalSimulationBackend: SimulationBackend { public init() {} ; public var capabilities: SolverCapabilities { SolverCapabilities(backendKind: .nativeEducational, solves: true, validates: true, exportsStructuredSolution: true, notes: ["Deterministic-seed discrete-event simulation for preserved fixture-scale networks."]) }; public func solve(_ model: SimulationModel, options: SolverOptions = SolverOptions()) throws -> SimulationSolution { try DiscreteEventSimulationSolver.solve(model, horizon: options.timeLimitSeconds ?? 1_000, seed: options.randomSeed ?? 1) }; public func runMetadata(for _: SimulationModel) -> SolverRunMetadata { SolverRunMetadata(backendKind: .nativeEducational, algorithm: "seededDiscreteEventSimulation", exactness: .approximate, notes: ["Single seeded replication; stochastic confidence intervals are not reported."]) } }
+public struct NativeEducationalSimulationBackend: SimulationBackend { public init() {} ; public var capabilities: SolverCapabilities { SolverCapabilities(backendKind: .nativeEducational, solves: true, validates: true, exportsStructuredSolution: true, notes: ["Deterministic-seed discrete-event simulation for preserved fixture-scale networks."]) }; public func solve(_ model: SimulationModel, options: SolverOptions = SolverOptions()) throws -> SimulationSolution { try DiscreteEventSimulationSolver.solveReplicated(model, horizon: options.timeLimitSeconds ?? 1_000, seed: options.randomSeed ?? 1, replications: options.replications ?? 1) }; public func runMetadata(for _: SimulationModel) -> SolverRunMetadata { SolverRunMetadata(backendKind: .nativeEducational, algorithm: "seededDiscreteEventSimulation", exactness: .approximate, notes: ["Supports reproducible independent replications and 95% normal-approximation intervals; warm-up deletion and event traces remain future work."]) } }
 public struct ValidateOnlySimulationBackend: SimulationBackend { public init() {}; public var capabilities: SolverCapabilities { SolverCapabilities(backendKind: .validateOnly, solves: false, validates: true, exportsStructuredSolution: false) }; public func solve(_ model: SimulationModel, options: SolverOptions = SolverOptions()) throws -> SimulationSolution { throw SimulationError.invalidModel("validateOnly backend does not run simulations") }; public func runMetadata(for _: SimulationModel) -> SolverRunMetadata { SolverRunMetadata(backendKind: .validateOnly, algorithm: "validationOnly", exactness: .exact) } }
 public enum SimulationBackends { public static func backend(for kind: SolverBackendKind) -> (any SimulationBackend)? { switch kind { case .nativeEducational: NativeEducationalSimulationBackend(); case .validateOnly: ValidateOnlySimulationBackend(); case .externalHighPerformance: nil } } }
 public enum SimulationJSON { public static func encodeModel(_ value: SimulationModel) throws -> Data { try encoder.encode(value) }; public static func decodeUncheckedModel(from data: Data) throws -> SimulationModel { try JSONDecoder().decode(SimulationModel.self, from: data) }; public static func decodeModel(from data: Data) throws -> SimulationModel { let model = try decodeUncheckedModel(from: data); try SimulationValidator.validate(model); return model }; public static func encodeSolution(_ value: SimulationSolutionDocument) throws -> Data { try encoder.encode(value) }; public static func encodeValidation(_ value: SimulationValidationDocument) throws -> Data { try encoder.encode(value) }; private static var encoder: JSONEncoder { let value = JSONEncoder(); value.outputFormatting = [.prettyPrinted, .sortedKeys]; return value } }

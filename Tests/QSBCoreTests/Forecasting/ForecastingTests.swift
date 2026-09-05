@@ -170,3 +170,21 @@ import Testing
     }
 }
 
+@Test func reportsRegressionRankDeficiencyBeforeSolve() {
+    let model = RegressionModel(
+        title: "Degenerate regression",
+        dependentVariable: "Y",
+        independentVariables: ["X1", "X2"],
+        observations: [
+            RegressionObservation(label: "1", dependentValue: 1, independentValues: [1, 2]),
+            RegressionObservation(label: "2", dependentValue: 2, independentValues: [2, 4]),
+            RegressionObservation(label: "3", dependentValue: 3, independentValues: [3, 6]),
+            RegressionObservation(label: "4", dependentValue: 4, independentValues: [4, 8])
+        ]
+    )
+    let request = ForecastingRequest(model: .regression(model), method: .ordinaryLeastSquares)
+    #expect(!RegressionSolver.designMatrixIsFullRank(model))
+    let report = NativeEducationalForecastingBackend().validationReport(for: request)
+    #expect(report.diagnostics.contains { $0.code == "forecasting.regression.rankDeficient" })
+    #expect(throws: ForecastingModelError.self) { _ = try NativeEducationalForecastingBackend().solve(request) }
+}

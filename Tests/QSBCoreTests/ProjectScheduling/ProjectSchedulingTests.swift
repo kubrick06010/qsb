@@ -16,6 +16,35 @@ import Testing
         #expect(solution.totalNormalCost == 30000)
     }
 }
+
+@Test func optimizesCPMCrashTimeCostTradeoffThroughNativeLP() throws {
+    let project = CPMProject(
+        title: "Crash sample",
+        timeUnit: "days",
+        activities: [
+            CPMActivity(name: "A", predecessors: [], normalTime: 5, crashTime: 3, normalCost: 10, crashCost: 30),
+            CPMActivity(name: "B", predecessors: ["A"], normalTime: 4, crashTime: 2, normalCost: 20, crashCost: 24),
+            CPMActivity(name: "C", predecessors: ["A"], normalTime: 6, crashTime: 5, normalCost: 15, crashCost: 45),
+            CPMActivity(name: "D", predecessors: ["B", "C"], normalTime: 2, crashTime: 2, normalCost: 5, crashCost: 5)
+        ]
+    )
+    let result = try CPMCrashSolver.solve(project, targetDuration: 11)
+    #expect(abs(result.normalProjectDuration - 13) < 1e-8)
+    #expect(result.isFeasible)
+    #expect(abs(result.plannedProjectDuration - 11) < 1e-7)
+    #expect(abs(result.plannedCost - 70) < 1e-7)
+    #expect(result.activityPlans.first { $0.name == "C" }?.reduction ?? -1 < 1e-8)
+    #expect(abs((result.activityPlans.first { $0.name == "A" }?.reduction ?? 0) - 2) < 1e-7)
+}
+
+@Test func rejectsCPMCrashDeadlineBelowAllCrashDuration() throws {
+    let project = CPMProject(
+        title: "Infeasible crash",
+        timeUnit: "days",
+        activities: [CPMActivity(name: "A", predecessors: [], normalTime: 5, crashTime: 3, normalCost: 1, crashCost: 2)]
+    )
+    #expect(throws: ProjectSchedulingError.self) { _ = try CPMCrashSolver.solve(project, targetDuration: 2) }
+}
 @Test func parsesAndSolvesWinQSBPERTMatrixAndGraphicFixtures() throws {
     for fixture in ["PERT.CP_", "PERTGRPH.CP_"] {
         let expanded = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(fixture)))
@@ -30,4 +59,3 @@ import Testing
         #expect(abs((solution.projectVariance ?? -1) - 1.3611111111111112) < 1e-8)
     }
 }
-

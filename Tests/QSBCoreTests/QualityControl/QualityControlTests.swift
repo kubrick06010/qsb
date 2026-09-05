@@ -78,3 +78,20 @@ import Testing
     }
 }
 
+@Test func evaluatesWesternElectricSignalsOnControlCharts() throws {
+    let model = QualityControlModelEnvelope.pChart(PChartModel(
+        title: "Signals",
+        characteristic: "Defect rate",
+        sampleSizes: Array(repeating: 100, count: 5),
+        proportions: [0.69, 0.69, 0.50, 0.50, 0.50]
+    ))
+    guard case .pChart(let chart) = try NativeEducationalQualityControlBackend().solve(model) else {
+        Issue.record("Expected p-chart solution")
+        return
+    }
+    #expect(chart.westernElectricViolations.contains { $0.rule == "twoOfThreeBeyondTwoSigma" })
+    let data = try QualityControlJSON.encodeSolution(QualityControlSolutionDocument(
+        backend: NativeEducationalQualityControlBackend().runMetadata(for: model), model: model, solution: .pChart(chart)
+    ))
+    #expect(try QualityControlJSON.decodeSolution(from: data).solution.kind == .pChart)
+}

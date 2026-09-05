@@ -26,4 +26,17 @@ struct GenericRoutingTests {
         defer { try? FileManager.default.removeItem(at: url) }
         try QSBCLI.genericSolveJSON(path: url.path, backend: .validateOnly)
     }
+
+    @Test("compare-fixture performs semantic JSON comparison")
+    func comparesFixtureSnapshot() throws {
+        let imported = try LegacyModelImporter.importModel(at: legacyFixtureURL("LP.LP_"))
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("qsb-fixture-snapshot-\(UUID().uuidString).json")
+        try imported.normalizedJSON.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        try QSBCLI.compareFixture(path: legacyFixtureURL("LP.LP_").path, expectedPath: url.path)
+        try Data("{}".utf8).write(to: url)
+        #expect(throws: QSBCLI.GenericRoutingError.self) {
+            try QSBCLI.compareFixture(path: legacyFixtureURL("LP.LP_").path, expectedPath: url.path)
+        }
+    }
 }

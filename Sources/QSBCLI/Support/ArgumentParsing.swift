@@ -12,6 +12,12 @@ extension QSBCLI {
         let strategy: FacilityLayoutSolvingStrategy
     }
 
+    struct SimulationPathOptions {
+        let path: String
+        let backend: SolverBackendKind
+        let replications: Int
+    }
+
     static func parsePathAndBackend(_ arguments: [String], usage: String) throws -> PathAndBackend {
         guard arguments.count == 2 || arguments.count == 4,
               arguments.count == 2 || arguments[2] == "--backend"
@@ -22,6 +28,25 @@ extension QSBCLI {
             ? try parseBackend(arguments[3])
             : .nativeEducational
         return PathAndBackend(path: arguments[1], backend: backend)
+    }
+
+    static func parseSimulationPathOptions(_ arguments: [String], usage: String) throws -> SimulationPathOptions {
+        guard arguments.count >= 2 else { throw CLIError.usage(usage) }
+        var backend: SolverBackendKind = .nativeEducational
+        var replications = 1
+        var index = 2
+        while index < arguments.count {
+            guard index + 1 < arguments.count else { throw CLIError.usage(usage) }
+            switch arguments[index] {
+            case "--backend": backend = try parseBackend(arguments[index + 1])
+            case "--replications":
+                guard let value = Int(arguments[index + 1]), value > 0 else { throw CLIError.usage("replications must be a positive integer") }
+                replications = value
+            default: throw CLIError.usage(usage)
+            }
+            index += 2
+        }
+        return SimulationPathOptions(path: arguments[1], backend: backend, replications: replications)
     }
 
     static func parseLayoutPathBackendAndStrategy(

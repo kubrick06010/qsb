@@ -36,6 +36,11 @@ struct QSBCLI {
                 throw CLIError.usage("inspect expects exactly one file path")
             }
             try genericInspect(path: arguments[1])
+        case "compare-fixture":
+            guard arguments.count == 2 || arguments.count == 4,
+                  arguments.count == 2 || arguments[2] == "--expected"
+            else { throw CLIError.usage("compare-fixture expects a legacy model path and optional --expected JSON/snapshot path") }
+            try compareFixture(path: arguments[1], expectedPath: arguments.count == 4 ? arguments[3] : nil)
         case "expand":
             guard arguments.count == 2 else { throw CLIError.usage("expand expects exactly one legacy file path") }
             let data = try Data(contentsOf: URL(fileURLWithPath: arguments[1]))
@@ -72,6 +77,11 @@ struct QSBCLI {
                 throw CLIError.usage("export-json expects exactly one legacy model file path")
             }
             try exportJSON(path: arguments[1])
+        case "export-mps":
+            guard arguments.count == 2 else {
+                throw CLIError.usage("export-mps expects exactly one legacy LP/ILP file path")
+            }
+            try exportMPS(path: arguments[1])
         case "validate":
             guard arguments.count == 2 else {
                 throw CLIError.usage("validate expects exactly one legacy or normalized model file path")
@@ -301,6 +311,13 @@ struct QSBCLI {
         case "solve-cpm":
             let options = try parsePathAndBackend(arguments, usage: "solve-cpm expects a legacy CPM file path with optional --backend native|validate")
             try solveProjectSchedulingLegacy(path: options.path, expectedKind: .deterministicCPM, backend: options.backend)
+        case "solve-cpm-crash":
+            guard arguments.count == 3 || arguments.count == 5,
+                  arguments.count == 3 || arguments[3] == "--backend",
+                  let target = Double(arguments[2]), target.isFinite, target >= 0
+            else { throw CLIError.usage("solve-cpm-crash expects a legacy CPM file path, target duration, and optional --backend native|validate") }
+            let backend = arguments.count == 5 ? try parseBackend(arguments[4]) : .nativeEducational
+            try solveCPMCrash(path: arguments[1], targetDuration: target, backend: backend)
         case "solve-pert":
             let options = try parsePathAndBackend(arguments, usage: "solve-pert expects a legacy PERT file path with optional --backend native|validate")
             try solveProjectSchedulingLegacy(path: options.path, expectedKind: .probabilisticPERT, backend: options.backend)
@@ -313,6 +330,13 @@ struct QSBCLI {
         case "solve-project-json":
             let options = try parsePathAndBackend(arguments, usage: "solve-project-json expects a PERT/CPM model JSON file path with optional --backend native|validate")
             try solveProjectSchedulingJSON(path: options.path, backend: options.backend)
+        case "solve-cpm-crash-json":
+            guard arguments.count == 3 || arguments.count == 5,
+                  arguments.count == 3 || arguments[3] == "--backend",
+                  let target = Double(arguments[2]), target.isFinite, target >= 0
+            else { throw CLIError.usage("solve-cpm-crash-json expects a project model JSON file path, target duration, and optional --backend native|validate") }
+            let backend = arguments.count == 5 ? try parseBackend(arguments[4]) : .nativeEducational
+            try solveCPMCrashJSON(path: arguments[1], targetDuration: target, backend: backend)
         case "validate-project-json":
             guard arguments.count == 2 else { throw CLIError.usage("validate-project-json expects exactly one PERT/CPM model JSON file path") }
             try validateProjectSchedulingJSON(path: arguments[1])
@@ -349,6 +373,20 @@ struct QSBCLI {
         case "solve-acceptance":
             let options = try parsePathAndBackend(arguments, usage: "solve-acceptance expects a legacy acceptance-sampling file path with optional --backend native|validate")
             try solveAcceptanceSamplingLegacy(path: options.path, backend: options.backend)
+        case "design-acceptance":
+            guard arguments.count == 6,
+                  let lotSize = Int(arguments[1]),
+                  let aql = Double(arguments[2]),
+                  let rql = Double(arguments[3]),
+                  let alpha = Double(arguments[4]),
+                  let beta = Double(arguments[5])
+            else { throw CLIError.usage("design-acceptance expects lot-size, AQL, RQL, producer-risk, and consumer-risk") }
+            let design = try AcceptanceSamplingPlanDesigner.designSingle(lotSize: lotSize, acceptableQualityLevel: aql, rejectableQualityLevel: rql, producerRisk: alpha, consumerRisk: beta)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(design)
+            FileHandle.standardOutput.write(data)
+            print()
         case "validate-acceptance":
             guard arguments.count == 2 else { throw CLIError.usage("validate-acceptance expects exactly one legacy acceptance-sampling file path") }
             try validateAcceptanceSamplingLegacy(path: arguments[1])
@@ -437,8 +475,8 @@ struct QSBCLI {
             guard arguments.count == 2 else { throw CLIError.usage("validate-nlp-json expects exactly one nonlinear-programming model JSON file path") }
             try validateNonlinearProgrammingJSON(path: arguments[1])
         case "solve-simulation":
-            let options = try parsePathAndBackend(arguments, usage: "solve-simulation expects a legacy simulation file path with optional --backend native|validate")
-            try solveSimulationLegacy(path: options.path, backend: options.backend)
+            let options = try parseSimulationPathOptions(arguments, usage: "solve-simulation expects a legacy simulation file path with optional --backend native|validate and --replications N")
+            try solveSimulationLegacy(path: options.path, backend: options.backend, replications: options.replications)
         case "validate-simulation":
             guard arguments.count == 2 else { throw CLIError.usage("validate-simulation expects exactly one legacy simulation file path") }
             try validateSimulationLegacy(path: arguments[1])
@@ -446,8 +484,8 @@ struct QSBCLI {
             guard arguments.count == 2 else { throw CLIError.usage("export-simulation-json expects exactly one legacy simulation file path") }
             try exportSimulationJSON(path: arguments[1])
         case "solve-simulation-json":
-            let options = try parsePathAndBackend(arguments, usage: "solve-simulation-json expects a simulation model JSON file path with optional --backend native|validate")
-            try solveSimulationJSON(path: options.path, backend: options.backend)
+            let options = try parseSimulationPathOptions(arguments, usage: "solve-simulation-json expects a simulation model JSON file path with optional --backend native|validate and --replications N")
+            try solveSimulationJSON(path: options.path, backend: options.backend, replications: options.replications)
         case "validate-simulation-json":
             guard arguments.count == 2 else { throw CLIError.usage("validate-simulation-json expects exactly one simulation model JSON file path") }
             try validateSimulationJSON(path: arguments[1])
@@ -881,6 +919,17 @@ struct QSBCLI {
         print()
     }
 
+    private static func exportMPS(path: String) throws {
+        let url = URL(fileURLWithPath: path)
+        let program: LinearProgram
+        if let normalized = try? LinearProgramJSON.decodeProgram(from: Data(contentsOf: url)) {
+            program = normalized
+        } else {
+            program = try readLegacyProgram(path: path)
+        }
+        print(try LinearProgramMPSExporter.export(program), terminator: "")
+    }
+
     private static func importLegacyJSON(path: String) throws {
         let result = try LegacyModelImporter.importModel(
             at: URL(fileURLWithPath: path)
@@ -939,6 +988,33 @@ struct QSBCLI {
         }
     }
 
+    private static func solveCPMCrash(path: String, targetDuration: Double, backend: SolverBackendKind) throws {
+        let model = try readLegacyProjectSchedulingModel(path: path)
+        guard case .cpm(let project) = model else {
+            throw ProjectSchedulingError.invalidModel("solve-cpm-crash requires a CPM model")
+        }
+        switch backend {
+        case .nativeEducational:
+            let result = try CPMCrashSolver.solve(project, targetDuration: targetDuration)
+            print(project.title)
+            print("backend: nativeEducational")
+            print("algorithm: cpmCrashCostTimeLP")
+            print("targetDuration: \(format(result.targetDuration))")
+            print("normalProjectDuration: \(format(result.normalProjectDuration))")
+            print("plannedProjectDuration: \(format(result.plannedProjectDuration))")
+            print("normalCost: \(format(result.normalCost))")
+            print("plannedCost: \(format(result.plannedCost))")
+            print("incrementalCost: \(format(result.incrementalCost))")
+            for plan in result.activityPlans where plan.reduction > 1e-9 {
+                print("\(plan.name): plannedTime=\(format(plan.plannedTime)) reduction=\(format(plan.reduction)) plannedCost=\(format(plan.plannedCost))")
+            }
+        case .validateOnly:
+            printProjectSchedulingValidation(model: model, report: ValidateOnlyProjectSchedulingBackend().validationReport(for: model), source: path)
+        case .externalHighPerformance:
+            throw CLIError.usage("external backend is not available yet for solve-cpm-crash")
+        }
+    }
+
     private static func validateProjectSchedulingLegacy(path: String) throws {
         let model = try readLegacyProjectSchedulingModel(path: path)
         printProjectSchedulingValidation(model: model, report: ValidateOnlyProjectSchedulingBackend().validationReport(for: model), source: path)
@@ -956,6 +1032,22 @@ struct QSBCLI {
             FileHandle.standardOutput.write(try ProjectSchedulingJSON.encodeSolution(solver.solutionDocument(for: model, solution: solution))); print()
         } else {
             try writeProjectSchedulingValidation(model: model, report: solver.validationReport(for: model))
+        }
+    }
+
+    private static func solveCPMCrashJSON(path: String, targetDuration: Double, backend: SolverBackendKind) throws {
+        let model = try ProjectSchedulingJSON.decodeModel(from: Data(contentsOf: URL(fileURLWithPath: path)))
+        guard case .cpm(let project) = model else {
+            throw ProjectSchedulingError.invalidModel("solve-cpm-crash-json requires a CPM model")
+        }
+        switch backend {
+        case .nativeEducational:
+            FileHandle.standardOutput.write(try ProjectSchedulingJSON.encodeCrashOptimization(try CPMCrashSolver.solve(project, targetDuration: targetDuration)))
+            print()
+        case .validateOnly:
+            try writeProjectSchedulingValidation(model: model, report: ValidateOnlyProjectSchedulingBackend().validationReport(for: model))
+        case .externalHighPerformance:
+            throw CLIError.usage("external backend is not available yet for solve-cpm-crash-json")
         }
     }
 
@@ -1392,13 +1484,13 @@ struct QSBCLI {
 
     private static func readLegacySimulation(path: String) throws -> SimulationModel { let data = try Data(contentsOf: URL(fileURLWithPath: path)); return try WinQSBSimulationParser.parse(from: LegacyCompressedFile.expandedData(from: data)) }
     private static func simulationBackend(for kind: SolverBackendKind, command: String) throws -> any SimulationBackend { guard let backend = SimulationBackends.backend(for: kind) else { throw CLIError.usage("external backend is not available yet for \(command)") }; return backend }
-    private static func solveSimulationLegacy(path: String, backend: SolverBackendKind) throws { let model = try readLegacySimulation(path: path), solver = try simulationBackend(for: backend, command: "solve-simulation"); if solver.capabilities.solves { printSimulationSolution(model: model, solution: try solver.solve(model), metadata: solver.runMetadata(for: model)) } else { printSimulationValidation(model: model, report: solver.validationReport(for: model), source: path) } }
+    private static func solveSimulationLegacy(path: String, backend: SolverBackendKind, replications: Int = 1) throws { let model = try readLegacySimulation(path: path), solver = try simulationBackend(for: backend, command: "solve-simulation"); if solver.capabilities.solves { printSimulationSolution(model: model, solution: try solver.solve(model, options: SolverOptions(replications: replications)), metadata: solver.runMetadata(for: model)) } else { printSimulationValidation(model: model, report: solver.validationReport(for: model), source: path) } }
     private static func validateSimulationLegacy(path: String) throws { let model = try readLegacySimulation(path: path); printSimulationValidation(model: model, report: ValidateOnlySimulationBackend().validationReport(for: model), source: path) }
     private static func exportSimulationJSON(path: String) throws { FileHandle.standardOutput.write(try SimulationJSON.encodeModel(readLegacySimulation(path: path))); print() }
-    private static func solveSimulationJSON(path: String, backend: SolverBackendKind) throws { let model = try SimulationJSON.decodeUncheckedModel(from: Data(contentsOf: URL(fileURLWithPath: path))), solver = try simulationBackend(for: backend, command: "solve-simulation-json"); if solver.capabilities.solves { FileHandle.standardOutput.write(try SimulationJSON.encodeSolution(solver.solutionDocument(for: model, solution: try solver.solve(model)))); print() } else { try writeSimulationValidation(model: model, report: solver.validationReport(for: model)) } }
+    private static func solveSimulationJSON(path: String, backend: SolverBackendKind, replications: Int = 1) throws { let model = try SimulationJSON.decodeUncheckedModel(from: Data(contentsOf: URL(fileURLWithPath: path))), solver = try simulationBackend(for: backend, command: "solve-simulation-json"); if solver.capabilities.solves { FileHandle.standardOutput.write(try SimulationJSON.encodeSolution(solver.solutionDocument(for: model, solution: try solver.solve(model, options: SolverOptions(replications: replications))))); print() } else { try writeSimulationValidation(model: model, report: solver.validationReport(for: model)) } }
     private static func validateSimulationJSON(path: String) throws { let model = try SimulationJSON.decodeUncheckedModel(from: Data(contentsOf: URL(fileURLWithPath: path))); try writeSimulationValidation(model: model, report: ValidateOnlySimulationBackend().validationReport(for: model)) }
     private static func writeSimulationValidation(model: SimulationModel, report: ValidationReport) throws { FileHandle.standardOutput.write(try SimulationJSON.encodeValidation(SimulationValidationDocument(model: model, report: report))); print() }
-    private static func printSimulationSolution(model: SimulationModel, solution: SimulationSolution, metadata: SolverRunMetadata) { print(model.title); print("backend: \(metadata.backendKind.rawValue)"); print("algorithm: \(metadata.algorithm)"); print("exactness: \(metadata.exactness.rawValue)"); print("representation: \(model.representation.rawValue)"); print("horizon: \(format(solution.horizon))"); print("seed: \(solution.seed)"); print("generatedEntities: \(solution.generatedEntities)"); print("completedEntities: \(solution.completedEntities)"); for queue in solution.queueMetrics { print("\(queue.name): averageLength=\(format(queue.averageLength)) maximumLength=\(queue.maximumLength) entered=\(queue.entered) rejected=\(queue.rejected)") }; for server in solution.serverMetrics { print("\(server.name): completed=\(server.completed) utilization=\(format(server.utilization))") } }
+    private static func printSimulationSolution(model: SimulationModel, solution: SimulationSolution, metadata: SolverRunMetadata) { print(model.title); print("backend: \(metadata.backendKind.rawValue)"); print("algorithm: \(metadata.algorithm)"); print("exactness: \(metadata.exactness.rawValue)"); print("representation: \(model.representation.rawValue)"); print("horizon: \(format(solution.horizon))"); print("seed: \(solution.seed)"); print("replications: \(solution.replications)"); print("generatedEntities: \(solution.generatedEntities)"); print("completedEntities: \(solution.completedEntities)"); for queue in solution.queueMetrics { print("\(queue.name): averageLength=\(format(queue.averageLength)) maximumLength=\(queue.maximumLength) entered=\(queue.entered) rejected=\(queue.rejected)"); if let interval = solution.queueLengthConfidenceIntervals[queue.name] { print("  averageLength95CI: [\(format(interval.lower)), \(format(interval.upper))]") } }; for server in solution.serverMetrics { print("\(server.name): completed=\(server.completed) utilization=\(format(server.utilization))"); if let interval = solution.serverUtilizationConfidenceIntervals[server.name] { print("  utilization95CI: [\(format(interval.lower)), \(format(interval.upper))]") } } }
     private static func printSimulationValidation(model: SimulationModel, report: ValidationReport, source: String) { let errors = report.diagnostics.filter { $0.severity == .error }, warnings = report.diagnostics.filter { $0.severity == .warning }; print(model.title); print("backend: \(report.backend.rawValue)"); print("source: \(source)"); print("components: \(model.components.count)"); print("status: \(errors.isEmpty ? "valid" : "invalid")"); print("errors: \(errors.count)"); print("warnings: \(warnings.count)"); for item in report.diagnostics { print("\(item.severity.rawValue): \(item.code)\(item.path.map { " [\($0)]" } ?? "") - \(item.message)") } }
 
     private static func solveTimeSeries(path: String, periodsAhead: Int) throws {
@@ -3197,6 +3289,7 @@ struct QSBCLI {
     private static func printUsage(to handle: FileHandle) {
         write("""
         qsb inspect <legacy-file>
+        qsb compare-fixture <legacy-model-file> [--expected <json-or-snapshot>]
         qsb expand <legacy-file>
         qsb import-legacy-json <legacy-model-file>
         qsb inventory-fixtures <reference-directory>
@@ -3204,6 +3297,7 @@ struct QSBCLI {
         qsb solve-ilp <legacy-lp-file> [--backend native|validate]
         qsb validate-lp <legacy-lp-file>
         qsb export-json <legacy-lp-file>
+        qsb export-mps <legacy-lp-or-normalized-json-file>
         qsb solve-json <model-json-file> [--backend native|validate]
         qsb solve-json-ilp <model-json-file> [--backend native|validate]
         qsb validate-json <model-json-file>
@@ -3241,11 +3335,13 @@ struct QSBCLI {
         qsb solve-scheduling-json <scheduling-model-json-file> [--backend native|validate]
         qsb validate-scheduling-json <scheduling-model-json-file>
         qsb solve-cpm <legacy-cpm-file> [--backend native|validate]
+        qsb solve-cpm-crash <legacy-cpm-file> <target-duration> [--backend native|validate]
         qsb validate-cpm <legacy-cpm-file>
         qsb solve-pert <legacy-pert-file> [--backend native|validate]
         qsb validate-pert <legacy-pert-file>
         qsb export-project-json <legacy-pert-cpm-file>
         qsb solve-project-json <project-model-json-file> [--backend native|validate]
+        qsb solve-cpm-crash-json <project-model-json-file> <target-duration> [--backend native|validate]
         qsb validate-project-json <project-model-json-file>
         qsb solve-markov <legacy-markov-file> [--backend native|validate]
         qsb validate-markov <legacy-markov-file>
@@ -3258,6 +3354,7 @@ struct QSBCLI {
         qsb solve-goal-json <goal-programming-model-json-file> [--backend native|validate]
         qsb validate-goal-json <goal-programming-model-json-file>
         qsb solve-acceptance <legacy-acceptance-sampling-file> [--backend native|validate]
+        qsb design-acceptance <lot-size> <aql> <rql> <producer-risk> <consumer-risk>
         qsb validate-acceptance <legacy-acceptance-sampling-file>
         qsb export-acceptance-json <legacy-acceptance-sampling-file>
         qsb solve-acceptance-json <acceptance-sampling-model-json-file> [--backend native|validate]
@@ -3287,10 +3384,10 @@ struct QSBCLI {
         qsb export-nlp-json <legacy-nonlinear-programming-file>
         qsb solve-nlp-json <nonlinear-programming-model-json-file> [--backend native|validate]
         qsb validate-nlp-json <nonlinear-programming-model-json-file>
-        qsb solve-simulation <legacy-simulation-file> [--backend native|validate]
+        qsb solve-simulation <legacy-simulation-file> [--backend native|validate] [--replications N]
         qsb validate-simulation <legacy-simulation-file>
         qsb export-simulation-json <legacy-simulation-file>
-        qsb solve-simulation-json <simulation-model-json-file> [--backend native|validate]
+        qsb solve-simulation-json <simulation-model-json-file> [--backend native|validate] [--replications N]
         qsb validate-simulation-json <simulation-model-json-file>
         qsb export-facilities-json <legacy-fll-file>
         qsb validate-facilities-json <facilities-model-json-file>

@@ -54,3 +54,19 @@ import Testing
     } catch { #expect(String(describing: error).contains("validateOnly")) }
 }
 
+@Test func designsSinglePlansAndEvaluatesFiniteLotsExactly() throws {
+    let design = try AcceptanceSamplingPlanDesigner.designSingle(
+        lotSize: 100,
+        acceptableQualityLevel: 0.01,
+        rejectableQualityLevel: 0.10,
+        producerRisk: 0.05,
+        consumerRisk: 0.10
+    )
+    #expect(design.sampleSize > 0)
+    #expect(design.producerRisk <= 0.05 + 1e-12)
+    #expect(design.consumerRisk <= 0.10 + 1e-12)
+    let finite = try AcceptanceSamplingPlanDesigner.hypergeometricAcceptanceProbability(
+        lotSize: 10, defectiveCount: 2, sampleSize: 3, acceptanceNumber: 0
+    )
+    #expect(abs(finite - 56.0 / 120.0) < 1e-12)
+}

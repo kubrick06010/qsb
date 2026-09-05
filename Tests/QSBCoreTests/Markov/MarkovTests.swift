@@ -53,3 +53,25 @@ import Testing
     } catch { #expect(String(describing: error).contains("validateOnly")) }
 }
 
+@Test func diagnosesReducibleMarkovChainsBeforeSolving() throws {
+    let model = MarkovChainModel(
+        title: "Reducible",
+        states: ["A", "B", "C"],
+        transitionMatrix: [
+            [1, 0, 0],
+            [0, 1, 0],
+            [0.5, 0.5, 0]
+        ],
+        initialProbabilities: [0, 0, 1],
+        stateCosts: [1, 2, 3]
+    )
+    let classes = MarkovChainStructure.communicatingClasses(of: model)
+    #expect(classes.map(\.stateNames) == [["A"], ["B"], ["C"]])
+    #expect(classes.filter(\.isClosed).count == 2)
+
+    let request = MarkovAnalysisRequest(model: model)
+    let report = ValidateOnlyMarkovBackend().validationReport(for: request)
+    #expect(report.diagnostics.contains { $0.code == "markov.chain.reducible" })
+    #expect(report.diagnostics.contains { $0.code == "markov.stationary.nonUnique" })
+    #expect(throws: MarkovModelError.self) { _ = try MarkovSolver.solve(request) }
+}

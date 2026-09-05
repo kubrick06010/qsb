@@ -116,6 +116,7 @@ public enum QueuingModelJSON {
     public static func encodeModel(_ value: QueuingModelEnvelope) throws -> Data { try encoder.encode(value) }
     public static func decodeModel(from data: Data) throws -> QueuingModelEnvelope { try JSONDecoder().decode(QueuingModelEnvelope.self, from: data) }
     public static func encodeSolution(_ value: QueuingSolutionDocument) throws -> Data { try QueuingSolutionJSON.encode(value) }
+    public static func decodeSolution(from data: Data) throws -> QueuingSolutionDocument { try JSONDecoder().decode(QueuingSolutionDocument.self, from: data) }
     public static func encodeValidation(_ value: QueuingValidationDocument) throws -> Data { try encoder.encode(value) }
     private static var encoder: JSONEncoder { NormalizedJSONCoding.encoder() }
 }

@@ -30,7 +30,9 @@ import Testing
         #expect(validate.validationReport(for: model).isValid)
         let document = try native.solve(model)
         #expect(document.metrics.utilization > 0)
-        #expect(String(decoding: try QueuingModelJSON.encodeSolution(document), as: UTF8.self).contains("metrics"))
+        let solutionData = try QueuingModelJSON.encodeSolution(document)
+        #expect(try QueuingModelJSON.decodeSolution(from: solutionData) == document)
+        #expect(String(decoding: solutionData, as: UTF8.self).contains("metrics"))
     }
     #expect(QueuingBackends.backend(for: .externalHighPerformance) == nil)
 }
@@ -235,4 +237,3 @@ import Testing
     #expect(finiteText.contains("\"effectiveArrivalRate\""))
     #expect(finiteText.contains("\"stateProbabilities\""))
 }
-

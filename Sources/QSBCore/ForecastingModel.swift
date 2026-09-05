@@ -608,6 +608,23 @@ public enum TimeSeriesSeasonalDecompositionSolver {
 }
 
 public enum RegressionSolver {
+    /// Performs the same rank check used by the QR least-squares solver
+    /// without computing a fitted solution.  Validators use this to surface a
+    /// useful diagnostic before a user presses Solve.
+    public static func designMatrixIsFullRank(_ model: RegressionModel) -> Bool {
+        guard model.observations.count >= model.independentVariables.count + 1,
+              model.observations.allSatisfy({ $0.independentValues.count == model.independentVariables.count }),
+              model.observations.allSatisfy({ $0.dependentValue.isFinite && $0.independentValues.allSatisfy(\.isFinite) })
+        else { return false }
+        let design = model.observations.map { [1.0] + $0.independentValues }
+        do {
+            _ = try solveLeastSquaresQR(design, Array(repeating: 0, count: design.count))
+            return true
+        } catch {
+            return false
+        }
+    }
+
     public static func solve(_ model: RegressionModel) throws -> RegressionSolution {
         try validate(model)
 

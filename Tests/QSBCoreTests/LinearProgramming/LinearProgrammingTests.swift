@@ -265,6 +265,41 @@ import Testing
     #expect(text.contains("\"variableValues\""))
 }
 
+@Test func exportsValidatedLPAndILPAsFreeMPS() throws {
+    let lp = LinearProgram(
+        title: "MPS sample",
+        sense: .maximize,
+        variableNames: ["x one", "y"],
+        objectiveCoefficients: [3, 2],
+        constraints: [
+            LinearConstraint(name: "capacity", coefficients: [1, 2], relation: .lessThanOrEqual, rhs: 8),
+            LinearConstraint(name: "minimum", coefficients: [1, 0], relation: .greaterThanOrEqual, rhs: 1)
+        ],
+        lowerBounds: [0, 0],
+        upperBounds: [nil, 4]
+    )
+    let text = try LinearProgramMPSExporter.export(lp)
+    #expect(text.contains("OBJSENSE"))
+    #expect(text.contains(" MAX"))
+    #expect(text.contains(" N  OBJ"))
+    #expect(text.contains(" L  CAPACITY"))
+    #expect(text.contains("X_ONE  OBJ  3  CAPACITY  1"))
+    #expect(text.contains(" UP BND1  Y  4"))
+    #expect(text.hasSuffix("ENDATA\n"))
+
+    let ilp = LinearProgram(
+        title: "Integer",
+        sense: .minimize,
+        variableNames: ["n"],
+        objectiveCoefficients: [1],
+        constraints: [LinearConstraint(name: "limit", coefficients: [1], relation: .lessThanOrEqual, rhs: 5)],
+        variableTypes: [.integer]
+    )
+    let integerText = try LinearProgramMPSExporter.export(ilp)
+    #expect(integerText.contains("'INTORG'"))
+    #expect(integerText.contains("'INTEND'"))
+}
+
 @Test func rejectsJSONModelWithMismatchedDimensions() throws {
     let json = Data("""
     {

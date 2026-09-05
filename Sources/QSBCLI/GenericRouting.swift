@@ -4,16 +4,48 @@ import QSBCore
 extension QSBCLI {
     enum GenericRoutingError: Error, CustomStringConvertible {
         case unsupportedNormalizedModel
+        case fixtureMismatch
         case unavailableBackend(family: LegacyModelFamily, backend: SolverBackendKind)
 
         var description: String {
             switch self {
             case .unsupportedNormalizedModel:
                 "Input is not a supported normalized QSBCore model"
+            case .fixtureMismatch:
+                "Legacy fixture does not match the expected normalized snapshot"
             case let .unavailableBackend(family, backend):
                 "Backend \(backend.rawValue) is unavailable for \(family.rawValue)"
             }
         }
+    }
+
+    static func compareFixture(path: String, expectedPath: String?) throws {
+        let imported = try LegacyModelImporter.importModel(at: URL(fileURLWithPath: path))
+        guard let expectedPath else {
+            FileHandle.standardOutput.write(imported.normalizedJSON)
+            print()
+            return
+        }
+
+        let expectedData = try Data(contentsOf: URL(fileURLWithPath: expectedPath))
+        let matches: Bool
+        if let actualObject = try? JSONSerialization.jsonObject(with: imported.normalizedJSON),
+           let expectedObject = try? JSONSerialization.jsonObject(with: expectedData),
+           JSONSerialization.isValidJSONObject(actualObject), JSONSerialization.isValidJSONObject(expectedObject) {
+            let actualCanonical = try JSONSerialization.data(withJSONObject: actualObject, options: [.sortedKeys])
+            let expectedCanonical = try JSONSerialization.data(withJSONObject: expectedObject, options: [.sortedKeys])
+            matches = actualCanonical == expectedCanonical
+        } else {
+            let actualText = String(decoding: imported.normalizedJSON, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+            let expectedText = String(decoding: expectedData, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+            matches = actualText == expectedText
+        }
+
+        print("family: \(imported.family.rawValue)")
+        print("fixture: \(path)")
+        print("expected: \(expectedPath)")
+        print("status: \(matches ? "match" : "mismatch")")
+        if !matches { throw GenericRoutingError.fixtureMismatch }
     }
 
     static func genericInspect(path: String) throws {

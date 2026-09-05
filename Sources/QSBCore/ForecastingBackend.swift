@@ -95,7 +95,13 @@ public enum ForecastingValidator {
             if model.dependentVariable.isEmpty || model.independentVariables.isEmpty { error("forecasting.regression.variables.invalid", "Dependent and independent variable names are required.", "model.model") }
             if Set(model.independentVariables).count != model.independentVariables.count { error("forecasting.regression.variables.duplicate", "Independent variable names must be unique.", "model.model.independentVariables") }
             if model.observations.count <= model.independentVariables.count { error("forecasting.regression.observations.insufficient", "Regression requires more observations than independent variables.", "model.model.observations") }
-            if model.observations.contains(where: { !$0.dependentValue.isFinite || $0.independentValues.count != model.independentVariables.count || !$0.independentValues.allSatisfy(\.isFinite) }) { error("forecasting.regression.observation.invalid", "Observation dimensions and values must be valid.", "model.model.observations") }
+            let observationsAreValid = !model.observations.contains(where: { !$0.dependentValue.isFinite || $0.independentValues.count != model.independentVariables.count || !$0.independentValues.allSatisfy(\.isFinite) })
+            if !observationsAreValid { error("forecasting.regression.observation.invalid", "Observation dimensions and values must be valid.", "model.model.observations") }
+            if observationsAreValid,
+               model.observations.count > model.independentVariables.count,
+               !RegressionSolver.designMatrixIsFullRank(model) {
+                error("forecasting.regression.rankDeficient", "Regression design matrix is rank deficient; independent variables must provide linearly independent columns.", "model.model.observations")
+            }
         }
         return result
     }

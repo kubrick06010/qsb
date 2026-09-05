@@ -21,6 +21,9 @@ extension QSBCLI {
         case let error as DecisionAnalysisModelError: return error.description
         case let error as QueuingModelError: return error.description
         case let error as SchedulingModelError: return error.description
+        case let error as ProjectSchedulingError: return error.description
+        case let error as MarkovModelError: return error.description
+        case let error as AcceptanceSamplingError: return error.description
         case let error as QualityControlError: return error.description
         case let error as AggregatePlanningError: return error.description
         case let error as MaterialRequirementsPlanningError: return error.description

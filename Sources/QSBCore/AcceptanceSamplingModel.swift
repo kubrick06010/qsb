@@ -223,6 +223,118 @@ public enum AcceptanceSamplingSolver {
     }
 }
 
+public struct SingleSamplingPlanDesign: Codable, Equatable, Sendable {
+    public let lotSize: Int
+    public let sampleSize: Int
+    public let acceptanceNumber: Int
+    public let acceptableQualityLevel: Double
+    public let rejectableQualityLevel: Double
+    public let producerRisk: Double
+    public let consumerRisk: Double
+
+    public init(lotSize: Int, sampleSize: Int, acceptanceNumber: Int, acceptableQualityLevel: Double, rejectableQualityLevel: Double, producerRisk: Double, consumerRisk: Double) {
+        self.lotSize = lotSize
+        self.sampleSize = sampleSize
+        self.acceptanceNumber = acceptanceNumber
+        self.acceptableQualityLevel = acceptableQualityLevel
+        self.rejectableQualityLevel = rejectableQualityLevel
+        self.producerRisk = producerRisk
+        self.consumerRisk = consumerRisk
+    }
+}
+
+public enum AcceptanceSamplingPlanDesigner {
+    /// Finds the smallest single-sampling plan satisfying producer and
+    /// consumer risk constraints under a binomial approximation.
+    public static func designSingle(
+        lotSize: Int,
+        acceptableQualityLevel: Double,
+        rejectableQualityLevel: Double,
+        producerRisk: Double,
+        consumerRisk: Double,
+        maximumSampleSize: Int? = nil
+    ) throws -> SingleSamplingPlanDesign {
+        guard lotSize > 0,
+              acceptableQualityLevel >= 0,
+              acceptableQualityLevel < rejectableQualityLevel,
+              rejectableQualityLevel <= 1,
+              producerRisk >= 0, producerRisk <= 1,
+              consumerRisk >= 0, consumerRisk <= 1
+        else { throw AcceptanceSamplingError.invalidModel("quality levels and risks must be valid probabilities with AQL < RQL") }
+        let upperSampleSize = min(lotSize, maximumSampleSize ?? lotSize)
+        guard upperSampleSize > 0 else { throw AcceptanceSamplingError.invalidModel("maximum sample size must be positive") }
+        for sampleSize in 1...upperSampleSize {
+            for acceptanceNumber in 0..<sampleSize {
+                let acceptanceAtAQL = binomialCDF(n: sampleSize, c: acceptanceNumber, p: acceptableQualityLevel)
+                let acceptanceAtRQL = binomialCDF(n: sampleSize, c: acceptanceNumber, p: rejectableQualityLevel)
+                let actualProducerRisk = 1 - acceptanceAtAQL
+                if actualProducerRisk <= producerRisk + 1e-12,
+                   acceptanceAtRQL <= consumerRisk + 1e-12 {
+                    return SingleSamplingPlanDesign(
+                        lotSize: lotSize,
+                        sampleSize: sampleSize,
+                        acceptanceNumber: acceptanceNumber,
+                        acceptableQualityLevel: acceptableQualityLevel,
+                        rejectableQualityLevel: rejectableQualityLevel,
+                        producerRisk: actualProducerRisk,
+                        consumerRisk: acceptanceAtRQL
+                    )
+                }
+            }
+        }
+        throw AcceptanceSamplingError.invalidModel("no single-sampling plan satisfies the requested risks within the sample-size limit")
+    }
+
+    /// Exact acceptance probability for a finite lot sampled without
+    /// replacement (hypergeometric model).
+    public static func hypergeometricAcceptanceProbability(
+        lotSize: Int,
+        defectiveCount: Int,
+        sampleSize: Int,
+        acceptanceNumber: Int
+    ) throws -> Double {
+        guard lotSize > 0, defectiveCount >= 0, defectiveCount <= lotSize,
+              sampleSize >= 0, sampleSize <= lotSize, acceptanceNumber >= 0
+        else { throw AcceptanceSamplingError.invalidModel("finite-lot parameters are out of range") }
+        let denominator = combination(lotSize, sampleSize)
+        guard denominator > 0 else { return 0 }
+        let lower = max(0, sampleSize - (lotSize - defectiveCount))
+        let upper = min(sampleSize, defectiveCount, acceptanceNumber)
+        guard lower <= upper else { return 0 }
+        let accepted = (lower...upper).reduce(0.0) { total, defects in
+            total + combination(defectiveCount, defects) * combination(lotSize - defectiveCount, sampleSize - defects)
+        }
+        return min(1, max(0, accepted / denominator))
+    }
+
+    private static func binomialCDF(n: Int, c: Int, p: Double) -> Double {
+        guard c >= 0 else { return 0 }
+        guard c < n else { return 1 }
+        if p == 0 { return 1 }
+        if p == 1 { return 0 }
+        return (0...c).reduce(0) { total, k in
+            total + binomialPMF(n: n, k: k, p: p)
+        }
+    }
+
+    private static func binomialPMF(n: Int, k: Int, p: Double) -> Double {
+        guard k >= 0, k <= n else { return 0 }
+        var coefficient = 1.0
+        let terms = min(k, n - k)
+        if terms > 0 {
+            for value in 1...terms { coefficient *= Double(n - terms + value) / Double(value) }
+        }
+        return coefficient * pow(p, Double(k)) * pow(1 - p, Double(n - k))
+    }
+
+    private static func combination(_ n: Int, _ k: Int) -> Double {
+        guard k >= 0, k <= n else { return 0 }
+        let terms = min(k, n - k)
+        guard terms > 0 else { return 1 }
+        return (1...terms).reduce(1.0) { value, index in value * Double(n - terms + index) / Double(index) }
+    }
+}
+
 public protocol AcceptanceSamplingBackend: Sendable {
     var capabilities: SolverCapabilities { get }
     func validationReport(for model: AcceptanceSamplingModelEnvelope) -> ValidationReport

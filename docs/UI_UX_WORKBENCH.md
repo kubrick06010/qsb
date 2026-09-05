@@ -423,6 +423,7 @@ specialized behavior in CLI and menus.
 | Inventory | Charts/tables for EOQ, discounts, newsboy, lot sizing, stochastic policies | Many variant-specific sections; common assumptions/run details should be promoted | Summary → policy/cost analysis → tables → assumptions |
 | Dynamic Programming | Stages, charts, policy tables, assumptions, JSON | Three variants use different visual structures; common navigation is implicit | Summary → stages/policy → trace/table → assumptions |
 | Decision Tree | Rollback tree table, policy cards, metadata, JSON fallback, accessibility labels | Tree is mostly tabular; no shared diagnostics/run section with other views | Summary → tree/policy → node details → run context |
+| Queuing | Utilization, flow, congestion, state-probability and cost views for both supported variants; metrics/JSON switch | Model creation remains import/JSON-based; large finite state spaces need future filtering | Summary → capacity/flow → performance/states/costs → assumptions |
 
 Reusable patterns are the surrounding sections, not one universal chart:
 
@@ -679,18 +680,19 @@ value table.
 
 Future priorities with high educational and workflow value:
 
-1. Network minimum-cost flow graph-plus-balances editor;
-2. Decision analysis/payoff/tree editors;
-3. Markov data editors;
-4. remaining family-specific forms where fixtures and validation make the
+1. Decision analysis/payoff/tree editors;
+2. Queuing data editors;
+3. remaining family-specific forms where fixtures and validation make the
    editing contract clear.
 
 Network direct manipulation follows the principle that a domain-natural
 gesture should complement explicit keyboard and accessibility alternatives.
-The graph editor supports double-click node creation, Control-click fast
-connection, a selected-node visual connection handle, and inline arc-value
-editing. Explicit Add Node, Add Arc, Delete, and inspector paths remain
-available for discoverability and accessible fallback.
+The graph editor supports double-click node creation, dragging node bodies to
+reposition the UI-only layout, Control-click fast connection, a selected-node
+visual connection handle, and inline arc-value editing. Explicit Add Node, Add
+Arc, Delete, and inspector paths remain available for discoverability and
+accessible fallback. Node movement preserves stable identities and solver
+semantics; positions are intentionally excluded from normalized JSON.
 
 The dense Network stress fixture remains development/test infrastructure rather
 than a production sample. Its verification exposed two non-blocking polish

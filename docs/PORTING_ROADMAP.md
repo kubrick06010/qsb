@@ -1,5 +1,7 @@
 # QSB Porting Roadmap
 
+Status audited: 2026-08-31
+
 This project is a clean-room modernization and compatibility replacement for the WinQSB application payload preserved in `reference/winqsb`.
 
 The original WinQSB files are Windows 3.x / Visual Basic 3 binaries, help files, installer resources, manuals, and sample model files. They are reference artifacts, not source code.
@@ -276,8 +278,8 @@ Implemented:
 - project-local `script/build_and_run.sh`;
 - a repeatable developer or CI action for staging and launching the SwiftPM GUI
   as an `.app` bundle;
-- normalized LP/ILP, network, facilities, inventory, and dynamic-programming
-  JSON detection in the macOS shell;
+- normalized model/request detection for every current QSBCore family in the
+  macOS shell, plus direct legacy import through `LegacyModelImporter`;
 - facilities solve/validate support in `QSBMacApp` through the same named
   `FacilitiesBackend` used by CLI workflows, including contextual initial and
   pairwise-swap layout strategies;
@@ -286,7 +288,8 @@ Implemented:
   CLI workflows, with runnable EOQ and bounded-knapsack samples;
 - legacy WinQSB reference organization under `reference/winqsb`;
 - foundational backend and validation diagnostic types in `QSBCore`;
-- `swift test` verification with 118 passing tests as of 2026-07-16.
+- `swift test` verification with 179 passing tests on the current macOS working
+  tree as of 2026-08-31;
 - Phase A structural consolidation is complete for Facilities, Inventory, LP,
   CLI support files, and legacy tests.
 - Phase B infrastructure convergence is complete, including shared normalized
@@ -297,13 +300,19 @@ Implemented:
 - Native Decision Tree inspection and portable CI are complete.
 - The repository hygiene checkpoint is complete. External solver integration
   has not started.
+- The current GUI working-tree checkpoint adds native Decision Analysis result
+  surfaces, a Markov editor/result surface, Queuing metrics, and Network canvas
+  position editing. Its automated suite passes; compact/wide visual,
+  interaction, and accessibility verification remains before the checkpoint is
+  closed.
 
 Next:
 
 - ensure package boundaries remain clean;
 - keep GUI logic thin;
-- add backend abstractions in `QSBCore`;
-- add common validation and diagnostics utilities.
+- maintain the shared backend, normalized JSON, and diagnostic abstractions now
+  implemented across all current families;
+- close the current GUI checkpoint with app build/run and visual verification.
 
 ### Legacy File Handling
 
@@ -323,9 +332,10 @@ Implemented:
 
 Next:
 
-- maintain fixture classification as more model families become verified;
-- use the inventory output to prioritize remaining sample families;
-- add deeper content-level classification for partially supported families where useful.
+- maintain exhaustive classification when the preserved payload changes;
+- keep all 64 current model fixtures verified and all 53 non-model artifacts
+  explicitly reference-only;
+- there are no current partial or unknown fixtures to prioritize.
 
 ### LP/ILP
 
@@ -350,12 +360,12 @@ Implemented:
 
 Recommended next:
 
-- route any remaining LP-backed families through named backend seams where useful;
+- maintain the existing named backend routing for LP-backed families;
 - prepare optional MPS/LP export for external solvers;
 - avoid adding advanced MILP features directly into the native solver unless needed for WinQSB fixture compatibility;
 - document solver limitations clearly.
 
-Acceptance criteria for next LP/ILP refactor:
+Invariants for future LP/ILP changes:
 
 - existing commands still work;
 - existing tests still pass;
@@ -386,12 +396,19 @@ Implemented:
 - enriched solution documents with model, discriminated solution, backend
   algorithm, exactness, and assumptions, shared by CLI and macOS;
 - CLI commands: `export-network-json`, `solve-network-json`, and
-  `validate-network-json`.
+  `validate-network-json`;
+- native editors for all seven supported variants: graph editors for shortest
+  path, minimum spanning tree, maximum flow, and traveling salesperson;
+  dimension-safe matrix editors for assignment and transportation; and a
+  balance-aware editor for minimum-cost flow;
+- native solution diagrams/tables for all seven variants, with JSON retained as
+  the interchange and fallback representation.
 
 Recommended next:
 
 - consider `externalHighPerformance` hooks for larger TSP/routing/assignment variants;
-- add family-specific macOS diagrams and editors beyond normalized JSON.
+- continue direct-manipulation, compact-window, keyboard, and accessibility
+  refinement without adding presentation state to normalized JSON.
 
 ### Forecasting
 
@@ -417,9 +434,10 @@ Implemented:
 Recommended next:
 
 - add an explicit pre-solve rank diagnostic for degenerate regression design
-  matrices (the native solver currently reports singularity during solving);
+  matrices (the QR solver currently reports rank deficiency during solving);
 - document which results are expected to match WinQSB and which are modern educational approximations;
-- support validation-only for unimplemented forecasting variants.
+- classify any future unimplemented forecasting variant explicitly rather than
+  treating it as part of the current verified surface.
 
 ### Inventory
 
@@ -553,6 +571,9 @@ Implemented:
   and `ValidateOnlySchedulingBackend`;
 - Gantt-friendly `SchedulingSolutionDocument` JSON through
   `qsb solve-flowshop-json` and `qsb solve-jobshop-json`;
+- a native responsive macOS Gantt view for both supported variants, with
+  machine timelines, backend context, accessibility labels, adjustable scale,
+  and Timeline/JSON switching;
 - verified support for `reference/winqsb/FLOWSHOP.JO_` and `reference/winqsb/JOBSHOP.JO_`.
 
 Recommended next:
@@ -573,12 +594,13 @@ Implemented:
 
 Next priority:
 
-- add remaining facilities/workflow fixtures beyond the bundled line, location, and layout examples;
+- the current preserved Facilities payload is exhaustive; reopen fixture work
+  only when additional clean-room model fixtures are added;
 - broaden layout improvement beyond same-size pairwise swaps only when model scope is clear;
 - extend layout solution JSON with richer move/improvement data for future heuristics;
 - continue documenting assumptions and warnings for fixed aisles, blocked cells, and overlapping layout regions.
 
-Potential layout output fields:
+Current and future layout output considerations:
 
 - departments/workcenters;
 - coordinates;
@@ -610,12 +632,16 @@ Implemented:
   `validate-decision-json` workflows plus structured family validation commands.
 - macOS workbench detection, import, validation, and solving for all four
   normalized variants through the same backend, with payoff and decision-tree
-  samples.
+  samples;
+- native responsive solution presentations for payoff, Bayesian, decision-tree,
+  and zero-sum game results, including posterior/payoff tables, information
+  values, rollback policy, mixed strategies, backend context, accessibility,
+  and JSON fallback.
 
 Recommended next:
 
-- add family-specific macOS tables and tree visualization beyond the normalized
-  JSON workbench;
+- add native Decision Analysis model editing where each model contract supports
+  reversible structured input;
 - retain the LP backend seam for mixed strategies when external LP backends arrive.
 
 ### Queuing
@@ -627,14 +653,21 @@ Implemented:
 - structured `MM1QueueValidator` and `FiniteCapacityQueueValidator` diagnostics for rates, stability, servers, capacity, distributions, batch size, and costs;
 - named `QueuingBackend` seam with native educational and validation-only implementations, exposed by `--backend native|validate` and explicit validate commands;
 - normalized `QueuingSolutionDocument` output through `qsb solve-mm1-json` and `qsb solve-finite-queue-json`, including backend metadata, notation, assumptions, common performance metrics, state probabilities, and normalized costs;
+- normalized model JSON import/export through the shared `QueuingModelEnvelope`;
+- a native macOS queue analysis for M/M/1 and finite-capacity solution
+  documents, with utilization and throughput, customer-count and waiting-time
+  metrics, finite-state probabilities, cost breakdowns, assumptions, backend
+  context, accessibility values, Metrics/JSON switching, and a runnable M/M/1
+  sample;
 - verified support for `reference/winqsb/QUEUE1.QA_` and `reference/winqsb/QUEUE2.QA_`.
 
 Recommended next:
 
-- add normalized model JSON import/export in addition to solution JSON;
 - classify and validate additional recognized WinQSB queue variants before solving them;
 - add a future simulation or external queue backend for distributions that the mean-rate birth-death approximation does not model faithfully;
-- add richer diagnostics for finite-population, bulk-arrival, and non-exponential interarrival variants.
+- add richer diagnostics for finite-population, bulk-arrival, and non-exponential interarrival variants;
+- add a native queue-definition editor once the supported variant contract is
+  broad enough to justify model creation beyond the current JSON/import path.
 
 ## Roadmap Phases
 
@@ -685,15 +718,15 @@ UI Phase 2 status:
 
 - LP/ILP native editor implemented in `QSBMacApp`;
 - normalized JSON schema and QSBCore solver behavior unchanged;
-- Inventory is the first Phase 3 family editor, covering EOQ, quantity
-  discount, newsvendor, and lot sizing; other family editors remain future
-  work.
+- later GUI phases now provide native editors for all current Inventory,
+  Network, and Forecasting variants plus Markov analysis; remaining model
+  families continue to use normalized JSON when no native editor exists.
 
 Next refinement:
 
-- backend abstraction;
-- validation-only command paths;
-- optional external solver export/integration seam.
+- maintain the completed backend and validation-only command seams;
+- add optional external solver export/integration without changing the native
+  educational default.
 
 ### Phase 2 — Multi-Family Coverage
 
@@ -753,12 +786,16 @@ Implemented:
 - expected state costs for stationary and transient distributions;
 - structured stochastic-matrix and initial-distribution validation;
 - named `MarkovBackend` with native educational and validation-only modes;
-- legacy and JSON CLI solve/validate/export workflows.
+- legacy and JSON CLI solve/validate/export workflows;
+- a native state/matrix editor and stationary/transient result presentation in
+  the current GUI working-tree checkpoint, using the existing request,
+  validation, backend, and normalized JSON boundaries.
 
 Recommended next:
 
 - add communicating-class diagnostics for reducible chains before solving;
-- add a state-transition matrix/editor and probability chart to the macOS app;
+- complete compact/wide, interaction, and accessibility verification for the
+  new Markov surfaces;
 - reserve external integration for sparse or very large state spaces.
 
 ### Goal Programming
@@ -923,10 +960,14 @@ Solver character and next refinement:
 
 Next refinement:
 
-- standardize JSON outputs across families;
-- add family-level docs;
-- increase fixture discovery and classification;
-- avoid command explosion by considering generic routing commands.
+- audit cross-family JSON consistency and introduce schema versioning only when
+  a backward-incompatible change is necessary;
+- fill the remaining dedicated documentation gaps for LP/ILP and backend
+  architecture;
+- maintain exhaustive fixture classification when the preserved payload
+  changes;
+- preserve the implemented generic CLI routing and avoid unnecessary new
+  family-specific commands.
 
 ### Phase 3 — Backend Abstraction
 
@@ -949,7 +990,7 @@ Completed scope:
 4. Validation-only and normalized JSON workflows are available across current
    model families.
 
-Acceptance criteria:
+Verified acceptance criteria:
 
 - `swift test` passes;
 - current CLI commands still work;
@@ -962,9 +1003,9 @@ Acceptance criteria:
 Status: implemented and exhaustively classified for the current preserved
 payload.
 
-Goals:
+Completed goals for the current preserved payload:
 
-- continue remaining facilities/workflow fixtures;
+- cover every current facilities/workflow model fixture;
 - prioritize layout models;
 - parse and validate before solving;
 - produce diagram-ready normalized outputs.
@@ -988,7 +1029,9 @@ Reopen this phase when additional clean-room Facilities fixtures are added to
 ### Phase 5 — GUI Evolution
 
 Status: all normalized QSBCore model families and direct legacy-file imports are
-routed through the shell; deeper family-specific UX remains pending.
+routed through the shell. Native editors and result surfaces cover the highest-
+priority families, while deeper family-specific UX and final verification of
+the current GUI working-tree checkpoint remain pending.
 
 Implemented in the current shell:
 
@@ -1027,6 +1070,25 @@ Implemented in the current shell:
   Stagecoach, and production/inventory documents, with variant result charts,
   result tables, the common stage/state/action/transition/value policy trace,
   backend context, accessibility values, and Stages/JSON switching.
+- a native Decision Tree inspection over the typed rollback document, with
+  policy cards, node values, branch probabilities, backend context,
+  accessibility values, and Tree/JSON switching.
+- native responsive Decision Analysis presentations for payoff, Bayesian, and
+  zero-sum game solutions, with payoff/posterior tables, information-value
+  metrics, mixed-strategy summaries, accessibility labels, backend context,
+  and JSON fallback.
+- Network graph editing supports dragging node bodies to reposition the
+  UI-only layout while preserving stable node identities and solver semantics;
+  normalized JSON remains unchanged because layout positions are presentation
+  state.
+- Markov now has a native state/matrix editor with dimension-safe mutations,
+  optional initial-distribution controls, transient-horizon editing, shared
+  backend routing, normalized JSON Apply, and stationary/transient solution
+  presentation.
+- a native responsive Queuing analysis for M/M/1 and finite-capacity solution
+  documents, with utilization, flow, congestion, finite-state probabilities,
+  costs, assumptions, backend context, accessibility values, and Metrics/JSON
+  switching.
 
 Goals:
 
@@ -1046,21 +1108,37 @@ GUI milestones:
 4. Solve panel with backend selector: implemented.
 5. Solution JSON viewer: implemented.
 6. Family-specific visualizations: ongoing.
-   - LP tables;
+   - LP tables: implemented;
    - network paths/flows/tours: implemented;
    - forecasting charts: implemented;
    - inventory cost breakdowns: implemented;
    - DP stage tables: implemented;
-   - decision trees;
-   - queue metrics;
+   - decision-analysis tables and decision trees: implemented in the current
+     working-tree checkpoint;
+   - Markov stationary/transient analysis: implemented in the current
+     working-tree checkpoint;
+   - queue metrics: implemented in the current working-tree checkpoint;
    - scheduling Gantt charts: implemented;
-   - facilities layouts: implemented.
+   - facilities layouts: implemented;
+   - facility-location and line-balancing presentations, PERT/CPM, Goal
+     Programming, Acceptance Sampling, Quality Control, Aggregate Planning,
+     MRP, QP/NLP, and richer Simulation presentations: pending, with normalized
+     JSON retained as the supported fallback.
 
 Next priority:
 
-- add decision-tree inspection from the existing typed solution documents;
-- retain the JSON solution view as a fallback and keep all transformations in
-  QSBCore or thin presentation adapters.
+- close the current GUI working-tree checkpoint with
+  `./script/build_and_run.sh --verify`, compact/wide visual checks, interaction
+  checks, and accessibility review;
+- continue compact/wide and accessibility refinement for family-specific
+  editors while retaining JSON as the fallback;
+- add native Decision Analysis data editing where the model contracts support
+  reversible structured input;
+- add a native queue-definition editor once the supported queue contract is
+  sufficiently explicit;
+- choose subsequent family-specific presentations by educational and workflow
+  value rather than attempting to replace the universal JSON surface at once;
+- keep all transformations in QSBCore or thin presentation adapters.
 
 ### Phase 6 — External Solver Integration
 
@@ -1092,7 +1170,7 @@ Potential integrations:
 
 Existing commands should remain stable.
 
-Current commands include:
+Representative stable family-specific commands include:
 
 ```bash
 swift run qsb inspect <file>
@@ -1165,6 +1243,7 @@ swift run qsb validate <file>
 swift run qsb export-json <legacy-file>
 swift run qsb solve <legacy-file> [--backend native|validate|external]
 swift run qsb solve-json <json-file> [--backend native|validate|external]
+```
 
 The normalized-family detector currently tries the existing typed decoders in
 sequence. No ambiguous normalized schemas are known; the sequential approach
@@ -1173,6 +1252,7 @@ performance requirement justifies a change.
 
 Future generic direction:
 
+```bash
 swift run qsb compare-fixture <legacy-file> [--expected <json-or-snapshot>]
 ```
 
@@ -1273,6 +1353,12 @@ Snapshot testing may be useful for stable JSON outputs, but avoid brittle format
 
 Keep docs close to the implementation.
 
+Dedicated family documentation exists for the normalized non-LP families
+represented in the preserved payload. The remaining dedicated documentation
+gaps are an LP/ILP family guide and a consolidated backend architecture guide;
+LP/ILP schema and backend behavior are currently described across
+`docs/NORMALIZED_JSON.md`, this roadmap, and source-level APIs.
+
 Recommended docs:
 
 - `docs/NORMALIZED_JSON.md` for shared JSON conventions;
@@ -1302,13 +1388,16 @@ Each family doc should include:
 
 ## Current Verified Commands and Expected Results
 
-As of 2026-07-16:
+As of 2026-08-31 on the current macOS working tree:
 
 ```bash
 swift test
 ```
 
-passes 118 tests on macOS and in the official Swift 6.0 Linux container.
+passes 179 tests. The earlier 118-test baseline also passed in the official
+Swift 6.0 Linux container, and public CI continues to run the portable-core
+suite unconditionally. This checkpoint does not claim a new full Linux run for
+the later GUI-only additions.
 
 Backend/validation commands:
 
@@ -1536,30 +1625,43 @@ Recommended next tasks for contributors, in order:
 
 1. Read this roadmap and the relevant project documentation before modifying code.
 2. Run `swift test` to establish baseline.
-3. Inspect current solver organization in `QSBCore`.
-4. Keep extending backend metadata beyond LP/ILP and scheduling where it clarifies solver behavior.
-5. Add validation-only paths to additional families.
-6. Add tests for backend selection in more command families.
-7. Use `qsb inventory-fixtures reference/winqsb` to choose the next partially supported family or fixture.
-8. Continue facilities/workflow fixture discovery beyond the current layout baseline.
-9. For each new facilities/layout fixture, implement classification, parsing, validation, JSON export, and only then solving.
-10. Keep the macOS GUI compiling, but do not let GUI refactors block core/CLI progress.
-11. Update the relevant project documentation and this roadmap after each meaningful milestone.
+3. Close the current GUI working-tree checkpoint with
+   `./script/build_and_run.sh --verify`, compact and wide visual checks,
+   interaction checks, and accessibility review.
+4. Preserve normalized JSON as the universal editor, audit, and export fallback
+   while the native surfaces are refined.
+5. Add native Decision Analysis data editing where conversion to and from the
+   existing QSBCore models is reversible.
+6. Add a native queue-definition editor once the supported queue variants and
+   approximation boundaries are explicit in the editing contract.
+7. Choose the next family-specific result surface by educational and workflow
+   value; facility location/line balancing, PERT/CPM, Goal Programming,
+   Acceptance Sampling, Quality Control, Aggregate Planning, MRP, QP/NLP, and
+   Simulation remain candidates.
+8. Treat Phase 6 as a separate checkpoint beginning with LP/MPS export; do not
+   couple legacy parsing to an external solver.
+9. Maintain the current exhaustive fixture classification. There are no partial
+   or unknown entries in the preserved payload; reopen discovery work only when
+   that payload changes.
+10. Update the relevant family documentation and this roadmap after each
+    meaningful milestone.
+11. Finish with `swift test`, `git diff --check`,
+    `git status --short --ignored`, and confirmation that no reference material
+    is staged.
 
 ## Suggested Commit Boundaries
 
 Prefer small commits:
 
-1. Backend type definitions and docs.
-2. LP/ILP backend refactor with no behavior change.
-3. CLI backend flag support.
-4. Validation-only command support.
-5. Facilities fixture classification.
-6. Facilities/layout parser.
-7. Facilities/layout JSON and validation.
-8. Facilities/layout solver or unsupported diagnostic.
-9. GUI wiring if needed.
-10. Documentation and roadmap update.
+1. Network direct-manipulation refinements and tests.
+2. Markov native editor/result surface, tests, and family documentation.
+3. Decision Analysis result surfaces and focused verification.
+4. Queuing result surface, model-envelope coverage, tests, and documentation.
+5. GUI checkpoint visual/accessibility fixes.
+6. Roadmap and workbench documentation synchronization.
+7. A future Decision Analysis or Queuing editor as its own typed-draft change.
+8. Each later family-specific presentation as a separate vertical slice.
+9. LP/MPS export and any external adapter in separate Phase 6 commits.
 
 ## Definition of Done for a New Family or Variant
 

@@ -278,6 +278,14 @@ struct NetworkDraft: Equatable, Sendable {
         if sinkNodeID == id { sinkNodeID = nodes.last?.id }
     }
 
+    /// Updates the UI-only graph position while preserving the node identity
+    /// and all model semantics. Positions are intentionally not exported to
+    /// normalized JSON, so moving a node never changes the solver input.
+    mutating func moveNode(id: UUID, to position: NetworkDraftPosition) {
+        guard let index = nodes.firstIndex(where: { $0.id == id }) else { return }
+        nodes[index].position = position
+    }
+
     mutating func addArc(from: UUID? = nil, to: UUID? = nil, costText: String = "0") -> UUID {
         let arc = NetworkArcDraft(id: UUID(), fromNodeID: from, toNodeID: to, costText: costText)
         arcs.append(arc)

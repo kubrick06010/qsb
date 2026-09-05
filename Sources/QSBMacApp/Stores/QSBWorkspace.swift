@@ -27,6 +27,8 @@ final class QSBWorkspace {
     var assignmentDraft: AssignmentDraft?
     var transportationDraft: TransportationDraft?
     var forecastingDraft: ForecastingDraft?
+    var markovDraft: MarkovDraft?
+    var queuingDraft: QueuingDraft?
     var solutionJSON: String = ""
     var validationJSON: String = ""
     var validationDiagnostics: [ValidationDiagnostic] = []
@@ -73,6 +75,16 @@ final class QSBWorkspace {
         } else {
             self.forecastingDraft = nil
         }
+        if let request = try? MarkovJSON.decodeRequest(from: Data(modelJSON.utf8)) {
+            self.markovDraft = MarkovDraft(request)
+        } else {
+            self.markovDraft = nil
+        }
+        if let envelope = try? QueuingModelJSON.decodeModel(from: Data(modelJSON.utf8)) {
+            self.queuingDraft = QueuingDraft(envelope)
+        } else {
+            self.queuingDraft = nil
+        }
     }
 
     func startNewLinearProgram() {
@@ -83,6 +95,9 @@ final class QSBWorkspace {
         assignmentDraft = nil
         transportationDraft = nil
         forecastingDraft = nil
+        markovDraft = nil
+        queuingDraft = nil
+        queuingDraft = nil
         modelJSON = ""
         modelSource = "New · Linear Programming"
         modelState = .editing
@@ -107,6 +122,8 @@ final class QSBWorkspace {
         assignmentDraft = nil
         transportationDraft = nil
         forecastingDraft = nil
+        markovDraft = nil
+        queuingDraft = nil
         inventoryDraft = .blank(kind)
         modelJSON = ""
         modelSource = "New · Inventory · \(kind.displayName)"
@@ -127,6 +144,8 @@ final class QSBWorkspace {
         assignmentDraft = nil
         transportationDraft = nil
         forecastingDraft = nil
+        markovDraft = nil
+        queuingDraft = nil
         networkDraft = .blank(kind)
         networkFlowDraft = nil
         modelJSON = ""
@@ -148,6 +167,8 @@ final class QSBWorkspace {
         networkDraft = nil
         networkFlowDraft = nil
         transportationDraft = nil
+        markovDraft = nil
+        queuingDraft = nil
         assignmentDraft = .blank()
         prepareNewNetworkModel(source: "New · Network · Assignment", status: "Editing a new Assignment model")
     }
@@ -159,6 +180,8 @@ final class QSBWorkspace {
         networkFlowDraft = nil
         assignmentDraft = nil
         transportationDraft = .blank()
+        markovDraft = nil
+        queuingDraft = nil
         prepareNewNetworkModel(source: "New · Network · Transportation", status: "Editing a new Transportation model")
     }
 
@@ -170,6 +193,8 @@ final class QSBWorkspace {
         assignmentDraft = nil
         transportationDraft = nil
         forecastingDraft = nil
+        markovDraft = nil
+        queuingDraft = nil
         prepareNewNetworkModel(source: "New · Network · Minimum-Cost Transshipment", status: "Editing a new minimum-cost transshipment model")
     }
 
@@ -181,6 +206,8 @@ final class QSBWorkspace {
         assignmentDraft = nil
         transportationDraft = nil
         forecastingDraft = .blank(method)
+        markovDraft = nil
+        queuingDraft = nil
         modelJSON = ""
         modelSource = "New · Forecasting · \(method.displayName)"
         modelState = .editing
@@ -191,6 +218,52 @@ final class QSBWorkspace {
         lastErrorMessage = nil
         lastResultLabel = nil
         status = "Editing a new \(method.displayName) model"
+        selectedPane = .model
+    }
+
+    func startNewMarkov() {
+        lpDraft = nil
+        inventoryDraft = nil
+        networkDraft = nil
+        networkFlowDraft = nil
+        assignmentDraft = nil
+        transportationDraft = nil
+        forecastingDraft = nil
+        markovDraft = .blank()
+        queuingDraft = nil
+        modelJSON = ""
+        modelSource = "New · Markov Analysis"
+        modelState = .editing
+        runState = .notRun
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        lastErrorMessage = nil
+        lastResultLabel = nil
+        status = "Editing a new Markov analysis"
+        selectedPane = .model
+    }
+
+    func startNewQueuing(_ kind: QueuingProblemKind) {
+        lpDraft = nil
+        inventoryDraft = nil
+        networkDraft = nil
+        networkFlowDraft = nil
+        assignmentDraft = nil
+        transportationDraft = nil
+        forecastingDraft = nil
+        markovDraft = nil
+        queuingDraft = .blank(kind)
+        modelJSON = ""
+        modelSource = "New · Queuing · \(kind.displayName)"
+        modelState = .editing
+        runState = .notRun
+        solutionJSON = ""
+        validationJSON = ""
+        validationDiagnostics = []
+        lastErrorMessage = nil
+        lastResultLabel = nil
+        status = "Editing a new \(kind.displayName) model"
         selectedPane = .model
     }
 
@@ -276,6 +349,20 @@ final class QSBWorkspace {
         update(&draft)
         forecastingDraft = draft
         markMatrixDraftEdited(status: "Editing forecasting model")
+    }
+
+    func updateMarkovDraft(_ update: (inout MarkovDraft) -> Void) {
+        guard var draft = markovDraft else { return }
+        update(&draft)
+        markovDraft = draft
+        markMatrixDraftEdited(status: "Editing Markov analysis")
+    }
+
+    func updateQueuingDraft(_ update: (inout QueuingDraft) -> Void) {
+        guard var draft = queuingDraft else { return }
+        update(&draft)
+        queuingDraft = draft
+        markMatrixDraftEdited(status: "Editing queuing model")
     }
 
     func pasteForecastingHistoricalDataFromClipboard() {
@@ -390,6 +477,59 @@ final class QSBWorkspace {
             modelSource = "Normalized JSON · Forecasting"
             modelState = .editing; runState = .notRun; solutionJSON = ""; validationJSON = ""; validationDiagnostics = []; lastErrorMessage = nil
             status = "JSON applied to the Forecasting editor"
+            selectedPane = .model
+        } catch {
+            lastErrorMessage = Self.message(for: error)
+            status = "JSON was not applied: \(lastErrorMessage ?? "Invalid JSON")"
+            selectedPane = .json
+        }
+    }
+
+    func applyMarkovJSONToNativeEditor() {
+        do {
+            markovDraft = MarkovDraft(try MarkovJSON.decodeRequest(from: Data(modelJSON.utf8)))
+            lpDraft = nil
+            inventoryDraft = nil
+            networkDraft = nil
+            networkFlowDraft = nil
+            assignmentDraft = nil
+            transportationDraft = nil
+            forecastingDraft = nil
+            modelSource = "Normalized JSON · Markov Analysis"
+            modelState = .editing
+            runState = .notRun
+            solutionJSON = ""
+            validationJSON = ""
+            validationDiagnostics = []
+            lastErrorMessage = nil
+            status = "JSON applied to the Markov editor"
+            selectedPane = .model
+        } catch {
+            lastErrorMessage = Self.message(for: error)
+            status = "JSON was not applied: \(lastErrorMessage ?? "Invalid JSON")"
+            selectedPane = .json
+        }
+    }
+
+    func applyQueuingJSONToNativeEditor() {
+        do {
+            queuingDraft = QueuingDraft(try QueuingModelJSON.decodeModel(from: Data(modelJSON.utf8)))
+            lpDraft = nil
+            inventoryDraft = nil
+            networkDraft = nil
+            networkFlowDraft = nil
+            assignmentDraft = nil
+            transportationDraft = nil
+            forecastingDraft = nil
+            markovDraft = nil
+            modelSource = "Normalized JSON · Queuing"
+            modelState = .editing
+            runState = .notRun
+            solutionJSON = ""
+            validationJSON = ""
+            validationDiagnostics = []
+            lastErrorMessage = nil
+            status = "JSON applied to the Queuing editor"
             selectedPane = .model
         } catch {
             lastErrorMessage = Self.message(for: error)
@@ -673,7 +813,8 @@ final class QSBWorkspace {
     func solveMarkov() {
         beginSolving()
         do {
-            let request = try MarkovJSON.decodeRequest(from: Data(modelJSON.utf8))
+            let request = try currentMarkovRequest()
+            try syncMarkovDraftToJSON(request)
             guard let solver = MarkovBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
             guard solver.capabilities.solves else { try showMarkovValidationReport(solver.validationReport(for: request)); return }
             let solution = try solver.solve(request)
@@ -769,7 +910,8 @@ final class QSBWorkspace {
     func solveQueuing() {
         beginSolving()
         do {
-            let model = try QueuingModelJSON.decodeModel(from: Data(modelJSON.utf8))
+            let model = try currentQueuingEnvelope()
+            try syncQueuingDraftToJSON(model)
             guard let solver = QueuingBackends.backend(for: selectedBackend) else { showUnavailableExternalBackend(); return }
             guard solver.capabilities.solves else { try showQueuingValidationReport(solver.validationReport(for: model), model: model); return }
             let document = try solver.solve(model)
@@ -813,6 +955,8 @@ final class QSBWorkspace {
             solveInventory()
         } else if forecastingDraft != nil {
             solveForecasting()
+        } else if queuingDraft != nil {
+            solveQueuing()
         } else {
             solveCurrentModel()
         }
@@ -845,7 +989,7 @@ final class QSBWorkspace {
             case .nonlinearProgramming:
                 let model = try NonlinearProgrammingJSON.decodeUncheckedModel(from: data); try showNonlinearProgrammingValidationReport(ValidateOnlyNonlinearProgrammingBackend().validationReport(for: model))
             case .markov:
-                let request = try MarkovJSON.decodeRequest(from: data); try showMarkovValidationReport(ValidateOnlyMarkovBackend().validationReport(for: request))
+                let request = try currentMarkovRequest(); try syncMarkovDraftToJSON(request); try showMarkovValidationReport(ValidateOnlyMarkovBackend().validationReport(for: request))
             case .goalProgramming:
                 let model = try GoalProgrammingJSON.decodeModel(from: data); try showGoalProgrammingValidationReport(ValidateOnlyGoalProgrammingBackend().validationReport(for: model))
             case .projectScheduling:
@@ -861,7 +1005,7 @@ final class QSBWorkspace {
             case .scheduling:
                 let model = try SchedulingModelJSON.decodeModel(from: data); try showSchedulingValidationReport(ValidateOnlySchedulingBackend().validationReport(for: model), model: model)
             case .queuing:
-                let model = try QueuingModelJSON.decodeModel(from: data); try showQueuingValidationReport(ValidateOnlyQueuingBackend().validationReport(for: model), model: model)
+                let model = try currentQueuingEnvelope(); try syncQueuingDraftToJSON(model); try showQueuingValidationReport(ValidateOnlyQueuingBackend().validationReport(for: model), model: model)
             case .unknown:
                 throw CocoaError(.fileReadCorruptFile, userInfo: [NSLocalizedDescriptionKey: "Unsupported normalized model JSON"])
             }
@@ -913,6 +1057,8 @@ final class QSBWorkspace {
         networkFlowDraft = nil
         assignmentDraft = nil
         transportationDraft = nil
+        forecastingDraft = nil
+        markovDraft = nil
         switch sample {
         case .linearProgram:
             modelJSON = SampleModels.linearProgramJSON
@@ -932,6 +1078,8 @@ final class QSBWorkspace {
             modelJSON = SampleModels.payoffAnalysisJSON
         case .decisionTree:
             modelJSON = SampleModels.decisionTreeJSON
+        case .mm1Queue:
+            modelJSON = SampleModels.mm1QueueJSON
         case .simulation:
             modelJSON = SampleModels.simulationJSON
         case .quadraticProgramming:
@@ -958,6 +1106,14 @@ final class QSBWorkspace {
             forecastingDraft = ForecastingDraft(request)
         } else if case .linearTrendForecast = sample {
             forecastingDraft = nil
+        }
+        if case .markov = sample,
+           let request = try? MarkovJSON.decodeRequest(from: Data(modelJSON.utf8)) {
+            markovDraft = MarkovDraft(request)
+        }
+        if case .mm1Queue = sample,
+           let envelope = try? QueuingModelJSON.decodeModel(from: Data(modelJSON.utf8)) {
+            queuingDraft = QueuingDraft(envelope)
         }
         solutionJSON = ""
         validationJSON = ""
@@ -1028,6 +1184,16 @@ final class QSBWorkspace {
                 forecastingDraft = ForecastingDraft(request)
             } else {
                 forecastingDraft = nil
+            }
+            if let request = try? MarkovJSON.decodeRequest(from: normalizedData) {
+                markovDraft = MarkovDraft(request)
+            } else {
+                markovDraft = nil
+            }
+            if let envelope = try? QueuingModelJSON.decodeModel(from: normalizedData) {
+                queuingDraft = QueuingDraft(envelope)
+            } else {
+                queuingDraft = nil
             }
             solutionJSON = ""
             validationJSON = ""
@@ -1127,6 +1293,16 @@ final class QSBWorkspace {
         return try ForecastingModelJSON.decodeRequest(from: Data(modelJSON.utf8))
     }
 
+    private func currentMarkovRequest() throws -> MarkovAnalysisRequest {
+        if let markovDraft { return try markovDraft.makeRequest() }
+        return try MarkovJSON.decodeRequest(from: Data(modelJSON.utf8))
+    }
+
+    private func currentQueuingEnvelope() throws -> QueuingModelEnvelope {
+        if let queuingDraft { return try queuingDraft.makeModel() }
+        return try QueuingModelJSON.decodeModel(from: Data(modelJSON.utf8))
+    }
+
     private func syncInventoryDraftToJSON(_ model: InventoryModelEnvelope) throws {
         guard inventoryDraft != nil else { return }
         modelJSON = String(decoding: try InventoryModelJSON.encodeModel(model), as: UTF8.self)
@@ -1151,6 +1327,16 @@ final class QSBWorkspace {
     private func syncForecastingDraftToJSON(_ request: ForecastingRequest) throws {
         guard forecastingDraft != nil else { return }
         modelJSON = String(decoding: try ForecastingModelJSON.encodeRequest(request), as: UTF8.self)
+    }
+
+    private func syncMarkovDraftToJSON(_ request: MarkovAnalysisRequest) throws {
+        guard markovDraft != nil else { return }
+        modelJSON = String(decoding: try MarkovJSON.encodeRequest(request), as: UTF8.self)
+    }
+
+    private func syncQueuingDraftToJSON(_ model: QueuingModelEnvelope) throws {
+        guard queuingDraft != nil else { return }
+        modelJSON = String(decoding: try QueuingModelJSON.encodeModel(model), as: UTF8.self)
     }
 
     private func validateExtendedModel(_ data: Data) throws {
@@ -1371,6 +1557,7 @@ final class QSBWorkspace {
             return .network
         }
         if let forecastingDraft { return .forecasting(forecastingDraft.method) }
+        if markovDraft != nil { return .markov }
         let data = Data(modelJSON.utf8)
         if (try? LinearProgramJSON.decodeProgram(from: data)) != nil {
             return .linearProgramming
@@ -1411,7 +1598,7 @@ final class QSBWorkspace {
     }
 
     var hasModel: Bool {
-        lpDraft != nil || inventoryDraft != nil || networkDraft != nil || networkFlowDraft != nil || assignmentDraft != nil || transportationDraft != nil || forecastingDraft != nil || !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        lpDraft != nil || inventoryDraft != nil || networkDraft != nil || networkFlowDraft != nil || assignmentDraft != nil || transportationDraft != nil || forecastingDraft != nil || markovDraft != nil || !modelJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var hasSolution: Bool {
@@ -1445,6 +1632,9 @@ final class QSBWorkspace {
         }
         if let transportationDraft, !transportationDraft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return transportationDraft.title
+        }
+        if let markovDraft, !markovDraft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return markovDraft.title
         }
         return hasModel ? currentModelFamily.displayName : "No model open"
     }
@@ -1591,6 +1781,14 @@ final class QSBWorkspace {
         try? DecisionAnalysisModelJSON.decodeSolutionDocument(
             from: Data(solutionJSON.utf8)
         )
+    }
+
+    var queuingSolution: QueuingSolutionDocument? {
+        try? QueuingModelJSON.decodeSolution(from: Data(solutionJSON.utf8))
+    }
+
+    var markovSolution: MarkovSolutionDocument? {
+        try? MarkovJSON.decodeSolution(from: Data(solutionJSON.utf8))
     }
 
     var facilityLayoutPresentation: FacilityLayoutPresentation? {

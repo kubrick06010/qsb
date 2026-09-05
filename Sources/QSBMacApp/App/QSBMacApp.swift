@@ -96,6 +96,11 @@ struct QSBMacApp: App {
                     workspace.loadSample(.facilityLayout)
                 }
                 .keyboardShortcut("4", modifiers: [.command])
+
+                Button("Load M/M/1 Queue Sample") {
+                    workspace.loadSample(.mm1Queue)
+                }
+                .keyboardShortcut("5", modifiers: [.command])
             }
         }
     }

@@ -56,3 +56,14 @@ qsb validate-markov-json markov.json
 `MarkovBackend` exposes `nativeEducational` and `validateOnly`; the
 `externalHighPerformance` slot remains available for future sparse or large
 state-space integrations.
+
+## macOS workbench
+
+The macOS workbench provides a native Markov editor for state names, state
+costs, optional initial probabilities, transition probabilities, and the
+transient-analysis horizon. State and matrix mutations are dimension-safe,
+while invalid text remains visible until validation. The editor converts to
+`MarkovAnalysisRequest`, uses the same `MarkovBackend` as the CLI, and keeps
+normalized JSON as an explicit Apply/fallback path. Solved models show the
+stationary distribution, transient propagation, expected costs, assumptions,
+and backend metadata.

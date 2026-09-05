@@ -33,6 +33,7 @@ struct NetworkEditorView: View {
                             selectedArcID: selectedArcID,
                             onSelectNode: selectNode,
                             onSelectArc: selectArc,
+                            onMoveNode: moveNode,
                             onEditArc: beginInlineArcEdit,
                             onCreateNode: createNode,
                             onFastConnect: fastConnect,
@@ -370,6 +371,24 @@ struct NetworkEditorView: View {
         focusedField = nil
     }
 
+    private func moveNode(_ id: UUID, to point: CGPoint, in size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        workspace.updateNetworkDraft { draft in
+            draft.moveNode(
+                id: id,
+                to: NetworkDraftPosition(
+                    x: min(max(Double(point.x / size.width), 0.06), 0.94),
+                    y: min(max(Double(point.y / size.height), 0.08), 0.92)
+                )
+            )
+        }
+        selectedNodeID = id
+        selectedArcID = nil
+        canvasInteracted = true
+        gestureFeedback = nil
+        focusedField = nil
+    }
+
     private func fastConnect(to destination: UUID) {
         canvasInteracted = true
         guard let source = selectedNodeID else { return }
@@ -455,6 +474,7 @@ private struct NetworkGraphCanvas: View {
     let selectedArcID: UUID?
     let onSelectNode: (UUID) -> Void
     let onSelectArc: (UUID) -> Void
+    let onMoveNode: (UUID, CGPoint, CGSize) -> Void
     let onEditArc: (UUID) -> Void
     let onCreateNode: (CGPoint, CGSize) -> Void
     let onFastConnect: (UUID) -> Void
@@ -538,7 +558,7 @@ private struct NetworkGraphCanvas: View {
                 }
                 ForEach(draft.nodes) { node in
                     if let point = points[node.id] {
-                        graphNodeButton(node, at: point)
+                        graphNodeButton(node, at: point, in: canvasSize)
                         if selectedNodeID == node.id {
                             connectionHandle(node, at: point, in: canvasSize, points: points)
                         }
@@ -566,7 +586,7 @@ private struct NetworkGraphCanvas: View {
             return true
         }
         if let selectedNodeID, let source = points[selectedNodeID] {
-            let handle = CGPoint(x: min(max(source.x + 30, 14), size.width - 14), y: min(max(source.y - 26, 14), size.height - 14))
+            let handle = connectionHandlePoint(for: source, in: size)
             if distance(from: handle, to: location) <= 11 { return true }
         }
         return draft.arcs.contains { arc in
@@ -585,7 +605,7 @@ private struct NetworkGraphCanvas: View {
         return distance(from: closest, to: point)
     }
 
-    private func graphNodeButton(_ node: NetworkNodeDraft, at point: CGPoint) -> some View {
+    private func graphNodeButton(_ node: NetworkNodeDraft, at point: CGPoint, in size: CGSize) -> some View {
         let label = node.name.isEmpty ? "?" : node.name
         let selected = selectedNodeID == node.id
         let hovered = hoveredNodeID == node.id
@@ -604,6 +624,13 @@ private struct NetworkGraphCanvas: View {
         .buttonStyle(.plain)
         .frame(width: 52, height: 42)
         .contentShape(Circle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 4, coordinateSpace: .named("networkCanvas"))
+                .onChanged { value in
+                    onSelectNode(node.id)
+                    onMoveNode(node.id, value.location, size)
+                }
+        )
         .highPriorityGesture(
             TapGesture().modifiers(.control).onEnded {
                 onFastConnect(node.id)
@@ -616,8 +643,8 @@ private struct NetworkGraphCanvas: View {
         .zIndex(4)
         .accessibilityLabel("Graph node \(label)")
         .accessibilityIdentifier("network-graph-node-\(node.id.uuidString)")
-        .accessibilityHint(selected ? "Selected source node. Control-click another node to create an arc." : "Click to select. Control-click another node to create an arc.")
-        .help(selected ? "Selected source node. Control-click another node to create an arc." : "Click to select. Control-click another node to create an arc.")
+        .accessibilityHint(selected ? "Selected source node. Drag to reposition. Control-click another node to create an arc." : "Click to select. Drag to reposition. Control-click another node to create an arc.")
+        .help(selected ? "Selected source node. Drag to reposition. Control-click another node to create an arc." : "Click to select. Drag to reposition. Control-click another node to create an arc.")
     }
 
     private func connectionHandle(
@@ -641,8 +668,7 @@ private struct NetworkGraphCanvas: View {
         .overlay(Circle().stroke(Color.accentColor.opacity(active ? 0.9 : 0.55), lineWidth: active ? 2 : 1))
         .scaleEffect(target ? 1.08 : 1)
         .position(
-            x: min(max(point.x + 30, 14), size.width - 14),
-            y: min(max(point.y - 26, 14), size.height - 14)
+            connectionHandlePoint(for: point, in: size)
         )
         .contentShape(Circle())
         .zIndex(5)
@@ -673,6 +699,18 @@ private struct NetworkGraphCanvas: View {
         .accessibilityLabel("Connect from \(node.name.isEmpty ? "node" : node.name)")
         .accessibilityHint("Drag to another node to create an arc.")
         .help(handleHelp)
+    }
+
+    private func connectionHandlePoint(for point: CGPoint, in size: CGSize) -> CGPoint {
+        // GeometryReader can briefly report a very small size while a split
+        // view is collapsing. Keep the clamp bounds ordered so SwiftUI never
+        // receives a negative position during that transition.
+        let width = max(size.width, 28)
+        let height = max(size.height, 28)
+        return CGPoint(
+            x: min(max(point.x + 30, 14), width - 14),
+            y: min(max(point.y - 26, 14), height - 14)
+        )
     }
 
     private func destinationID(at location: CGPoint, excluding sourceID: UUID, points: [UUID: CGPoint]) -> UUID? {

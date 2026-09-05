@@ -239,6 +239,17 @@ struct JSONRepresentationView: View {
                 }
             }
             .padding(.horizontal, 12)
+        } else if !solution && workspace.isMarkovModel {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Markov editor.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Markov Editor") {
+                    workspace.applyMarkovJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
         }
     }
 }

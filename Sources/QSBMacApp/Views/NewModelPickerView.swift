@@ -7,6 +7,7 @@ private enum NewModelFamily: String, CaseIterable, Identifiable {
     case inventory
     case networks
     case forecasting
+    case analysis
 
     var id: String { rawValue }
 
@@ -17,6 +18,7 @@ private enum NewModelFamily: String, CaseIterable, Identifiable {
         case .inventory: "Inventory"
         case .networks: "Networks"
         case .forecasting: "Forecasting"
+        case .analysis: "Decision & Markov Analysis"
         }
     }
 
@@ -27,6 +29,7 @@ private enum NewModelFamily: String, CaseIterable, Identifiable {
         case .inventory: "shippingbox"
         case .networks: "point.3.connected.trianglepath.dotted"
         case .forecasting: "chart.xyaxis.line"
+        case .analysis: "point.3.connected.trianglepath.dotted"
         }
     }
 
@@ -36,6 +39,7 @@ private enum NewModelFamily: String, CaseIterable, Identifiable {
         case .inventory: .green
         case .networks: .purple
         case .forecasting: .orange
+        case .analysis: .blue
         }
     }
 }
@@ -48,6 +52,7 @@ private enum NewModelCreationAction: Hashable {
     case transportation
     case minimumCostTransshipment
     case forecasting(ForecastingMethod)
+    case markov
 }
 
 private struct NewModelTemplate: Identifiable {
@@ -167,6 +172,8 @@ struct NewModelPickerView: View {
             workspace.startNewNetworkFlow()
         case .forecasting(let method):
             workspace.startNewForecasting(method)
+        case .markov:
+            workspace.startNewMarkov()
         }
         dismiss()
     }
@@ -203,7 +210,12 @@ struct NewModelPickerView: View {
                 description: Self.forecastingDescription(for: method), systemImage: "chart.xyaxis.line", action: .forecasting(method)
             )
         }
-        return [linear] + inventory + networks + additionalNetworks + forecasting
+        let markov = NewModelTemplate(
+            id: "markov-analysis", family: .analysis, title: "Markov Analysis",
+            description: "Edit states, transition probabilities, costs, and transient periods.",
+            systemImage: "point.3.connected.trianglepath.dotted", action: .markov
+        )
+        return [linear] + inventory + networks + additionalNetworks + forecasting + [markov]
     }
 
     private static func inventoryDescription(for kind: InventoryProblemKind) -> String {

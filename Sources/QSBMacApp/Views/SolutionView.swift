@@ -80,13 +80,38 @@ struct SolutionView: View {
                 case .json:
                     solutionEditor
                 }
-            } else if let decisionAnalysisSolution = workspace.decisionAnalysisSolution,
-                      case .decisionTree = decisionAnalysisSolution.solution {
-                presentationPicker(visualLabel: "Tree", systemImage: "point.3.connected.trianglepath.dotted")
+            } else if let decisionAnalysisSolution = workspace.decisionAnalysisSolution {
+                let isDecisionTree: Bool = {
+                    if case .decisionTree = decisionAnalysisSolution.solution { return true }
+                    return false
+                }()
+                presentationPicker(visualLabel: isDecisionTree ? "Tree" : "Analysis", systemImage: isDecisionTree ? "point.3.connected.trianglepath.dotted" : "tablecells")
 
                 switch presentation {
                 case .visual:
-                    DecisionTreeSolutionView(document: decisionAnalysisSolution)
+                    if isDecisionTree {
+                        DecisionTreeSolutionView(document: decisionAnalysisSolution)
+                    } else {
+                        DecisionAnalysisSolutionView(document: decisionAnalysisSolution)
+                    }
+                case .json:
+                    solutionEditor
+                }
+            } else if let queuingSolution = workspace.queuingSolution {
+                presentationPicker(visualLabel: "Metrics", systemImage: "person.2.wave.2")
+
+                switch presentation {
+                case .visual:
+                    QueuingSolutionView(document: queuingSolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let markovSolution = workspace.markovSolution {
+                presentationPicker(visualLabel: "Analysis", systemImage: "point.3.connected.trianglepath.dotted")
+
+                switch presentation {
+                case .visual:
+                    MarkovSolutionView(document: markovSolution)
                 case .json:
                     solutionEditor
                 }

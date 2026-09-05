@@ -64,6 +64,9 @@ struct ContentView: View {
                     Button("Decision Tree Sample") {
                         workspace.loadSample(.decisionTree)
                     }
+                    Button("M/M/1 Queue Sample") {
+                        workspace.loadSample(.mm1Queue)
+                    }
                     Button("Simulation Sample") {
                         workspace.loadSample(.simulation)
                     }

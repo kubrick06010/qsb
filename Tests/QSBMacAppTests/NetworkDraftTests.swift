@@ -102,6 +102,18 @@ func networkDraftPositionedNodeCreationIsUnique() throws {
     #expect(secondNode.position == NetworkDraftPosition(x: 0.8, y: 0.7))
 }
 
+@Test("moving a node changes only its UI position and preserves model semantics")
+func networkDraftNodeMovementPreservesModel() throws {
+    var draft = NetworkDraft.blank(.shortestPath)
+    let nodeID = try #require(draft.nodes.first?.id)
+    let originalModel = try draft.makeNetworkModel()
+
+    draft.moveNode(id: nodeID, to: NetworkDraftPosition(x: 0.12, y: 0.84))
+
+    #expect(draft.nodes.first?.position == NetworkDraftPosition(x: 0.12, y: 0.84))
+    #expect(try draft.makeNetworkModel() == originalModel)
+}
+
 @Test("fast connection creates one arc and rejects duplicate destinations")
 func networkDraftFastConnectionIsDuplicateSafe() throws {
     var draft = NetworkDraft.blank(.shortestPath)

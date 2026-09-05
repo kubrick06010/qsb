@@ -87,8 +87,8 @@ cost.total: 339.093837
 ## Validation
 
 `MM1QueueValidator` and `FiniteCapacityQueueValidator` return shared
-`ValidationDiagnostic` values suitable for the CLI, tests, and future GUI
-views. Current diagnostics cover:
+`ValidationDiagnostic` values suitable for the CLI, tests, and GUI views.
+Current diagnostics cover:
 
 - finite positive arrival/service timing inputs;
 - M/M/1 steady-state stability (`arrivalRate < serviceRate`);
@@ -116,3 +116,21 @@ Both JSON commands emit a `QueuingSolutionDocument` containing:
   L, Lq, customers being served, W, and Wq;
 - state probabilities where the finite-state model provides them;
 - a normalized optional cost breakdown.
+
+## macOS Workbench Metrics
+
+QSBMacApp decodes the same `QueuingSolutionDocument` emitted by the shared
+backend and presents a native Metrics/JSON solution surface for both supported
+queue variants.
+
+- M/M/1 and finite-capacity results show utilization, arrival and effective
+  throughput, service capacity, blocking, customer counts, and waiting times.
+- Finite-capacity results include an accessible state-probability chart with
+  the full-system state distinguished from the remaining states.
+- Optional server, waiting, service, blocked-customer, and capacity costs are
+  presented as a component breakdown with the total cost per time unit.
+- Assumptions, backend algorithm, exactness, and notes remain visible beside
+  the domain metrics; normalized solution JSON remains available as the audit
+  and export representation.
+- The Samples menu includes a runnable M/M/1 model for exercising the complete
+  workbench route without requiring a local legacy fixture.

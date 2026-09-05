@@ -243,6 +243,7 @@ enum SampleModel {
     case linearTrendForecast
     case payoffAnalysis
     case decisionTree
+    case mm1Queue
     case simulation
     case quadraticProgramming
     case nonlinearProgramming
@@ -260,6 +261,7 @@ enum SampleModel {
         case .linearTrendForecast: "Linear Trend Forecast"
         case .payoffAnalysis: "Payoff Analysis"
         case .decisionTree: "Decision Tree"
+        case .mm1Queue: "M/M/1 Queue"
         case .simulation: "Simulation"
         case .quadraticProgramming: "Quadratic Programming"
         case .nonlinearProgramming: "Nonlinear Programming"

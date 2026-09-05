@@ -386,6 +386,22 @@ enum SampleModels {
     }
     """
 
+    static let mm1QueueJSON = """
+    {
+      "kind" : "mm1",
+      "model" : {
+        "arrivalRate" : 2,
+        "busyServerCostPerTime" : 40,
+        "customerBeingServedCostPerTime" : 20,
+        "customerWaitingCostPerTime" : 100,
+        "idleServerCostPerTime" : 15,
+        "serviceRate" : 3,
+        "timeUnit" : "hour",
+        "title" : "Service Desk Queue"
+      }
+    }
+    """
+
     static let simulationJSON = """
     {
       "components" : [

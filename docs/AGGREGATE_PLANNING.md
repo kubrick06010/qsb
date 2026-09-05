@@ -12,6 +12,11 @@ inventory/backorder, regular time, overtime, subcontracting, and optional
 workforce/hiring/dismissal balances. It delegates that program through the
 shared `LinearProgrammingBackend` seam.
 
+Legacy row labels must be unique after trimming surrounding whitespace and
+ignoring case. Duplicate labels return an explicit parser error, including when
+their values agree. Period counts exceeding the supplied header are rejected
+before allocating period vectors.
+
 ## CLI
 
 ```text

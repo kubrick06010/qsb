@@ -136,6 +136,10 @@ totalCost: 907.500000
 
 ## Stochastic Review Systems
 
+Legacy parameter labels must be unique after trimming surrounding whitespace
+and ignoring case. Duplicate labels return an explicit parser error rather than
+terminating the process. Repeated `(Not used)` placeholder rows remain ignored.
+
 The preserved modes 4 through 7 are supported:
 
 - `CRSQ.IT_`: continuous review fixed-order-quantity `(Q,r)`;

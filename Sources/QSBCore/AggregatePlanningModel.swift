@@ -160,13 +160,18 @@ public enum WinQSBAggregatePlanningParser {
               rows[1].count >= 4,
               let periodCount = Int(rows[1][0]),
               periodCount > 0,
-              rows[3].count >= periodCount + 1 else {
+              periodCount < rows[3].count else {
             throw AggregatePlanningError.unsupportedFormat
         }
 
-        let table = Dictionary(uniqueKeysWithValues: rows.dropFirst(4).map { row in
-            (row[0].trimmingCharacters(in: .whitespacesAndNewlines), Array(row.dropFirst()))
-        })
+        var table: [String: [String]] = [:]
+        for row in rows.dropFirst(4) {
+            let label = row[0].trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard table[label] == nil else {
+                throw AggregatePlanningError.invalidModel("Duplicate row '\(label)'")
+            }
+            table[label] = Array(row.dropFirst())
+        }
         let names = Array(rows[3].dropFirst().prefix(periodCount))
         let workforceUnit = rows[1][1]
         let capacityUnit = rows[1][2]

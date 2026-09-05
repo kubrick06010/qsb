@@ -214,7 +214,14 @@ public extension WinQSBInventoryParser {
         guard let text = data.legacyLatin1String else { throw InventoryModelError.unsupportedFormat }
         let rows = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n").split(separator: "\n", omittingEmptySubsequences: true).map { $0.split(separator: "\t", omittingEmptySubsequences: false).map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) } }
         guard let metadata = rows.first, metadata.count >= 5, metadata[0] == "ITS", let mode = Int(metadata[3]), (4...7).contains(mode) else { throw InventoryModelError.unsupportedFormat }
-        let entries = Dictionary(uniqueKeysWithValues: rows.dropFirst(2).filter { $0.count >= 2 && !$0[0].hasPrefix("(Not used)") }.map { ($0[0].lowercased(), $0[1]) })
+        var entries: [String: String] = [:]
+        for row in rows.dropFirst(2) where row.count >= 2 && !row[0].hasPrefix("(Not used)") {
+            let label = row[0].lowercased()
+            guard entries[label] == nil else {
+                throw InventoryModelError.invalidModel("Duplicate row '\(label)'")
+            }
+            entries[label] = row[1]
+        }
         func required(_ key: String) throws -> Double { guard let raw = entries[key], let value = Double(raw), value.isFinite else { throw InventoryModelError.invalidNumericValue(entries[key] ?? key) }; return value }
         func optional(_ key: String) throws -> Double? { guard let raw = entries[key], !raw.isEmpty, raw.lowercased() != "m" else { return nil }; guard let value = Double(raw), value.isFinite else { throw InventoryModelError.invalidNumericValue(raw) }; return value }
         let policy: StochasticInventoryPolicy = switch mode {

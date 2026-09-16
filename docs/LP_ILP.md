@@ -55,6 +55,21 @@ historical defaults, so older normalized files continue to load.  MPS names
 are sanitized deterministically for solver compatibility; the native JSON
 names are never changed.
 
+The exporter reserves the objective row name and resolves sanitized row/column
+name collisions deterministically. Numeric fields preserve finite `Double`
+values on decimal round trip, including very small coefficients and values
+outside the platform integer range; no solver tolerance is applied during
+export. General integer variables without an upper bound receive an explicit
+infinite upper bound, avoiding readers that otherwise interpret integer markers
+as binary bounds. Continuous and general integer lower bounds are explicit,
+including zero.
+
+These interchange cases run in the portable test suite without legacy fixtures
+or an installed solver. External-engine acceptance and solution comparisons
+remain a separate integration checkpoint. See the
+[MPS integrality and bounds reference](https://docs.gurobi.com/projects/optimizer/en/current/reference/fileformats/modelformats.html)
+for the marker defaults this export makes explicit.
+
 Known limitations are intentionally explicit: no presolve/cuts, no large-scale
 numerical guarantees, no quadratic terms in the LP exporter, and no automatic
 external-solver discovery beyond the host's own command environment.

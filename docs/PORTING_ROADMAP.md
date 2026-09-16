@@ -1142,7 +1142,17 @@ Next priority:
 
 ### Phase 6 — External Solver Integration
 
-Status: future.
+Status: export boundary implemented; external solver adapter pending.
+
+Export checkpoint verified on 2026-09-16:
+
+- `LinearProgramMPSExporter` and `qsb export-mps` accept validated LP/ILP models
+  from legacy or normalized JSON inputs;
+- portable regression tests cover numeric preservation, objective-row and
+  sanitized-name collisions, explicit integer bounds, and invalid input;
+- export does not change native JSON names or require an installed solver;
+- external parsing and solution comparison remain unverified on this host:
+  `highs`, `glpsol`, and `cbc` are not available on `PATH`.
 
 Goals:
 
@@ -1152,7 +1162,7 @@ Goals:
 
 Candidate sequence:
 
-1. Add LP/MPS export for LP/ILP.
+1. Free MPS export for LP/ILP: implemented and covered by portable tests.
 2. Add a command-line external solver adapter if available locally.
 3. Parse external solution output back into structured solution models.
 4. Add backend metadata and warnings.
@@ -1638,8 +1648,9 @@ Recommended next tasks for contributors, in order:
    value; facility location/line balancing, PERT/CPM, Goal Programming,
    Acceptance Sampling, Quality Control, Aggregate Planning, MRP, QP/NLP, and
    Simulation remain candidates.
-8. Treat Phase 6 as a separate checkpoint beginning with LP/MPS export; do not
-   couple legacy parsing to an external solver.
+8. Continue Phase 6 from the verified MPS export boundary with an optional
+   external adapter and engine-backed interchange tests; do not couple legacy
+   parsing to an external solver.
 9. Maintain the current exhaustive fixture classification. There are no partial
    or unknown entries in the preserved payload; reopen discovery work only when
    that payload changes.

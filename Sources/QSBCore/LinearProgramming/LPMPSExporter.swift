@@ -11,8 +11,8 @@ public enum LinearProgramMPSExporter {
         try LinearProgramValidator.validate(program)
 
         let variableNames = uniqueNames(program.variableNames, prefix: "V")
-        let constraintNames = uniqueNames(program.constraints.map(\.name), prefix: "C")
         let objectiveName = "OBJ"
+        let constraintNames = uniqueNames(program.constraints.map(\.name), prefix: "C", reserved: [objectiveName])
 
         var lines: [String] = []
         lines.append("NAME          \(safeName(program.title, fallback: "QSB"))")
@@ -90,16 +90,22 @@ public enum LinearProgramMPSExporter {
                 if lower > 0 { lines.append(" LO BND1  \(variable)  \(number(lower))") }
                 if let upper, upper < 1 { lines.append(" UP BND1  \(variable)  \(number(upper))") }
             case .continuous, .integer:
-                if lower != 0 { lines.append(" LO BND1  \(variable)  \(number(lower))") }
-                if let upper { lines.append(" UP BND1  \(variable)  \(number(upper))") }
+                lines.append(" LO BND1  \(variable)  \(number(lower))")
+                if let upper {
+                    lines.append(" UP BND1  \(variable)  \(number(upper))")
+                } else if program.variableTypes[index] == .integer {
+                    // Some MPS readers default marker-defined integers to [0, 1].
+                    // Explicit infinity preserves general integer variables.
+                    lines.append(" PL BND1  \(variable)")
+                }
             }
         }
         lines.append("ENDATA")
         return lines.joined(separator: "\n") + "\n"
     }
 
-    private static func uniqueNames(_ source: [String], prefix: String) -> [String] {
-        var used = Set<String>()
+    private static func uniqueNames(_ source: [String], prefix: String, reserved: Set<String> = []) -> [String] {
+        var used = reserved
         return source.enumerated().map { index, raw in
             var candidate = safeName(raw, fallback: "\(prefix)\(index + 1)")
             if candidate.isEmpty { candidate = "\(prefix)\(index + 1)" }
@@ -123,7 +129,9 @@ public enum LinearProgramMPSExporter {
     }
 
     private static func number(_ value: Double) -> String {
-        if abs(value.rounded() - value) < 1e-12 { return String(Int(value.rounded())) }
-        return String(format: "%.12g", value)
+        // Export is lossless interchange: solver tolerances must not round small
+        // coefficients to zero, and finite Doubles can exceed the Int range.
+        if let integer = Int(exactly: value) { return String(integer) }
+        return String(value)
     }
 }

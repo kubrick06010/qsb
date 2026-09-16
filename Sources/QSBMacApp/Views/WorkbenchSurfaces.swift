@@ -116,9 +116,11 @@ struct RunConfigurationView: View {
                         Text("Pairwise swap").tag(FacilityLayoutSolvingStrategy.pairwiseSwap)
                     }
                 }
-                Text("External solver integration is not configured in this build.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                if workspace.selectedBackend == .externalHighPerformance {
+                    Text(workspace.externalBackendSummary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
                 if let error = workspace.lastErrorMessage {
                     Label(error, systemImage: "exclamationmark.octagon.fill")
                         .foregroundStyle(.red)

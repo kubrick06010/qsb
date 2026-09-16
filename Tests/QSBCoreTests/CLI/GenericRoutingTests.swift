@@ -12,8 +12,12 @@ struct GenericRoutingTests {
     }
 
     @Test("generic solve rejects unavailable external backends explicitly")
-    func rejectsUnavailableExternalBackend() {
-        #expect(throws: QSBCLI.GenericRoutingError.self) {
+    func rejectsUnavailableExternalBackend() throws {
+        if HiGHSExecutableLocator.locate() == nil {
+            #expect(throws: QSBCLI.GenericRoutingError.self) {
+                try QSBCLI.genericSolve(path: legacyFixtureURL("LP.LP_").path, backend: .externalHighPerformance)
+            }
+        } else {
             try QSBCLI.genericSolve(path: legacyFixtureURL("LP.LP_").path, backend: .externalHighPerformance)
         }
     }

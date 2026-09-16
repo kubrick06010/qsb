@@ -8,6 +8,9 @@ public enum LinearProgramError: Error, CustomStringConvertible {
     case unsupportedModel(String)
     case infeasible
     case unbounded
+    case externalSolverUnavailable(String)
+    case externalSolverFailed(String)
+    case externalSolverMalformedOutput(String)
 
     public var description: String {
         switch self {
@@ -27,7 +30,12 @@ public enum LinearProgramError: Error, CustomStringConvertible {
             "Linear program is infeasible"
         case .unbounded:
             "Linear program is unbounded"
+        case .externalSolverUnavailable(let detail):
+            "External linear-programming solver unavailable: \(detail)"
+        case .externalSolverFailed(let detail):
+            "External linear-programming solver failed: \(detail)"
+        case .externalSolverMalformedOutput(let detail):
+            "External linear-programming solver returned malformed output: \(detail)"
         }
     }
 }
-

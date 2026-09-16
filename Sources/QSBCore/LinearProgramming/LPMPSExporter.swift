@@ -7,10 +7,14 @@ import Foundation
 /// this text to a file and hand it to CBC, HiGHS, GLPK, or another compatible
 /// command-line solver when one is installed.
 public enum LinearProgramMPSExporter {
+    static func variableNames(for program: LinearProgram) -> [String] {
+        uniqueNames(program.variableNames, prefix: "V")
+    }
+
     public static func export(_ program: LinearProgram) throws -> String {
         try LinearProgramValidator.validate(program)
 
-        let variableNames = uniqueNames(program.variableNames, prefix: "V")
+        let variableNames = variableNames(for: program)
         let objectiveName = "OBJ"
         let constraintNames = uniqueNames(program.constraints.map(\.name), prefix: "C", reserved: [objectiveName])
 

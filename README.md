@@ -48,6 +48,11 @@ normalized JSON, and family-specific backend layers. Family-specific commands
 remain available as stable shortcuts for established workflows. See the
 [porting roadmap](docs/PORTING_ROADMAP.md) for the broader command inventory.
 
+For LP and MIP models, `--backend external` selects the optional open-source
+HiGHS adapter when a host-provided `highs` executable is discoverable through
+`QSB_HIGHS_PATH` or `PATH`. QSB does not bundle solver binaries; see
+[docs/BACKENDS.md](docs/BACKENDS.md) for setup and scope.
+
 Legacy WinQSB fixtures are local-only and are not required for the portable
 core tests. When present locally, they can be used with the commands above.
 

@@ -546,7 +546,7 @@ Recommended terminology:
 | --- | --- | --- |
 | `nativeEducational` | QSB Native | algorithm, exactness, assumptions, scale |
 | `validateOnly` | Validate only | no solution will be produced |
-| `externalHighPerformance` | External solver | Future / unavailable until configured |
+| `externalHighPerformance` | External solver | HiGHS for LP/MIP when `QSB_HIGHS_PATH` or `PATH` provides it; unavailable for other families |
 
 The inspector should show supported capabilities before running. An
 unavailable external backend should be selectable only as an explicit advanced
@@ -713,7 +713,8 @@ add a second toggle.
 ## Deliberately deferred
 
 - no QSBCore, solver, backend, CLI, or JSON redesign;
-- no external solver integration;
+- no additional external solver integration for non-LP families or direct
+  library linkage;
 - no conversion of the LP mock into a production editor;
 - no universal mathematical editor abstraction;
 - no pixel-perfect WinQSB imitation;

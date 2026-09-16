@@ -94,8 +94,7 @@ public enum LinearProgrammingBackends {
         case .validateOnly:
             ValidateOnlyLinearProgrammingBackend()
         case .externalHighPerformance:
-            nil
+            HiGHSLinearProgrammingBackend.discovered()
         }
     }
 }
-

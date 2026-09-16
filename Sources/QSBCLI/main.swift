@@ -58,13 +58,13 @@ struct QSBCLI {
         case "solve-lp":
             let options = try parsePathAndBackend(
                 arguments,
-                usage: "solve-lp expects a legacy LP file path and optional --backend native|validate"
+                usage: "solve-lp expects a legacy LP file path and optional --backend native|validate|external"
             )
             try solveLP(path: options.path, backend: options.backend)
         case "solve-ilp":
             let options = try parsePathAndBackend(
                 arguments,
-                usage: "solve-ilp expects a legacy LP file path and optional --backend native|validate"
+                usage: "solve-ilp expects a legacy LP file path and optional --backend native|validate|external"
             )
             try solveILP(path: options.path, backend: options.backend)
         case "validate-lp":
@@ -96,13 +96,13 @@ struct QSBCLI {
         case "solve-json":
             let options = try parsePathAndBackend(
                 arguments,
-                usage: "solve-json expects a model JSON file path and optional --backend native|validate"
+                usage: "solve-json expects a model JSON file path and optional --backend native|validate|external"
             )
             try genericSolveJSON(path: options.path, backend: options.backend)
         case "solve-json-ilp":
             let options = try parsePathAndBackend(
                 arguments,
-                usage: "solve-json-ilp expects a model JSON file path and optional --backend native|validate"
+                usage: "solve-json-ilp expects a model JSON file path and optional --backend native|validate|external"
             )
             try solveJSON(path: options.path, integer: true, backend: options.backend)
         case "validate-json":

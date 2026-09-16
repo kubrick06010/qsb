@@ -249,7 +249,10 @@ import Testing
 
     let selectedBackend = try #require(LinearProgrammingBackends.backend(for: .nativeEducational))
     #expect(selectedBackend.capabilities.backendKind == .nativeEducational)
-    #expect(LinearProgrammingBackends.backend(for: .externalHighPerformance) == nil)
+    if let externalBackend = LinearProgrammingBackends.backend(for: .externalHighPerformance) {
+        #expect(externalBackend.capabilities.backendKind == .externalHighPerformance)
+        #expect(externalBackend.capabilities.solves)
+    }
 }
 
 @Test func encodesJSONSolution() throws {

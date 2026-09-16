@@ -1,6 +1,6 @@
 # QSB Porting Roadmap
 
-Status audited: 2026-08-31
+Status audited: 2026-09-16
 
 This project is a clean-room modernization and compatibility replacement for the WinQSB application payload preserved in `reference/winqsb`.
 
@@ -8,7 +8,7 @@ The original WinQSB files are Windows 3.x / Visual Basic 3 binaries, help files,
 
 The project should be understood as:
 
-> A modern, native, portable operations research workbench that can read legacy WinQSB models, normalize them into open formats, solve them through transparent educational solvers or future external backends, and expose the same core through CLI and macOS GUI interfaces.
+> A modern, native, portable operations research workbench that can read legacy WinQSB models, normalize them into open formats, solve them through transparent educational solvers or optional external backends, and expose the same core through CLI and macOS GUI interfaces.
 
 ## Executive Direction
 
@@ -248,22 +248,22 @@ Expected behavior:
 
 Purpose:
 
-- future integration path for mature solvers;
+- optional integration path for mature solvers;
 - large or hard optimization instances;
 - industrial-grade MILP, CP-SAT, routing, scheduling, and network optimization.
 
 Candidate external engines:
 
+- HiGHS for LP/MIP: current first adapter; QP needs a separate translation;
 - CBC/CLP for LP/MILP;
-- HiGHS for LP/MIP/QP-style optimization if integrated later;
 - OR-Tools for routing, flows, assignment, scheduling, and CP-SAT;
 - GLPK where licensing and deployment are acceptable;
 - command-line LP/MPS exporters if direct library linking is undesirable.
 
 Immediate rule:
 
-- Do not make external backends mandatory yet.
-- Design the seam now so they can be added later.
+- Do not make external backends mandatory.
+- Keep each engine behind a model-family-specific backend seam.
 
 ## Current Implementation Inventory
 
@@ -288,8 +288,8 @@ Implemented:
   CLI workflows, with runnable EOQ and bounded-knapsack samples;
 - legacy WinQSB reference organization under `reference/winqsb`;
 - foundational backend and validation diagnostic types in `QSBCore`;
-- `swift test` verification with 179 passing tests on the current macOS working
-  tree as of 2026-08-31;
+- `swift test` verification with 206 passing tests on the current macOS working
+  tree as of 2026-09-16;
 - Phase A structural consolidation is complete for Facilities, Inventory, LP,
   CLI support files, and legacy tests.
 - Phase B infrastructure convergence is complete, including shared normalized
@@ -298,8 +298,9 @@ Implemented:
   solve, and solve-json across the normalized QSBCore families; established
   family-specific commands remain stable shortcuts.
 - Native Decision Tree inspection and portable CI are complete.
-- The repository hygiene checkpoint is complete. External solver integration
-  has not started.
+- The repository hygiene checkpoint is complete. Phase 6 now includes an
+  optional HiGHS command-line adapter for LP/MIP models; no solver binary is
+  vendored.
 - The current GUI working-tree checkpoint adds native Decision Analysis result
   surfaces, a Markov editor/result surface, Queuing metrics, and Network canvas
   position editing. Its automated suite passes; compact/wide visual,
@@ -352,16 +353,21 @@ Implemented:
 - dimension validation for objectives, bounds, types, and coefficient rows;
 - semantic validation for duplicate variable names, finite numeric values, nonnegative lower bounds, ordered bounds, and binary bounds;
 - named `LinearProgrammingBackend` seam with `NativeEducationalLinearProgrammingBackend`
-  and `ValidateOnlyLinearProgrammingBackend`;
+  `ValidateOnlyLinearProgrammingBackend`, and the optional
+  `HiGHSLinearProgrammingBackend`;
+- host executable discovery through `QSB_HIGHS_PATH` or `PATH`, temporary free
+  MPS/options files, typed external statuses, and deterministic mapping from
+  sanitized MPS names back to normalized variable names;
 - explicit CLI error formatting;
 - CLI commands: `inspect`, `solve-lp`, `solve-ilp`, `export-json`, `solve-json`, and `solve-json-ilp`.
 - LP/ILP validation diagnostics exposed through `validate-lp`, `validate-json`,
-  and `--backend native|validate` on LP/ILP solve commands.
+  and `--backend native|validate|external` on LP/ILP solve commands.
 
 Recommended next:
 
 - maintain the existing named backend routing for LP-backed families;
-- prepare optional MPS/LP export for external solvers;
+- extend the validated HiGHS route to LP-backed network and planning families
+  once their solution translations are specified;
 - avoid adding advanced MILP features directly into the native solver unless needed for WinQSB fixture compatibility;
 - document solver limitations clearly.
 
@@ -725,8 +731,10 @@ UI Phase 2 status:
 Next refinement:
 
 - maintain the completed backend and validation-only command seams;
-- add optional external solver export/integration without changing the native
-  educational default.
+- keep the HiGHS integration optional and explicit without changing the native
+  educational default;
+- add direct-library integration only if the process/MPS boundary proves
+  insufficient for a later model family.
 
 ### Phase 2 — Multi-Family Coverage
 
@@ -971,7 +979,8 @@ Next refinement:
 
 ### Phase 3 — Backend Abstraction
 
-Status: implemented for every current QSBCore family.
+Status: implemented for every current QSBCore family, with an external HiGHS
+route now active for LP/MIP models.
 
 Goals:
 
@@ -984,11 +993,14 @@ Goals:
 Completed scope:
 
 1. All 19 current family registries expose native educational, validate-only,
-   and explicit unavailable external-high-performance routing.
+   and explicit external-high-performance routing; the LP registry discovers
+   HiGHS when a host executable is available and remains unavailable otherwise.
 2. Solution documents record backend algorithm and exactness metadata.
 3. CLI backend flags preserve native defaults and legacy command behavior.
 4. Validation-only and normalized JSON workflows are available across current
    model families.
+5. `LinearProgrammingBackends` discovers an optional host-provided HiGHS
+   executable without changing the native default.
 
 Verified acceptance criteria:
 
@@ -1142,7 +1154,8 @@ Next priority:
 
 ### Phase 6 — External Solver Integration
 
-Status: export boundary implemented; external solver adapter pending.
+Status: HiGHS command-line integration implemented for LP/MIP; broader family
+adapters and direct-library links remain pending.
 
 Export checkpoint verified on 2026-09-16:
 
@@ -1151,8 +1164,13 @@ Export checkpoint verified on 2026-09-16:
 - portable regression tests cover numeric preservation, objective-row and
   sanitized-name collisions, explicit integer bounds, and invalid input;
 - export does not change native JSON names or require an installed solver;
-- external parsing and solution comparison remain unverified on this host:
-  `highs`, `glpsol`, and `cbc` are not available on `PATH`.
+- an optional `HiGHSLinearProgrammingBackend` validates, exports, invokes, and
+  parses LP/MIP solutions through temporary files;
+- injected-executable tests cover sanitized-name mapping, typed infeasible
+  status handling, and executable discovery; an installed HiGHS acceptance
+  test runs when `highs` is present;
+- the host build of HiGHS 1.15.1 was exercised against the preserved LP and ILP
+  fixtures without adding the binary to the repository.
 
 Goals:
 
@@ -1163,16 +1181,21 @@ Goals:
 Candidate sequence:
 
 1. Free MPS export for LP/ILP: implemented and covered by portable tests.
-2. Add a command-line external solver adapter if available locally.
-3. Parse external solution output back into structured solution models.
-4. Add backend metadata and warnings.
-5. Add tests using small models and skip external tests when solver is absent.
+2. Add a command-line external solver adapter if available locally: HiGHS
+   implemented, discovered through `QSB_HIGHS_PATH` or `PATH`.
+3. Parse external solution output back into structured solution models: HiGHS
+   text solution parsing implemented for LP/MIP primal values and statuses.
+4. Add backend metadata and warnings: capability notes and typed unavailable,
+   failed, malformed, infeasible, and unbounded states implemented; richer
+   solver-native run metadata remains pending.
+5. Add tests using small models and skip external tests when solver is absent:
+   implemented with injected and conditional installed-engine tests.
 6. Consider direct library integration only after CLI/export path is stable.
 
 Potential integrations:
 
+- HiGHS for LP/MIP: current first integration;
 - CBC/CLP for LP/MILP;
-- HiGHS for LP/MIP where appropriate;
 - OR-Tools for CP-SAT scheduling/routing/network variants;
 - GLPK if deployment/licensing constraints are acceptable.
 
@@ -1648,9 +1671,9 @@ Recommended next tasks for contributors, in order:
    value; facility location/line balancing, PERT/CPM, Goal Programming,
    Acceptance Sampling, Quality Control, Aggregate Planning, MRP, QP/NLP, and
    Simulation remain candidates.
-8. Continue Phase 6 from the verified MPS export boundary with an optional
-   external adapter and engine-backed interchange tests; do not couple legacy
-   parsing to an external solver.
+8. Continue Phase 6 from the verified HiGHS LP/MIP adapter by adding
+   engine-backed translations for LP-backed network/planning families; do not
+   couple legacy parsing to an external solver.
 9. Maintain the current exhaustive fixture classification. There are no partial
    or unknown entries in the preserved payload; reopen discovery work only when
    that payload changes.

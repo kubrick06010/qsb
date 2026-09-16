@@ -22,17 +22,33 @@ The preserved fixtures are `reference/winqsb/LP.LP_` and
 
 ```bash
 swift run qsb validate-lp reference/winqsb/LP.LP_
-swift run qsb solve-lp reference/winqsb/LP.LP_ [--backend native|validate]
-swift run qsb solve-ilp reference/winqsb/ILP.LP_ [--backend native|validate]
+swift run qsb solve-lp reference/winqsb/LP.LP_ [--backend native|validate|external]
+swift run qsb solve-ilp reference/winqsb/ILP.LP_ [--backend native|validate|external]
 swift run qsb export-json reference/winqsb/LP.LP_
 swift run qsb export-mps reference/winqsb/LP.LP_
-swift run qsb solve-json model.json [--backend native|validate]
+swift run qsb solve-json model.json [--backend native|validate|external]
+swift run qsb solve-json-ilp model.json [--backend native|validate|external]
 ```
 
 `export-mps` also accepts a normalized LP/ILP JSON file.  It writes free MPS
 with `OBJSENSE`, named rows, bounds, and integer markers.  The output is an
 interchange artifact for an optional external solver; QSB does not require a
-solver executable to be installed.
+solver executable to be installed.  `solve-lp`, `solve-ilp`, `solve-json`, and
+the generic `solve` route can use the HiGHS adapter when `highs` is available.
+
+Install HiGHS independently, then select it with an explicit backend:
+
+```bash
+QSB_HIGHS_PATH=/opt/highs/bin/highs swift run qsb solve-lp reference/winqsb/LP.LP_ --backend external
+PATH=/opt/highs/bin:$PATH swift run qsb solve-ilp reference/winqsb/ILP.LP_ --backend external
+```
+
+`QSB_HIGHS_PATH` accepts an executable path, an installation directory, or a
+command name.  Without it, QSB searches `PATH`.  The adapter writes validated
+free MPS and a temporary HiGHS options file, then maps the returned primal
+values back to the original variable names.  It reports unavailable,
+failed, infeasible, unbounded, and malformed-output states explicitly and
+does not silently switch to the native solver.
 
 ## Solver character
 
@@ -41,12 +57,13 @@ models and a deterministic branch-and-bound implementation for integer and
 binary models.  Both are educational and intended for small or
 fixture-scale problems.  They are not a replacement for a production MILP
 engine.  `validateOnly` runs all structural and semantic checks without
-solving.  `externalHighPerformance` remains an explicit unavailable route
-until an external executable or library is supplied by the host environment.
+solving.  `externalHighPerformance` uses a host-provided HiGHS executable for
+LP/MIP models and remains unavailable for the other model-family registries.
 
 LP-backed families (transportation, aggregate planning, goal programming,
-and zero-sum games) reuse the same backend seam and can use the MPS exporter
-when an external integration is added.
+and zero-sum games) reuse the same backend seam. Their external routes remain
+pending family-specific model and solution translations; the MPS exporter is
+ready for that extension.
 
 ## JSON and compatibility notes
 
@@ -65,11 +82,13 @@ as binary bounds. Continuous and general integer lower bounds are explicit,
 including zero.
 
 These interchange cases run in the portable test suite without legacy fixtures
-or an installed solver. External-engine acceptance and solution comparisons
-remain a separate integration checkpoint. See the
+or an installed solver. HiGHS acceptance tests run conditionally when an
+executable is installed, while injected-executable tests keep CI portable. See the
 [MPS integrality and bounds reference](https://docs.gurobi.com/projects/optimizer/en/current/reference/fileformats/modelformats.html)
 for the marker defaults this export makes explicit.
 
-Known limitations are intentionally explicit: no presolve/cuts, no large-scale
-numerical guarantees, no quadratic terms in the LP exporter, and no automatic
-external-solver discovery beyond the host's own command environment.
+Known limitations are intentionally explicit: native solving has no
+presolve/cuts or large-scale numerical guarantees; the LP exporter has no
+quadratic terms; the external adapter currently parses HiGHS' text solution
+format and does not expose every HiGHS option through the CLI; discovery is
+limited to `QSB_HIGHS_PATH` and the host command environment.

@@ -1657,6 +1657,16 @@ final class QSBWorkspace {
         }
     }
 
+    var externalBackendSummary: String {
+        guard isLinearProgrammingModel else {
+            return "HiGHS external solving is currently available for LP and MIP models."
+        }
+        if HiGHSLinearProgrammingBackend.discovered() != nil {
+            return "HiGHS detected through QSB_HIGHS_PATH or PATH."
+        }
+        return "Install HiGHS and expose it through QSB_HIGHS_PATH or PATH."
+    }
+
     var statusSystemImage: String {
         if runState == .failed || modelState == .invalid { return "exclamationmark.octagon" }
         if runState == .solved { return "checkmark.circle" }

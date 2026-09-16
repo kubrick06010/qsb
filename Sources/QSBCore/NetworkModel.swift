@@ -523,6 +523,7 @@ public enum NetworkModelJSON {
 public enum NetworkModelError: Error, CustomStringConvertible {
     case unsupportedFormat
     case unsupportedProblemType(String)
+    case externalTranslationUnavailable(String)
     case invalidNumericValue(String)
     case invalidNetwork(String)
     case noPath(source: String, sink: String)
@@ -533,6 +534,8 @@ public enum NetworkModelError: Error, CustomStringConvertible {
             "Unsupported network model format"
         case .unsupportedProblemType(let type):
             "Unsupported network problem type: \(type)"
+        case .externalTranslationUnavailable(let detail):
+            "External network translation unavailable: \(detail)"
         case .invalidNumericValue(let value):
             "Invalid numeric value: \(value)"
         case .invalidNetwork(let detail):
@@ -913,7 +916,8 @@ public enum WinQSBNetworkParser {
 public enum MinimumCostNetworkFlowSolver {
     public static func solve(
         _ problem: MinimumCostNetworkFlowProblem,
-        linearProgrammingBackend: any LinearProgrammingBackend = NativeEducationalLinearProgrammingBackend()
+        linearProgrammingBackend: any LinearProgrammingBackend = NativeEducationalLinearProgrammingBackend(),
+        options: SolverOptions = SolverOptions()
     ) throws -> MinimumCostNetworkFlowSolution {
         try NetworkValidator.validate(.minimumCostFlow(problem))
         let imbalance = problem.demand.reduce(0, +) - problem.supply.reduce(0, +)
@@ -940,7 +944,7 @@ public enum MinimumCostNetworkFlowSolver {
             constraints.append(LinearConstraint(name: "AutomaticBalance", coefficients: coefficients, relation: .equal, rhs: abs(imbalance)))
         }
         let program = LinearProgram(title: problem.title, sense: .minimize, variableNames: variableNames, objectiveCoefficients: objective, constraints: constraints)
-        let solution = try linearProgrammingBackend.solve(program, mode: .continuous)
+        let solution = try linearProgrammingBackend.solve(program, mode: .continuous, options: options)
         let flows = problem.arcs.indices.compactMap { index -> MinimumCostNetworkFlowArc? in
             let quantity = solution.variableValues[variableNames[index]] ?? 0
             guard quantity > 1e-8 else { return nil }
@@ -959,7 +963,8 @@ public enum MinimumCostNetworkFlowSolver {
 public enum TransportationSolver {
     public static func solve(
         _ problem: TransportationProblem,
-        linearProgrammingBackend: any LinearProgrammingBackend = NativeEducationalLinearProgrammingBackend()
+        linearProgrammingBackend: any LinearProgrammingBackend = NativeEducationalLinearProgrammingBackend(),
+        options: SolverOptions = SolverOptions()
     ) throws -> TransportationSolution {
         try TransportationValidator.validate(problem)
 
@@ -1006,7 +1011,7 @@ public enum TransportationSolver {
             objectiveCoefficients: objective,
             constraints: constraints
         )
-        let solution = try linearProgrammingBackend.solve(linearProgram, mode: .continuous)
+        let solution = try linearProgrammingBackend.solve(linearProgram, mode: .continuous, options: options)
 
         var shipments: [TransportationShipment] = []
         for originIndex in 0..<originCount {

@@ -12,6 +12,11 @@ inventory/backorder, regular time, overtime, subcontracting, and optional
 workforce/hiring/dismissal balances. It delegates that program through the
 shared `LinearProgrammingBackend` seam.
 
+The optional `externalHighPerformance` backend uses a host-provided HiGHS
+executable for that same normalized LP and reconstructs the typed period
+solution. Discovery checks `QSB_HIGHS_PATH` and then `PATH`; the native backend
+remains the default and planning quantities stay continuous.
+
 Legacy row labels must be unique after trimming surrounding whitespace and
 ignoring case. Duplicate labels return an explicit parser error, including when
 their values agree. Period counts exceeding the supplied header are rejected
@@ -20,10 +25,10 @@ before allocating period vectors.
 ## CLI
 
 ```text
-qsb solve-aggregate <legacy-ap-file> [--backend native|validate]
+qsb solve-aggregate <legacy-ap-file> [--backend native|validate|external]
 qsb validate-aggregate <legacy-ap-file>
 qsb export-aggregate-json <legacy-ap-file>
-qsb solve-aggregate-json <aggregate-planning-model-json-file> [--backend native|validate]
+qsb solve-aggregate-json <aggregate-planning-model-json-file> [--backend native|validate|external]
 qsb validate-aggregate-json <aggregate-planning-model-json-file>
 ```
 
@@ -34,6 +39,6 @@ regular capacity.
 ## Solver Character
 
 The formulation and simplex result are exact for the normalized continuous LP.
-Workforce and production quantities are continuous; integer workforce planning
-is not implied. A future external LP/MIP backend can reuse the same model and
-formulation without changing the legacy parser or JSON schema.
+The HiGHS route solves the same LP through the external backend seam. Workforce
+and production quantities are continuous; integer workforce planning is not
+implied. Both routes preserve the legacy parser and normalized JSON schema.

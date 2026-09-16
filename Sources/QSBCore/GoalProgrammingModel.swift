@@ -250,7 +250,13 @@ public struct ValidateOnlyGoalProgrammingBackend: GoalProgrammingBackend {
 }
 
 public enum GoalProgrammingBackends {
-    public static func backend(for kind: SolverBackendKind) -> (any GoalProgrammingBackend)? { switch kind { case .nativeEducational: NativeEducationalGoalProgrammingBackend(); case .validateOnly: ValidateOnlyGoalProgrammingBackend(); case .externalHighPerformance: nil } }
+    public static func backend(for kind: SolverBackendKind) -> (any GoalProgrammingBackend)? {
+        switch kind {
+        case .nativeEducational: NativeEducationalGoalProgrammingBackend()
+        case .validateOnly: ValidateOnlyGoalProgrammingBackend()
+        case .externalHighPerformance: HiGHSGoalProgrammingBackend.discovered()
+        }
+    }
 }
 
 public enum GoalProgrammingJSON {

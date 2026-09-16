@@ -116,7 +116,7 @@ struct QSBCLI {
             }
             try exportNetworkJSON(path: arguments[1])
         case "solve-network-json":
-            let options = try parsePathAndBackend(arguments, usage: "solve-network-json expects a network model JSON file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-network-json expects a network model JSON file path with optional --backend native|validate|external")
             try solveNetworkJSON(path: options.path, backend: options.backend)
         case "validate-network-json":
             guard arguments.count == 2 else { throw CLIError.usage("validate-network-json expects exactly one network model JSON file path") }
@@ -356,7 +356,7 @@ struct QSBCLI {
             guard arguments.count == 2 else { throw CLIError.usage("validate-markov-json expects exactly one Markov request JSON file path") }
             try validateMarkovJSON(path: arguments[1])
         case "solve-goal":
-            let options = try parsePathAndBackend(arguments, usage: "solve-goal expects a legacy goal-programming file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-goal expects a legacy goal-programming file path with optional --backend native|validate|external")
             try solveGoalProgrammingLegacy(path: options.path, backend: options.backend)
         case "validate-goal":
             guard arguments.count == 2 else { throw CLIError.usage("validate-goal expects exactly one legacy goal-programming file path") }
@@ -365,7 +365,7 @@ struct QSBCLI {
             guard arguments.count == 2 else { throw CLIError.usage("export-goal-json expects exactly one legacy goal-programming file path") }
             try exportGoalProgrammingJSON(path: arguments[1])
         case "solve-goal-json":
-            let options = try parsePathAndBackend(arguments, usage: "solve-goal-json expects a goal-programming model JSON file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-goal-json expects a goal-programming model JSON file path with optional --backend native|validate|external")
             try solveGoalProgrammingJSON(path: options.path, backend: options.backend)
         case "validate-goal-json":
             guard arguments.count == 2 else { throw CLIError.usage("validate-goal-json expects exactly one goal-programming model JSON file path") }
@@ -415,7 +415,7 @@ struct QSBCLI {
             guard arguments.count == 2 else { throw CLIError.usage("validate-quality-json expects exactly one quality-control model JSON file path") }
             try validateQualityControlJSON(path: arguments[1])
         case "solve-aggregate":
-            let options = try parsePathAndBackend(arguments, usage: "solve-aggregate expects a legacy aggregate-planning file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-aggregate expects a legacy aggregate-planning file path with optional --backend native|validate|external")
             try solveAggregatePlanningLegacy(path: options.path, backend: options.backend)
         case "validate-aggregate":
             guard arguments.count == 2 else { throw CLIError.usage("validate-aggregate expects exactly one legacy aggregate-planning file path") }
@@ -424,7 +424,7 @@ struct QSBCLI {
             guard arguments.count == 2 else { throw CLIError.usage("export-aggregate-json expects exactly one legacy aggregate-planning file path") }
             try exportAggregatePlanningJSON(path: arguments[1])
         case "solve-aggregate-json":
-            let options = try parsePathAndBackend(arguments, usage: "solve-aggregate-json expects an aggregate-planning model JSON file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-aggregate-json expects an aggregate-planning model JSON file path with optional --backend native|validate|external")
             try solveAggregatePlanningJSON(path: options.path, backend: options.backend)
         case "validate-aggregate-json":
             guard arguments.count == 2 else { throw CLIError.usage("validate-aggregate-json expects exactly one aggregate-planning model JSON file path") }
@@ -668,27 +668,27 @@ struct QSBCLI {
             guard arguments.count == 2 else { throw CLIError.usage("validate-queuing-json expects exactly one queuing model JSON file path") }
             try validateQueuingModelJSON(path: arguments[1])
         case "solve-spp":
-            let options = try parsePathAndBackend(arguments, usage: "solve-spp expects a legacy SPP network file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-spp expects a legacy SPP network file path with optional --backend native|validate|external")
             try solveNetworkLegacy(path: options.path, expectedKind: .shortestPath, backend: options.backend)
         case "solve-netflow":
-            let options = try parsePathAndBackend(arguments, usage: "solve-netflow expects a legacy CNF network file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-netflow expects a legacy CNF network file path with optional --backend native|validate|external")
             try solveNetworkLegacy(path: options.path, expectedKind: .minimumCostFlow, backend: options.backend)
         case "solve-mst":
-            let options = try parsePathAndBackend(arguments, usage: "solve-mst expects a legacy MST network file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-mst expects a legacy MST network file path with optional --backend native|validate|external")
             try solveNetworkLegacy(path: options.path, expectedKind: .minimumSpanningTree, backend: options.backend)
         case "solve-maxflow":
-            let options = try parsePathAndBackend(arguments, usage: "solve-maxflow expects a legacy MFP network file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-maxflow expects a legacy MFP network file path with optional --backend native|validate|external")
             try solveNetworkLegacy(path: options.path, expectedKind: .maxFlow, backend: options.backend)
         case "solve-tsp":
-            let options = try parsePathAndBackend(arguments, usage: "solve-tsp expects a legacy TSP network file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-tsp expects a legacy TSP network file path with optional --backend native|validate|external")
             try solveNetworkLegacy(path: options.path, expectedKind: .travelingSalesperson, backend: options.backend)
         case "solve-assignment":
-            let options = try parsePathAndBackend(arguments, usage: "solve-assignment expects a legacy AP network file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-assignment expects a legacy AP network file path with optional --backend native|validate|external")
             try solveNetworkLegacy(path: options.path, expectedKind: .assignment, backend: options.backend)
         case "solve-transport":
             let options = try parsePathAndBackend(
                 arguments,
-                usage: "solve-transport expects a legacy TP network file path and optional --backend native|validate"
+                usage: "solve-transport expects a legacy TP network file path and optional --backend native|validate|external"
             )
             try solveNetworkLegacy(path: options.path, expectedKind: .transportation, backend: options.backend)
         case "validate-transport":
@@ -948,7 +948,7 @@ struct QSBCLI {
     private static func solveNetworkJSON(path: String, backend: SolverBackendKind) throws {
         let data = try Data(contentsOf: URL(fileURLWithPath: path))
         let model = try NetworkModelJSON.decodeModel(from: data)
-        guard let solver = NetworkBackends.backend(for: backend) else { throw CLIError.usage("external backend is not available yet for solve-network-json") }
+        guard let solver = NetworkBackends.backend(for: backend) else { throw CLIError.usage("external backend is unavailable for solve-network-json") }
         if solver.capabilities.solves {
             let solution = try solver.solve(model)
             FileHandle.standardOutput.write(try NetworkModelJSON.encodeSolutionDocument(solver.solutionDocument(for: model, solution: solution))); print()
@@ -1144,7 +1144,7 @@ struct QSBCLI {
     }
 
     private static func goalProgrammingBackend(for kind: SolverBackendKind, command: String) throws -> any GoalProgrammingBackend {
-        guard let backend = GoalProgrammingBackends.backend(for: kind) else { throw CLIError.usage("external backend is not available yet for \(command)") }
+        guard let backend = GoalProgrammingBackends.backend(for: kind) else { throw CLIError.usage("external backend is unavailable for \(command)") }
         return backend
     }
 
@@ -1292,7 +1292,7 @@ struct QSBCLI {
     }
 
     private static func aggregatePlanningBackend(for kind: SolverBackendKind, command: String) throws -> any AggregatePlanningBackend {
-        guard let backend = AggregatePlanningBackends.backend(for: kind) else { throw CLIError.usage("external backend is not available yet for \(command)") }
+        guard let backend = AggregatePlanningBackends.backend(for: kind) else { throw CLIError.usage("external backend is unavailable for \(command)") }
         return backend
     }
 
@@ -2849,7 +2849,7 @@ struct QSBCLI {
     private static func solveNetworkLegacy(path: String, expectedKind: NetworkProblemKind, backend: SolverBackendKind) throws {
         let model = try readLegacyNetworkModel(path: path)
         guard model.kind == expectedKind else { throw CLIError.usage("Expected \(expectedKind.rawValue), found \(model.kind.rawValue)") }
-        guard let solver = NetworkBackends.backend(for: backend) else { throw CLIError.usage("external backend is not available yet for network models") }
+        guard let solver = NetworkBackends.backend(for: backend) else { throw CLIError.usage("external backend is unavailable for network models") }
         guard solver.capabilities.solves else { printNetworkValidation(model: model, report: solver.validationReport(for: model), source: path); return }
         printNetworkSolution(model: model, solution: try solver.solve(model), metadata: solver.runMetadata(for: model))
     }
@@ -2950,7 +2950,7 @@ struct QSBCLI {
         let problem = try WinQSBNetworkParser.parseTransportation(from: expanded)
 
         switch backend {
-        case .nativeEducational:
+        case .nativeEducational, .externalHighPerformance:
             let solution = try TransportationSolver.solve(
                 problem,
                 linearProgrammingBackend: try linearProgrammingBackend(
@@ -2971,8 +2971,6 @@ struct QSBCLI {
                 source: path,
                 diagnostics: TransportationValidator.diagnostics(for: problem)
             )
-        case .externalHighPerformance:
-            throw CLIError.usage("external backend is not available yet for solve-transport")
         }
     }
 
@@ -3293,16 +3291,16 @@ struct QSBCLI {
         qsb expand <legacy-file>
         qsb import-legacy-json <legacy-model-file>
         qsb inventory-fixtures <reference-directory>
-        qsb solve-lp <legacy-lp-file> [--backend native|validate]
-        qsb solve-ilp <legacy-lp-file> [--backend native|validate]
+        qsb solve-lp <legacy-lp-file> [--backend native|validate|external]
+        qsb solve-ilp <legacy-lp-file> [--backend native|validate|external]
         qsb validate-lp <legacy-lp-file>
         qsb export-json <legacy-lp-file>
         qsb export-mps <legacy-lp-or-normalized-json-file>
-        qsb solve-json <model-json-file> [--backend native|validate]
-        qsb solve-json-ilp <model-json-file> [--backend native|validate]
+        qsb solve-json <model-json-file> [--backend native|validate|external]
+        qsb solve-json-ilp <model-json-file> [--backend native|validate|external]
         qsb validate-json <model-json-file>
         qsb export-network-json <legacy-network-file>
-        qsb solve-network-json <network-model-json-file> [--backend native|validate]
+        qsb solve-network-json <network-model-json-file> [--backend native|validate|external]
         qsb validate-network-json <network-model-json-file>
         qsb solve-timeseries <legacy-fc-time-series-file> [periods-ahead]
         qsb solve-moving-average <legacy-fc-time-series-file> <window-size> [periods-ahead]
@@ -3348,10 +3346,10 @@ struct QSBCLI {
         qsb export-markov-json <legacy-markov-file>
         qsb solve-markov-json <markov-request-json-file> [--backend native|validate]
         qsb validate-markov-json <markov-request-json-file>
-        qsb solve-goal <legacy-goal-programming-file> [--backend native|validate]
+        qsb solve-goal <legacy-goal-programming-file> [--backend native|validate|external]
         qsb validate-goal <legacy-goal-programming-file>
         qsb export-goal-json <legacy-goal-programming-file>
-        qsb solve-goal-json <goal-programming-model-json-file> [--backend native|validate]
+        qsb solve-goal-json <goal-programming-model-json-file> [--backend native|validate|external]
         qsb validate-goal-json <goal-programming-model-json-file>
         qsb solve-acceptance <legacy-acceptance-sampling-file> [--backend native|validate]
         qsb design-acceptance <lot-size> <aql> <rql> <producer-risk> <consumer-risk>
@@ -3364,10 +3362,10 @@ struct QSBCLI {
         qsb export-quality-json <legacy-quality-control-file>
         qsb solve-quality-json <quality-control-model-json-file> [--backend native|validate]
         qsb validate-quality-json <quality-control-model-json-file>
-        qsb solve-aggregate <legacy-aggregate-planning-file> [--backend native|validate]
+        qsb solve-aggregate <legacy-aggregate-planning-file> [--backend native|validate|external]
         qsb validate-aggregate <legacy-aggregate-planning-file>
         qsb export-aggregate-json <legacy-aggregate-planning-file>
-        qsb solve-aggregate-json <aggregate-planning-model-json-file> [--backend native|validate]
+        qsb solve-aggregate-json <aggregate-planning-model-json-file> [--backend native|validate|external]
         qsb validate-aggregate-json <aggregate-planning-model-json-file>
         qsb solve-mrp <legacy-mrp-file> [--backend native|validate]
         qsb validate-mrp <legacy-mrp-file>
@@ -3445,7 +3443,7 @@ struct QSBCLI {
         qsb validate-tsp <legacy-network-file>
         qsb solve-assignment <legacy-network-file> [--backend native|validate]
         qsb validate-assignment <legacy-network-file>
-        qsb solve-transport <legacy-network-file> [--backend native|validate]
+        qsb solve-transport <legacy-network-file> [--backend native|validate|external]
         qsb validate-transport <legacy-network-file>
         """, to: handle)
     }

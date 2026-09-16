@@ -138,16 +138,16 @@ public extension NetworkBackend {
 public struct NativeEducationalNetworkBackend: NetworkBackend {
     public init() {}
     public var capabilities: SolverCapabilities { SolverCapabilities(backendKind: .nativeEducational, solves: true, validates: true, exportsStructuredSolution: true, notes: ["Deterministic educational network algorithms."]) }
-    public func solve(_ model: NetworkModelEnvelope, options _: SolverOptions = SolverOptions()) throws -> NetworkSolutionEnvelope {
+    public func solve(_ model: NetworkModelEnvelope, options: SolverOptions = SolverOptions()) throws -> NetworkSolutionEnvelope {
         try NetworkValidator.validate(model)
         switch model {
-        case .minimumCostFlow(let value): return .minimumCostFlow(try MinimumCostNetworkFlowSolver.solve(value, linearProgrammingBackend: NativeEducationalLinearProgrammingBackend()))
+        case .minimumCostFlow(let value): return .minimumCostFlow(try MinimumCostNetworkFlowSolver.solve(value, linearProgrammingBackend: NativeEducationalLinearProgrammingBackend(), options: options))
         case .shortestPath(let value): return .shortestPath(try ShortestPathSolver.solve(value))
         case .minimumSpanningTree(let value): return .minimumSpanningTree(try MinimumSpanningTreeSolver.solve(value))
         case .maxFlow(let value): return .maxFlow(try MaxFlowSolver.solve(value))
         case .travelingSalesperson(let value): return .travelingSalesperson(try TravelingSalespersonSolver.solve(value))
         case .assignment(let value): return .assignment(try AssignmentSolver.solve(value))
-        case .transportation(let value): return .transportation(try TransportationSolver.solve(value, linearProgrammingBackend: NativeEducationalLinearProgrammingBackend()))
+        case .transportation(let value): return .transportation(try TransportationSolver.solve(value, linearProgrammingBackend: NativeEducationalLinearProgrammingBackend(), options: options))
         }
     }
     public func runMetadata(for model: NetworkModelEnvelope) -> SolverRunMetadata {
@@ -171,7 +171,13 @@ public struct ValidateOnlyNetworkBackend: NetworkBackend {
 }
 
 public enum NetworkBackends {
-    public static func backend(for kind: SolverBackendKind) -> (any NetworkBackend)? { switch kind { case .nativeEducational: NativeEducationalNetworkBackend(); case .validateOnly: ValidateOnlyNetworkBackend(); case .externalHighPerformance: nil } }
+    public static func backend(for kind: SolverBackendKind) -> (any NetworkBackend)? {
+        switch kind {
+        case .nativeEducational: NativeEducationalNetworkBackend()
+        case .validateOnly: ValidateOnlyNetworkBackend()
+        case .externalHighPerformance: HiGHSNetworkBackend.discovered()
+        }
+    }
 }
 
 public extension NetworkModelJSON {

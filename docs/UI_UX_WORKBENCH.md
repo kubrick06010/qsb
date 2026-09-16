@@ -546,7 +546,7 @@ Recommended terminology:
 | --- | --- | --- |
 | `nativeEducational` | QSB Native | algorithm, exactness, assumptions, scale |
 | `validateOnly` | Validate only | no solution will be produced |
-| `externalHighPerformance` | External solver | HiGHS for LP/MIP when `QSB_HIGHS_PATH` or `PATH` provides it; unavailable for other families |
+| `externalHighPerformance` | External solver | HiGHS for LP/MIP, CNF/TP, aggregate planning, and goal programming when `QSB_HIGHS_PATH` or `PATH` provides it |
 
 The inspector should show supported capabilities before running. An
 unavailable external backend should be selectable only as an explicit advanced

@@ -37,7 +37,10 @@ import Testing
     let document = native.solutionDocument(for: model, solution: try native.solve(model))
     #expect(try GoalProgrammingJSON.decodeSolution(from: GoalProgrammingJSON.encodeSolution(document)) == document)
     #expect(ValidateOnlyGoalProgrammingBackend().validationReport(for: model).isValid)
-    #expect(GoalProgrammingBackends.backend(for: .externalHighPerformance) == nil)
+    if let external = GoalProgrammingBackends.backend(for: .externalHighPerformance) {
+        #expect(external.capabilities.solves)
+        #expect(external.capabilities.backendKind == .externalHighPerformance)
+    }
 
     let invalid = GoalProgram(title: "Invalid", variableNames: ["x"], goals: [], constraints: [], lowerBounds: [0], upperBounds: [nil], variableTypes: [.continuous])
     let report = ValidateOnlyGoalProgrammingBackend().validationReport(for: invalid)
@@ -49,3 +52,21 @@ import Testing
     } catch { #expect(String(describing: error).contains("validateOnly")) }
 }
 
+@Test func routesGoalProgrammingThroughExternalBackendSeam() throws {
+    let model = try WinQSBGoalProgrammingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("GP.GP_"))))
+    let native = try NativeEducationalGoalProgrammingBackend().solve(model)
+    let external = HiGHSGoalProgrammingBackend(linearProgrammingBackend: NativeEducationalLinearProgrammingBackend())
+    let solution = try external.solve(model)
+
+    #expect(solution == native)
+    #expect(external.runMetadata(for: model).algorithm == "hiGHSLexicographicLP")
+}
+
+@Test func solvesIntegerGoalProgrammingWithInstalledHiGHSWhenAvailable() throws {
+    guard let backend = HiGHSGoalProgrammingBackend.discovered() else { return }
+    let model = try WinQSBGoalProgrammingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("IGP.GP_"))))
+    let solution = try backend.solve(model)
+    #expect(solution.goalOutcomes.map(\.value) == [0, 295])
+    #expect(solution.variableValues["X1"] == 4)
+    #expect(solution.variableValues["X2"] == 3)
+}

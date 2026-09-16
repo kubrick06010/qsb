@@ -30,7 +30,10 @@ import Testing
     let document = native.solutionDocument(for: model, solution: solution)
     #expect(try AggregatePlanningJSON.decodeSolution(from: AggregatePlanningJSON.encodeSolution(document)) == document)
     #expect(ValidateOnlyAggregatePlanningBackend().validationReport(for: model).isValid)
-    #expect(AggregatePlanningBackends.backend(for: .externalHighPerformance) == nil)
+    if let external = AggregatePlanningBackends.backend(for: .externalHighPerformance) {
+        #expect(external.capabilities.solves)
+        #expect(external.capabilities.backendKind == .externalHighPerformance)
+    }
 
     let invalid = AggregatePlanningModel(
         title: model.title, method: model.method, periodNames: model.periodNames,
@@ -56,4 +59,22 @@ import Testing
     } catch {
         #expect(String(describing: error).contains("validateOnly"))
     }
+}
+
+@Test func routesAggregatePlanningThroughExternalBackendSeam() throws {
+    let model = try WinQSBAggregatePlanningParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("APLP.AP_"))))
+    let native = try NativeEducationalAggregatePlanningBackend().solve(model)
+    let external = HiGHSAggregatePlanningBackend(linearProgrammingBackend: NativeEducationalLinearProgrammingBackend())
+    let solution = try external.solve(model)
+
+    #expect(abs(solution.totalCost - native.totalCost) < 1e-7)
+    #expect(solution.periods == native.periods)
+    #expect(external.runMetadata(for: model).algorithm == "hiGHSAggregatePlanningLP")
+}
+
+@Test func solvesAggregatePlanningWithInstalledHiGHSWhenAvailable() throws {
+    guard let backend = HiGHSAggregatePlanningBackend.discovered() else { return }
+    let model = try WinQSBAggregatePlanningParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("APLP.AP_"))))
+    let solution = try backend.solve(model)
+    #expect(abs(solution.totalCost - 165_355.95238095237) < 1e-6)
 }

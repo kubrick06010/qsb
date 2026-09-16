@@ -58,12 +58,14 @@ binary models.  Both are educational and intended for small or
 fixture-scale problems.  They are not a replacement for a production MILP
 engine.  `validateOnly` runs all structural and semantic checks without
 solving.  `externalHighPerformance` uses a host-provided HiGHS executable for
-LP/MIP models and remains unavailable for the other model-family registries.
+LP/MIP models. Transportation, aggregate planning, and goal programming reuse
+the same seam through their typed family adapters; other registries remain
+explicitly unavailable externally.
 
-LP-backed families (transportation, aggregate planning, goal programming,
-and zero-sum games) reuse the same backend seam. Their external routes remain
-pending family-specific model and solution translations; the MPS exporter is
-ready for that extension.
+LP-backed families (transportation, aggregate planning, and goal programming)
+reuse the same backend seam and now have typed HiGHS translations. Zero-sum
+games remain native-only; the MPS exporter remains the shared boundary for
+future adapters.
 
 ## JSON and compatibility notes
 

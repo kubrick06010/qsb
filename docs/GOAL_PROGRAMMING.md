@@ -23,6 +23,11 @@ Goals are preemptive and ordered as stored in the file. The native backend:
 It does not replace priorities with arbitrary weighted sums. Mixed minimize and
 maximize goals are supported.
 
+`externalHighPerformance` uses a host-provided HiGHS executable for each
+priority LP or MIP. QSBCore still owns lexicographic fixing, deviation presolve,
+and typed goal outcomes, so external execution does not change the model or
+JSON contract. The native backend remains the deterministic default.
+
 For the continuous sample, both source formats produce:
 
 ```text
@@ -46,6 +51,7 @@ their source integral domains.
 
 ```sh
 qsb solve-goal reference/winqsb/GP.GP_ --backend native
+qsb solve-goal reference/winqsb/GP.GP_ --backend external
 qsb validate-goal reference/winqsb/IGP.GP_
 qsb export-goal-json reference/winqsb/GPNORMAL.GP_ > goal.json
 qsb solve-goal-json goal.json --backend native
@@ -53,5 +59,6 @@ qsb solve-goal-json goal.json --backend validate
 qsb validate-goal-json goal.json
 ```
 
-`GoalProgrammingBackend` exposes native educational and validation-only modes.
-The external slot is reserved for future high-performance LP/MIP adapters.
+`GoalProgrammingBackend` exposes native educational, validation-only, and
+optional HiGHS-backed modes. When no `highs` executable is discovered, an
+external request returns an explicit unavailable error.

@@ -6,9 +6,10 @@ parser and treats costs as undirected edges.
 
 All supported network models can also be exported to normalized JSON with
 `qsb export-network-json <legacy-network-file>` and solved from JSON with
-`qsb solve-network-json <network-model-json-file> --backend native`. A shared
-`NetworkBackend` provides native educational and validation-only workflows for
-all seven variants; `validate-network-json` validates without solving.
+`qsb solve-network-json <network-model-json-file> --backend native|external`
+(the external route currently covers CNF and TP). A shared `NetworkBackend`
+provides native educational and validation-only workflows for all seven
+variants; `validate-network-json` validates without solving.
 
 Structured solution documents retain the normalized model and solution plus
 backend algorithm, exactness, and assumptions. Algorithms are Dijkstra,
@@ -23,6 +24,10 @@ cost arcs, and separate supply/demand values for every node. The native backend
 formulates flow conservation as a continuous LP through the shared
 `LinearProgrammingBackend`.
 
+The optional external backend sends the same normalized formulation to a
+host-provided HiGHS executable and reconstructs the typed flow and dummy-balance
+records. Other network variants retain their deterministic native algorithms.
+
 WinQSB's preserved `NETFLOW.NE_` example has 100 more units of demand than
 supply. The normalized model preserves those original values; validation emits
 `network.CNF.balance.automatic`, and solving adds an explicit zero-cost dummy
@@ -31,6 +36,7 @@ reference objective of 7900.
 
 ```sh
 qsb solve-netflow reference/winqsb/NETFLOW.NE_ --backend native
+qsb solve-netflow reference/winqsb/NETFLOW.NE_ --backend external
 qsb validate-netflow reference/winqsb/NETFLOW.NE_
 ```
 
@@ -192,6 +198,8 @@ Supported input:
 
 The native educational backend formulates the transportation problem as a
 continuous LP and solves it through the shared `LinearProgrammingBackend` seam.
+The optional external backend uses HiGHS for that same formulation and
+preserves the typed shipment list and backend metadata.
 The validation backend checks dimensions, finite nonnegative values, unique
 labels, and total supply-demand balance without solving.
 
@@ -199,6 +207,7 @@ Run:
 
 ```sh
 qsb solve-transport reference/winqsb/TRNSPORT.NE_ --backend native
+qsb solve-transport reference/winqsb/TRNSPORT.NE_ --backend external
 qsb validate-transport reference/winqsb/TRNSPORT.NE_
 ```
 

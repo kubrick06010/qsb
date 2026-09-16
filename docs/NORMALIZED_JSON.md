@@ -377,7 +377,7 @@ shipment solution, and explicit backend algorithm and exactness metadata.
 
 ```sh
 qsb export-network-json <legacy-network-file>
-qsb solve-network-json <network-model-json-file> [--backend native|validate]
+qsb solve-network-json <network-model-json-file> [--backend native|validate|external]
 qsb validate-network-json <network-model-json-file>
 ```
 

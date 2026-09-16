@@ -254,7 +254,7 @@ Purpose:
 
 Candidate external engines:
 
-- HiGHS for LP/MIP: current first adapter; QP needs a separate translation;
+- HiGHS for LP/MIP: current adapter; QP needs a separate translation;
 - CBC/CLP for LP/MILP;
 - OR-Tools for routing, flows, assignment, scheduling, and CP-SAT;
 - GLPK where licensing and deployment are acceptable;
@@ -288,7 +288,7 @@ Implemented:
   CLI workflows, with runnable EOQ and bounded-knapsack samples;
 - legacy WinQSB reference organization under `reference/winqsb`;
 - foundational backend and validation diagnostic types in `QSBCore`;
-- `swift test` verification with 206 passing tests on the current macOS working
+- `swift test` verification with 213 passing tests on the current macOS working
   tree as of 2026-09-16;
 - Phase A structural consolidation is complete for Facilities, Inventory, LP,
   CLI support files, and legacy tests.
@@ -299,8 +299,8 @@ Implemented:
   family-specific commands remain stable shortcuts.
 - Native Decision Tree inspection and portable CI are complete.
 - The repository hygiene checkpoint is complete. Phase 6 now includes an
-  optional HiGHS command-line adapter for LP/MIP models; no solver binary is
-  vendored.
+  optional HiGHS command-line adapter for LP/MIP models and typed translations
+  for LP-backed network/planning families; no solver binary is vendored.
 - The current GUI working-tree checkpoint adds native Decision Analysis result
   surfaces, a Markov editor/result surface, Queuing metrics, and Network canvas
   position editing. Its automated suite passes; compact/wide visual,
@@ -366,8 +366,8 @@ Implemented:
 Recommended next:
 
 - maintain the existing named backend routing for LP-backed families;
-- extend the validated HiGHS route to LP-backed network and planning families
-  once their solution translations are specified;
+- keep the HiGHS translations for CNF, TP, aggregate planning, and Goal
+  Programming covered by typed solution and installed-engine tests;
 - avoid adding advanced MILP features directly into the native solver unless needed for WinQSB fixture compatibility;
 - document solver limitations clearly.
 
@@ -386,6 +386,8 @@ Implemented:
 - minimum-cost network flow/transshipment (`CNF`) parser and LP-backed solver
   for `reference/winqsb/NETFLOW.NE_`, including explicit dummy-balance
   diagnostics and a regression against the manual's 7900 objective;
+- optional HiGHS-backed CNF translation with the same typed flow and balance
+  solution;
 - shortest path (`SPP`) parser and Dijkstra solver with `qsb solve-spp`;
 - minimum spanning tree (`MST`) parser and Kruskal solver with `qsb solve-mst`;
 - max flow (`MFP`) parser and Edmonds-Karp solver with `qsb solve-maxflow`;
@@ -394,9 +396,11 @@ Implemented:
 - transportation (`TP`) parser and LP-backed solver routed through the named
   `LinearProgrammingBackend` seam with `qsb solve-transport`, plus structured
   validation diagnostics with `qsb validate-transport`;
+- optional HiGHS-backed TP translation with typed shipment reconstruction;
 - normalized JSON import/export and JSON solution output for supported network models;
 - named `NetworkBackend` seam with native educational and validation-only
-  implementations across all seven variants;
+  implementations across all seven variants plus an optional HiGHS adapter for
+  CNF and TP;
 - structured validators, family-specific validation commands, and generic
   `validate-network-json` output;
 - enriched solution documents with model, discriminated solution, backend
@@ -816,14 +820,15 @@ Implemented:
   `LinearProgrammingBackend`;
 - structured validation, normalized model/solution JSON, and backend metadata;
 - native educational and validation-only `GoalProgrammingBackend` modes;
+- optional HiGHS-backed lexicographic LP/MIP execution through the same typed
+  backend seam;
 - legacy and JSON CLI solve/validate/export workflows;
 - verified coverage for all three preserved Goal Programming fixtures.
 
 Recommended next:
 
-- route a future external LP/MIP backend through the existing seam for larger
-  integer goal programs;
-- add priority/outcome tables to the macOS workbench;
+- exercise the external route on larger integer goal programs and expose
+  priority/outcome tables in the macOS workbench;
 - retain explicit `fixtureScale` characterization for native integer solving.
 
 ### Acceptance Sampling
@@ -874,11 +879,13 @@ Implemented:
 - an exact continuous LP formulation routed through `LinearProgrammingBackend`;
 - structured validation and a named `AggregatePlanningBackend` with native
   educational and validation-only modes;
+- optional HiGHS-backed execution of the normalized continuous planning LP;
 - normalized model/solution/validation JSON and complete legacy/JSON CLI flows.
 
 Recommended next:
 
-- expose optional integer workforce domains through an external MIP backend;
+- expose optional integer workforce domains through a future external MIP
+  extension while keeping the current continuous contract explicit;
 - add period tables and stacked production/inventory charts to the macOS app;
 - compare additional historical outputs if more aggregate fixtures are found.
 
@@ -913,10 +920,13 @@ Implemented:
 - structured curvature, dimension, bound, and integer-scope diagnostics;
 - named native educational/validation-only backend modes, normalized JSON, and
   complete legacy/JSON CLI workflows for all three preserved fixtures.
+- documented HiGHS translation assessment: the current linear MPS boundary
+  cannot preserve QP matrices, so external QP remains explicitly unavailable.
 
 Recommended next:
 
-- route general convex QP and MIQP to HiGHS or another external backend;
+- compare a QP-capable HiGHS export with its direct API before enabling an
+  external QP backend; preserve cross terms, sense, domains, and statuses;
 - add contour/objective and active-constraint views to the macOS workbench;
 - retain explicit rejection of indefinite native models rather than returning
   an unqualified local optimum.
@@ -1154,8 +1164,9 @@ Next priority:
 
 ### Phase 6 — External Solver Integration
 
-Status: HiGHS command-line integration implemented for LP/MIP; broader family
-adapters and direct-library links remain pending.
+Status: HiGHS command-line integration is implemented for LP/MIP and the
+LP-backed CNF, TP, Aggregate Planning, and Goal Programming families. QP has a
+documented translation assessment; direct QP integration remains pending.
 
 Export checkpoint verified on 2026-09-16:
 
@@ -1171,6 +1182,14 @@ Export checkpoint verified on 2026-09-16:
   test runs when `highs` is present;
 - the host build of HiGHS 1.15.1 was exercised against the preserved LP and ILP
   fixtures without adding the binary to the repository.
+- `HiGHSNetworkBackend` translates minimum-cost flow and transportation while
+  retaining native graph algorithms for the other network variants;
+- `HiGHSAggregatePlanningBackend` reuses the continuous planning LP and
+  reconstructs period rows;
+- `HiGHSGoalProgrammingBackend` solves each lexicographic priority through LP or
+  MIP and preserves QSBCore's presolve and typed outcomes;
+- installed-engine acceptance checks and injected translation checks cover all
+  three family adapters.
 
 Goals:
 
@@ -1190,11 +1209,17 @@ Candidate sequence:
    solver-native run metadata remains pending.
 5. Add tests using small models and skip external tests when solver is absent:
    implemented with injected and conditional installed-engine tests.
-6. Consider direct library integration only after CLI/export path is stable.
+6. Extend the stable route to LP-backed families: CNF, TP, Aggregate Planning,
+   and Goal Programming are implemented with typed wrappers and registry
+   discovery.
+7. Evaluate QP interchange before enabling an external QP backend; preserve
+   quadratic terms and statuses through a dedicated export or direct API.
+8. Consider direct library integration only after the CLI/export path is stable.
 
 Potential integrations:
 
-- HiGHS for LP/MIP: current first integration;
+- HiGHS for LP/MIP and the LP-backed CNF/TP, Aggregate Planning, and Goal
+  Programming families: current integration;
 - CBC/CLP for LP/MILP;
 - OR-Tools for CP-SAT scheduling/routing/network variants;
 - GLPK if deployment/licensing constraints are acceptable.
@@ -1208,19 +1233,19 @@ Representative stable family-specific commands include:
 ```bash
 swift run qsb inspect <file>
 swift run qsb inventory-fixtures <reference-directory>
-swift run qsb solve-lp <file> [--backend native|validate]
-swift run qsb solve-ilp <file> [--backend native|validate]
+swift run qsb solve-lp <file> [--backend native|validate|external]
+swift run qsb solve-ilp <file> [--backend native|validate|external]
 swift run qsb validate-lp <file>
 swift run qsb export-json <file>
-swift run qsb solve-json <json-file> [--backend native|validate]
-swift run qsb solve-json-ilp <json-file> [--backend native|validate]
+swift run qsb solve-json <json-file> [--backend native|validate|external]
+swift run qsb solve-json-ilp <json-file> [--backend native|validate|external]
 swift run qsb validate-json <json-file>
 swift run qsb solve-spp <file>
 swift run qsb solve-mst <file>
 swift run qsb solve-maxflow <file>
 swift run qsb solve-tsp <file>
 swift run qsb solve-assignment <file>
-swift run qsb solve-transport <file> [--backend native|validate]
+swift run qsb solve-transport <file> [--backend native|validate|external]
 swift run qsb validate-transport <file>
 swift run qsb export-network-json <file>
 swift run qsb solve-network-json <json-file>
@@ -1671,9 +1696,9 @@ Recommended next tasks for contributors, in order:
    value; facility location/line balancing, PERT/CPM, Goal Programming,
    Acceptance Sampling, Quality Control, Aggregate Planning, MRP, QP/NLP, and
    Simulation remain candidates.
-8. Continue Phase 6 from the verified HiGHS LP/MIP adapter by adding
-   engine-backed translations for LP-backed network/planning families; do not
-   couple legacy parsing to an external solver.
+8. Continue Phase 6 by exercising the verified HiGHS translations on larger
+   LP-backed network/planning instances; do not couple legacy parsing to an
+   external solver.
 9. Maintain the current exhaustive fixture classification. There are no partial
    or unknown entries in the preserved payload; reopen discovery work only when
    that payload changes.

@@ -31,6 +31,14 @@ struct GenericRoutingTests {
         try QSBCLI.genericSolveJSON(path: url.path, backend: .validateOnly)
     }
 
+    @Test("generic solve routes LP-backed families through HiGHS when available")
+    func solvesLPBackedFamiliesExternallyWhenAvailable() throws {
+        guard HiGHSExecutableLocator.locate() != nil else { return }
+        for fixture in ["TRNSPORT.NE_", "APLP.AP_", "GP.GP_"] {
+            try QSBCLI.genericSolve(path: legacyFixtureURL(fixture).path, backend: .externalHighPerformance)
+        }
+    }
+
     @Test("compare-fixture performs semantic JSON comparison")
     func comparesFixtureSnapshot() throws {
         let imported = try LegacyModelImporter.importModel(at: legacyFixtureURL("LP.LP_"))

@@ -1524,8 +1524,12 @@ final class QSBWorkspace {
     private func showUnavailableExternalBackend() {
         solutionJSON = ""
         runState = .failed
-        lastErrorMessage = "External solver is unavailable in this build"
-        status = lastErrorMessage ?? "External solver is unavailable in this build"
+        if isQuadraticProgrammingModel {
+            lastErrorMessage = "External QP backend is unavailable: its HiGHS translation is not enabled"
+        } else {
+            lastErrorMessage = "External solver is unavailable; install HiGHS and expose it through QSB_HIGHS_PATH or PATH"
+        }
+        status = lastErrorMessage ?? "External solver is unavailable"
         selectedPane = .run
     }
 
@@ -1658,8 +1662,15 @@ final class QSBWorkspace {
     }
 
     var externalBackendSummary: String {
-        guard isLinearProgrammingModel else {
-            return "HiGHS external solving is currently available for LP and MIP models."
+        let supportsExternalFamily: Bool
+        switch currentModelFamily {
+        case .linearProgramming, .network, .goalProgramming, .aggregatePlanning:
+            supportsExternalFamily = true
+        default:
+            supportsExternalFamily = false
+        }
+        guard supportsExternalFamily else {
+            return "HiGHS external solving is available for LP-backed models: LP/ILP, CNF/TP, aggregate planning, and goal programming."
         }
         if HiGHSLinearProgrammingBackend.discovered() != nil {
             return "HiGHS detected through QSB_HIGHS_PATH or PATH."

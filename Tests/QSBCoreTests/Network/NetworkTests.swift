@@ -236,7 +236,55 @@ import Testing
     }
 
     #expect(native.runMetadata(for: try WinQSBNetworkParser.parseModelEnvelope(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("TSP.NE_"))))).exactness == .fixtureScale)
-    #expect(NetworkBackends.backend(for: .externalHighPerformance) == nil)
+    if let external = NetworkBackends.backend(for: .externalHighPerformance) {
+        #expect(external.capabilities.solves)
+        #expect(external.capabilities.backendKind == .externalHighPerformance)
+    }
+}
+
+@Test func routesLPBackedNetworkVariantsThroughExternalBackendSeam() throws {
+    let transportationData = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("TRNSPORT.NE_")))
+    let transportation = try WinQSBNetworkParser.parseTransportation(from: transportationData)
+    let flowData = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("NETFLOW.NE_")))
+    let flow = try WinQSBNetworkParser.parseMinimumCostFlow(from: flowData)
+    let backend = HiGHSNetworkBackend(linearProgrammingBackend: NativeEducationalLinearProgrammingBackend())
+
+    guard case .transportation(let transportationSolution) = try backend.solve(.transportation(transportation)) else {
+        Issue.record("Expected an external transportation solution")
+        return
+    }
+    guard case .minimumCostFlow(let flowSolution) = try backend.solve(.minimumCostFlow(flow)) else {
+        Issue.record("Expected an external minimum-cost-flow solution")
+        return
+    }
+    #expect(abs(transportationSolution.totalCost - 3350) < 1e-8)
+    #expect(abs(flowSolution.totalCost - 7900) < 1e-8)
+    #expect(backend.runMetadata(for: .transportation(transportation)).algorithm == "hiGHSTransportationLP")
+    #expect(backend.runMetadata(for: .minimumCostFlow(flow)).algorithm == "hiGHSMinimumCostFlowLP")
+
+    do {
+        _ = try backend.solve(.shortestPath(ShortestPathNetwork(
+            title: "Native only", nodes: ["A", "B"], arcs: [NetworkArc(from: "A", to: "B", cost: 1)]
+        )))
+        Issue.record("Expected an explicit unsupported-translation error")
+    } catch NetworkModelError.externalTranslationUnavailable {
+        // The external backend must not silently replace native graph algorithms.
+    }
+    #expect(!backend.validationReport(for: .shortestPath(ShortestPathNetwork(
+        title: "Native only", nodes: ["A", "B"], arcs: [NetworkArc(from: "A", to: "B", cost: 1)]
+    ))).isValid)
+}
+
+@Test func solvesLPBackedNetworkWithInstalledHiGHSWhenAvailable() throws {
+    guard let backend = HiGHSNetworkBackend.discovered() else { return }
+    let data = try LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("TRNSPORT.NE_")))
+    let model = try WinQSBNetworkParser.parseTransportation(from: data)
+    let solution = try backend.solve(.transportation(model))
+    guard case .transportation(let value) = solution else {
+        Issue.record("Expected a transportation solution")
+        return
+    }
+    #expect(abs(value.totalCost - 3350) < 1e-8)
 }
 
 @Test func validatesNetworkModelsWithStructuredDiagnostics() throws {
@@ -268,4 +316,3 @@ import Testing
         #expect(String(describing: error).contains("validateOnly"))
     }
 }
-

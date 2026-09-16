@@ -10,7 +10,7 @@ normalized JSON never depend on a concrete solver.
 | --- | --- | --- |
 | `nativeEducational` | Deterministic Swift implementations for small and fixture-scale models | Structured solution plus run metadata |
 | `validateOnly` | Parse and validate a recognized model without solving it | Diagnostics and validity status |
-| `externalHighPerformance` | Host-provided high-performance engine; currently HiGHS for LP/MIP | Structured solution when discovered; explicit unavailable status otherwise |
+| `externalHighPerformance` | Host-provided high-performance engine; HiGHS for LP/MIP and LP-backed network/planning families | Structured solution when discovered; explicit unavailable status otherwise |
 
 Native solutions identify their algorithm and exactness (`exact`,
 `closedForm`, `approximate`, `heuristic`, or `fixtureScale`) in
@@ -30,7 +30,7 @@ If an external backend is requested while no compatible executable is
 installed, the CLI returns a stable, explicit error.  This is an environment
 dependency, not a parser or native-solver failure.
 
-## HiGHS LP/MIP adapter
+## HiGHS LP/MIP adapter and family translations
 
 `externalHighPerformance` is implemented for `LinearProgram` through the
 standalone [HiGHS](https://github.com/ERGO-Code/HiGHS) executable.  HiGHS is
@@ -54,10 +54,20 @@ and HiGHS logs are removed after the run.  Missing executables, nonzero exits,
 infeasible/unbounded statuses, and malformed solution files are surfaced as
 typed errors; QSB never falls back to the native backend silently.
 
-The current adapter covers LP and MIP models exposed as `LinearProgram`.
-Network, scheduling, quadratic, and other family registries keep their
-explicit unavailable external route until they have a solver-specific model
-translation and solution contract.
+The adapter covers LP and MIP models exposed as `LinearProgram`. The same
+boundary now powers these typed family backends:
+
+- `HiGHSNetworkBackend` translates minimum-cost flow (`CNF`) and balanced
+  transportation (`TP`) and leaves graph-only variants native-only;
+- `HiGHSAggregatePlanningBackend` translates the normalized continuous
+  planning formulation;
+- `HiGHSGoalProgrammingBackend` invokes HiGHS for each preemptive priority,
+  preserving QSBCore's integer presolve and typed outcomes.
+
+Family registries discover these wrappers only when the host executable is
+available. Quadratic programming remains explicitly unavailable externally
+while its quadratic interchange boundary is evaluated in
+`docs/QUADRATIC_PROGRAMMING.md`; no quadratic term is silently discarded.
 
 ## External integration contract
 
@@ -74,7 +84,8 @@ command-line adapter.  Any future adapter should:
    missing rather than falling back invisibly.
 
 External tests use small deterministic models and skip the installed-engine
-check when `highs` is absent.  Injected-executable tests remain portable;
+check when `highs` is absent. Injected backend tests exercise each typed family
+translation without a binary; injected-executable tests remain portable;
 native and validation-only tests are unconditional.
 
 ## Backend invariants

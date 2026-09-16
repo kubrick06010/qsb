@@ -463,7 +463,7 @@ public enum AggregatePlanningBackends {
         switch kind {
         case .nativeEducational: NativeEducationalAggregatePlanningBackend()
         case .validateOnly: ValidateOnlyAggregatePlanningBackend()
-        case .externalHighPerformance: nil
+        case .externalHighPerformance: HiGHSAggregatePlanningBackend.discovered()
         }
     }
 }

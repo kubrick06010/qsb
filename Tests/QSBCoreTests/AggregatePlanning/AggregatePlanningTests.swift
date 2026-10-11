@@ -78,3 +78,44 @@ import Testing
     let solution = try backend.solve(model)
     #expect(abs(solution.totalCost - 165_355.95238095237) < 1e-6)
 }
+
+@Test func solvesTwelvePeriodPlanningWithInstalledHiGHSWhenAvailable() throws {
+    guard let backend = HiGHSAggregatePlanningBackend.discovered() else { return }
+    let count = 12
+    let zeros = Array(repeating: 0.0, count: count)
+    let noCapacity = Array<Double?>(repeating: 0, count: count)
+    let model = AggregatePlanningModel(
+        title: "Twelve-period plan", method: .linearProgramming,
+        periodNames: (1...count).map { "Month \($0)" },
+        workforceUnit: "worker", capacityUnit: "unit",
+        demand: Array(repeating: 10, count: count),
+        initialWorkforce: nil, initialInventory: 0,
+        regularCapacity: Array(repeating: 10, count: count),
+        regularCost: Array(repeating: 2, count: count),
+        undertimeCost: zeros, overtimeCapacity: zeros,
+        overtimeCost: Array(repeating: 3, count: count),
+        hiringCost: zeros, dismissalCost: zeros,
+        maximumWorkforce: Array(repeating: nil, count: count),
+        minimumWorkforce: zeros,
+        maximumInventory: noCapacity, minimumInventory: zeros,
+        inventoryHoldingCost: Array(repeating: 1, count: count),
+        maximumSubcontracting: noCapacity,
+        subcontractingCost: Array(repeating: 4, count: count),
+        maximumBackorder: noCapacity,
+        backorderCost: Array(repeating: 5, count: count),
+        otherUnitProductionCost: zeros,
+        capacityRequirementPerUnit: Array(repeating: 1, count: count),
+        capacityIsPerWorker: false
+    )
+
+    let solution = try backend.solve(model)
+    #expect(abs(solution.totalCost - 240) < 1e-7)
+    #expect(solution.periods.count == count)
+    #expect(solution.periods.allSatisfy {
+        abs($0.regularProduction - 10) < 1e-7
+            && abs($0.overtimeProduction) < 1e-7
+            && abs($0.subcontracted) < 1e-7
+            && abs($0.endingInventory) < 1e-7
+            && abs($0.endingBackorder) < 1e-7
+    })
+}

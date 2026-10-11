@@ -8,7 +8,11 @@ import Foundation
 /// command-line solver when one is installed.
 public enum LinearProgramMPSExporter {
     static func variableNames(for program: LinearProgram) -> [String] {
-        uniqueNames(program.variableNames, prefix: "V")
+        variableNames(for: program.variableNames)
+    }
+
+    static func variableNames(for names: [String]) -> [String] {
+        uniqueNames(names, prefix: "V")
     }
 
     public static func export(_ program: LinearProgram) throws -> String {
@@ -108,7 +112,7 @@ public enum LinearProgramMPSExporter {
         return lines.joined(separator: "\n") + "\n"
     }
 
-    private static func uniqueNames(_ source: [String], prefix: String, reserved: Set<String> = []) -> [String] {
+    static func uniqueNames(_ source: [String], prefix: String, reserved: Set<String> = []) -> [String] {
         var used = reserved
         return source.enumerated().map { index, raw in
             var candidate = safeName(raw, fallback: "\(prefix)\(index + 1)")
@@ -123,7 +127,7 @@ public enum LinearProgramMPSExporter {
         }
     }
 
-    private static func safeName(_ raw: String, fallback: String) -> String {
+    static func safeName(_ raw: String, fallback: String) -> String {
         let transformed = raw.uppercased().map { character -> Character in
             if character.isLetter || character.isNumber || character == "_" { return character }
             return "_"
@@ -132,7 +136,7 @@ public enum LinearProgramMPSExporter {
         return value.isEmpty ? fallback : value
     }
 
-    private static func number(_ value: Double) -> String {
+    static func number(_ value: Double) -> String {
         // Export is lossless interchange: solver tolerances must not round small
         // coefficients to zero, and finite Doubles can exceed the Int range.
         if let integer = Int(exactly: value) { return String(integer) }

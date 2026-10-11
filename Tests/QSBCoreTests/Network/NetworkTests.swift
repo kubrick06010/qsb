@@ -287,6 +287,71 @@ import Testing
     #expect(abs(value.totalCost - 3350) < 1e-8)
 }
 
+@Test func solvesLargerTransportationWithInstalledHiGHSWhenAvailable() throws {
+    guard let backend = HiGHSNetworkBackend.discovered() else { return }
+    let count = 16
+    let origins = (1...count).map { "Origin \($0)" }
+    let destinations = (1...count).map { "Destination \($0)" }
+    let problem = TransportationProblem(
+        title: "Sixteen by sixteen transport",
+        origins: origins,
+        destinations: destinations,
+        costs: (0..<count).map { origin in
+            (0..<count).map { destination in
+                origin == destination ? 0 : Double(10 + abs(origin - destination))
+            }
+        },
+        supply: Array(repeating: 1, count: count),
+        demand: Array(repeating: 1, count: count)
+    )
+
+    guard case .transportation(let solution) = try backend.solve(.transportation(problem)) else {
+        Issue.record("Expected a transportation solution")
+        return
+    }
+    #expect(abs(solution.totalCost) < 1e-7)
+    #expect(solution.shipments.count == count)
+    for index in 0..<count {
+        #expect(solution.shipments.contains {
+            $0.origin == origins[index] && $0.destination == destinations[index]
+                && abs($0.quantity - 1) < 1e-7
+        })
+    }
+}
+
+@Test func solvesLargerMinimumCostFlowWithInstalledHiGHSWhenAvailable() throws {
+    guard let backend = HiGHSNetworkBackend.discovered() else { return }
+    let count = 24
+    let nodes = (0..<count).map { "Node \($0)" }
+    let arcs = (0..<count).flatMap { from in
+        ((from + 1)..<count).map { to in
+            NetworkArc(
+                from: nodes[from], to: nodes[to],
+                cost: to == from + 1 ? 1 : Double(100 + to - from)
+            )
+        }
+    }
+    let problem = MinimumCostNetworkFlowProblem(
+        title: "Twenty-four node flow", nodes: nodes, arcs: arcs,
+        supply: [1] + Array(repeating: 0, count: count - 1),
+        demand: Array(repeating: 0, count: count - 1) + [1]
+    )
+
+    guard case .minimumCostFlow(let solution) = try backend.solve(.minimumCostFlow(problem)) else {
+        Issue.record("Expected a minimum-cost-flow solution")
+        return
+    }
+    #expect(abs(solution.totalCost - Double(count - 1)) < 1e-7)
+    #expect(solution.balanceAdjustments.isEmpty)
+    #expect(solution.arcFlows.count == count - 1)
+    for index in 0..<(count - 1) {
+        #expect(solution.arcFlows.contains {
+            $0.from == nodes[index] && $0.to == nodes[index + 1]
+                && abs($0.quantity - 1) < 1e-7 && abs($0.unitCost - 1) < 1e-7
+        })
+    }
+}
+
 @Test func validatesNetworkModelsWithStructuredDiagnostics() throws {
     let invalidGraph = NetworkModelEnvelope.shortestPath(ShortestPathNetwork(
         title: "Invalid",

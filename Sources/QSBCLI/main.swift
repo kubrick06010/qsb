@@ -445,7 +445,7 @@ struct QSBCLI {
             guard arguments.count == 2 else { throw CLIError.usage("validate-mrp-json expects exactly one MRP model JSON file path") }
             try validateMRPJSON(path: arguments[1])
         case "solve-qp":
-            let options = try parsePathAndBackend(arguments, usage: "solve-qp expects a legacy quadratic-programming file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-qp expects a legacy quadratic-programming file path with optional --backend native|validate|external")
             try solveQuadraticProgrammingLegacy(path: options.path, backend: options.backend)
         case "validate-qp":
             guard arguments.count == 2 else { throw CLIError.usage("validate-qp expects exactly one legacy quadratic-programming file path") }
@@ -454,7 +454,7 @@ struct QSBCLI {
             guard arguments.count == 2 else { throw CLIError.usage("export-qp-json expects exactly one legacy quadratic-programming file path") }
             try exportQuadraticProgrammingJSON(path: arguments[1])
         case "solve-qp-json":
-            let options = try parsePathAndBackend(arguments, usage: "solve-qp-json expects a quadratic-programming model JSON file path with optional --backend native|validate")
+            let options = try parsePathAndBackend(arguments, usage: "solve-qp-json expects a quadratic-programming model JSON file path with optional --backend native|validate|external")
             try solveQuadraticProgrammingJSON(path: options.path, backend: options.backend)
         case "validate-qp-json":
             guard arguments.count == 2 else { throw CLIError.usage("validate-qp-json expects exactly one quadratic-programming model JSON file path") }
@@ -3372,10 +3372,10 @@ struct QSBCLI {
         qsb export-mrp-json <legacy-mrp-file>
         qsb solve-mrp-json <mrp-model-json-file> [--backend native|validate]
         qsb validate-mrp-json <mrp-model-json-file>
-        qsb solve-qp <legacy-quadratic-programming-file> [--backend native|validate]
+        qsb solve-qp <legacy-quadratic-programming-file> [--backend native|validate|external]
         qsb validate-qp <legacy-quadratic-programming-file>
         qsb export-qp-json <legacy-quadratic-programming-file>
-        qsb solve-qp-json <quadratic-programming-model-json-file> [--backend native|validate]
+        qsb solve-qp-json <quadratic-programming-model-json-file> [--backend native|validate|external]
         qsb validate-qp-json <quadratic-programming-model-json-file>
         qsb solve-nlp <legacy-nonlinear-programming-file> [--backend native|validate]
         qsb validate-nlp <legacy-nonlinear-programming-file>

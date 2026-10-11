@@ -34,7 +34,7 @@ struct GenericRoutingTests {
     @Test("generic solve routes LP-backed families through HiGHS when available")
     func solvesLPBackedFamiliesExternallyWhenAvailable() throws {
         guard HiGHSExecutableLocator.locate() != nil else { return }
-        for fixture in ["TRNSPORT.NE_", "APLP.AP_", "GP.GP_"] {
+        for fixture in ["TRNSPORT.NE_", "APLP.AP_", "GP.GP_", "QP.QP_"] {
             try QSBCLI.genericSolve(path: legacyFixtureURL(fixture).path, backend: .externalHighPerformance)
         }
     }

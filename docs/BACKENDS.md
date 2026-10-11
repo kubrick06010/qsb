@@ -10,7 +10,7 @@ normalized JSON never depend on a concrete solver.
 | --- | --- | --- |
 | `nativeEducational` | Deterministic Swift implementations for small and fixture-scale models | Structured solution plus run metadata |
 | `validateOnly` | Parse and validate a recognized model without solving it | Diagnostics and validity status |
-| `externalHighPerformance` | Host-provided high-performance engine; HiGHS for LP/MIP and LP-backed network/planning families | Structured solution when discovered; explicit unavailable status otherwise |
+| `externalHighPerformance` | Host-provided high-performance engine; HiGHS for LP/MIP, continuous convex/concave QP, and LP-backed network/planning families | Structured solution when discovered; explicit unavailable status otherwise |
 
 Native solutions identify their algorithm and exactness (`exact`,
 `closedForm`, `approximate`, `heuristic`, or `fixtureScale`) in
@@ -65,9 +65,11 @@ boundary now powers these typed family backends:
   preserving QSBCore's integer presolve and typed outcomes.
 
 Family registries discover these wrappers only when the host executable is
-available. Quadratic programming remains explicitly unavailable externally
-while its quadratic interchange boundary is evaluated in
-`docs/QUADRATIC_PROGRAMMING.md`; no quadratic term is silently discarded.
+available. Continuous, strictly convex/concave quadratic programming also
+uses HiGHS through a separate `QUADOBJ` exporter and process adapter. Its
+typed output checks feasibility and the reconstructed objective. HiGHS rejects
+MIQP. See `docs/QUADRATIC_PROGRAMMING.md` for the coefficient convention and
+zero-row exit handling.
 
 ## External integration contract
 
@@ -83,10 +85,15 @@ command-line adapter.  Any future adapter should:
 6. return an unavailable/failed status when the executable or output is
    missing rather than falling back invisibly.
 
-External tests use small deterministic models and skip the installed-engine
-check when `highs` is absent. Injected backend tests exercise each typed family
-translation without a binary; injected-executable tests remain portable;
-native and validation-only tests are unconditional.
+External tests include deterministic fixture models, both continuous QP
+fixtures, a constrained cross-term QP, a zero-row QP, a 16×16 transportation
+instance, a 24-node minimum-cost flow, 12-period aggregate planning, and a
+12-variable two-priority integer goal program. These larger instances check
+typed reconstruction and objective values. Installed-engine checks skip when
+`highs` is absent. Injected
+backend tests exercise each typed family translation without a binary;
+injected-executable tests remain portable; native and validation-only tests are
+unconditional.
 
 ## Backend invariants
 

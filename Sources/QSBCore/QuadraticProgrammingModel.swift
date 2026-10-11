@@ -44,12 +44,20 @@ public enum QuadraticProgrammingError: Error, CustomStringConvertible {
     case unsupportedFormat
     case invalidModel(String)
     case infeasible
+    case unbounded
+    case externalSolverUnavailable(String)
+    case externalSolverFailed(String)
+    case externalSolverMalformedOutput(String)
 
     public var description: String {
         switch self {
         case .unsupportedFormat: "Unsupported quadratic-programming format"
         case .invalidModel(let message): "Invalid quadratic program: \(message)"
         case .infeasible: "Quadratic program is infeasible"
+        case .unbounded: "Quadratic program is unbounded"
+        case .externalSolverUnavailable(let path): "External quadratic solver unavailable: \(path)"
+        case .externalSolverFailed(let message): "External quadratic solver failed: \(message)"
+        case .externalSolverMalformedOutput(let message): "External quadratic solver returned malformed output: \(message)"
         }
     }
 }
@@ -190,21 +198,29 @@ public enum QuadraticProgramValidator {
         if n == 0 || Set(model.variableNames).count != n || model.linearCoefficients.count != n || model.quadraticMatrix.count != n || model.quadraticMatrix.contains(where: { $0.count != n }) || model.lowerBounds.count != n || model.upperBounds.count != n || model.variableTypes.count != n {
             result.append(error("dimension", "Variable, objective, matrix, bound, and type dimensions must agree.", "model"))
         }
+        if model.variableNames.contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+            result.append(error("names", "Variable names must be nonempty.", "model.variableNames"))
+        }
         if model.linearCoefficients.contains(where: { !$0.isFinite }) || model.quadraticMatrix.flatMap({ $0 }).contains(where: { !$0.isFinite }) || model.constraints.contains(where: { $0.coefficients.count != n || !$0.rhs.isFinite || $0.coefficients.contains(where: { !$0.isFinite }) }) {
             result.append(error("finite", "All coefficients and right-hand sides must be finite.", "model"))
         }
-        if model.quadraticMatrix.indices.contains(where: { i in model.quadraticMatrix.indices.contains(where: { j in abs(model.quadraticMatrix[i][j] - model.quadraticMatrix[j][i]) > 1e-9 }) }) {
+        let hasSquareMatrix = model.quadraticMatrix.count == n
+            && model.quadraticMatrix.allSatisfy { $0.count == n }
+        if hasSquareMatrix && model.quadraticMatrix.indices.contains(where: { i in model.quadraticMatrix.indices.contains(where: { j in abs(model.quadraticMatrix[i][j] - model.quadraticMatrix[j][i]) > 1e-9 }) }) {
             result.append(error("symmetry", "Quadratic matrix must be symmetric.", "model.quadraticMatrix"))
         }
-        for index in 0..<min(n, model.lowerBounds.count) {
+        for index in 0..<min(n, model.lowerBounds.count, model.upperBounds.count) {
+            if model.lowerBounds[index].map({ !$0.isFinite }) == true || model.upperBounds[index].map({ !$0.isFinite }) == true {
+                result.append(error("boundsFinite", "Variable bounds must be finite when present.", "model.lowerBounds[\(index)]"))
+            }
             if let lower = model.lowerBounds[index], let upper = model.upperBounds[index], lower > upper { result.append(error("bounds", "Lower bound exceeds upper bound.", "model.lowerBounds[\(index)]")) }
         }
-        if n > 0 && model.quadraticMatrix.count == n && model.quadraticMatrix.allSatisfy({ $0.count == n }) {
+        if n > 0 && hasSquareMatrix {
             let signed = model.sense == .maximize ? model.quadraticMatrix.map { $0.map { -$0 } } : model.quadraticMatrix
             if !isPositiveDefinite(signed) { result.append(error("curvature", "Native solving requires a strictly concave maximization or strictly convex minimization objective.", "model.quadraticMatrix")) }
         }
         let hasIntegers = model.variableTypes.contains { $0 != .continuous }
-        if hasIntegers && model.quadraticMatrix.indices.contains(where: { i in model.quadraticMatrix.indices.contains(where: { j in i != j && abs(model.quadraticMatrix[i][j]) > 1e-12 }) }) {
+        if hasIntegers && hasSquareMatrix && model.quadraticMatrix.indices.contains(where: { i in model.quadraticMatrix.indices.contains(where: { j in i != j && abs(model.quadraticMatrix[i][j]) > 1e-12 }) }) {
             result.append(error("integerCrossTerms", "Native integer QP supports diagonal quadratic objectives only.", "model.quadraticMatrix"))
         }
         if result.isEmpty { result.append(ValidationDiagnostic(severity: .info, code: "qp.valid", message: "Quadratic program is valid")) }
@@ -279,5 +295,5 @@ public protocol QuadraticProgrammingBackend: Sendable { var capabilities:SolverC
 public extension QuadraticProgrammingBackend { func validationReport(for model:QuadraticProgram)->ValidationReport{ValidationReport(backend:capabilities.backendKind,diagnostics:QuadraticProgramValidator.diagnostics(for:model))};func solve(_ model:QuadraticProgram)throws->QuadraticProgramSolution{try solve(model,options:SolverOptions())};func solutionDocument(for model:QuadraticProgram,solution:QuadraticProgramSolution)->QuadraticProgramSolutionDocument{QuadraticProgramSolutionDocument(backend:runMetadata(for:model),model:model,solution:solution)} }
 public struct NativeEducationalQuadraticProgrammingBackend:QuadraticProgrammingBackend{public init(){};public var capabilities:SolverCapabilities{SolverCapabilities(backendKind:.nativeEducational,solves:true,validates:true,exportsStructuredSolution:true,notes:["Active-set KKT enumeration for continuous convex/concave QP; bounded fixture-scale enumeration for diagonal integer QP."])};public func solve(_ model:QuadraticProgram,options _:SolverOptions=SolverOptions())throws->QuadraticProgramSolution{try QuadraticProgrammingSolver.solve(model)};public func runMetadata(for model:QuadraticProgram)->SolverRunMetadata{let integer=model.variableTypes.contains{$0 != .continuous};return SolverRunMetadata(backendKind:.nativeEducational,algorithm:integer ? "diagonalIntegerQuadraticEnumeration":"activeSetKKTEnumeration",exactness:integer ? .fixtureScale:.exact,notes:integer ? ["Exact within mathematically derived separable objective bounds for supported diagonal fixture-scale models."]:["Requires strictly convex minimization or strictly concave maximization."])}}
 public struct ValidateOnlyQuadraticProgrammingBackend:QuadraticProgrammingBackend{public init(){};public var capabilities:SolverCapabilities{SolverCapabilities(backendKind:.validateOnly,solves:false,validates:true,exportsStructuredSolution:false)};public func solve(_ model:QuadraticProgram,options _:SolverOptions=SolverOptions())throws->QuadraticProgramSolution{throw QuadraticProgrammingError.invalidModel("validateOnly backend does not solve quadratic programs")};public func runMetadata(for _:QuadraticProgram)->SolverRunMetadata{SolverRunMetadata(backendKind:.validateOnly,algorithm:"validationOnly",exactness:.exact)}}
-public enum QuadraticProgrammingBackends{public static func backend(for kind:SolverBackendKind)->(any QuadraticProgrammingBackend)?{switch kind{case .nativeEducational:NativeEducationalQuadraticProgrammingBackend();case .validateOnly:ValidateOnlyQuadraticProgrammingBackend();case .externalHighPerformance:nil}}}
+public enum QuadraticProgrammingBackends{public static func backend(for kind:SolverBackendKind)->(any QuadraticProgrammingBackend)?{switch kind{case .nativeEducational:NativeEducationalQuadraticProgrammingBackend();case .validateOnly:ValidateOnlyQuadraticProgrammingBackend();case .externalHighPerformance:HiGHSQuadraticProgrammingBackend.discovered()}}}
 public enum QuadraticProgrammingJSON{public static func encodeModel(_ x:QuadraticProgram)throws->Data{try encoder.encode(x)};public static func decodeUncheckedModel(from x:Data)throws->QuadraticProgram{try JSONDecoder().decode(QuadraticProgram.self,from:x)};public static func decodeModel(from x:Data)throws->QuadraticProgram{let model=try decodeUncheckedModel(from:x);try QuadraticProgramValidator.validate(model);return model};public static func encodeSolution(_ x:QuadraticProgramSolutionDocument)throws->Data{try encoder.encode(x)};public static func decodeSolution(from x:Data)throws->QuadraticProgramSolutionDocument{try JSONDecoder().decode(QuadraticProgramSolutionDocument.self,from:x)};public static func encodeValidation(_ x:QuadraticProgramValidationDocument)throws->Data{try encoder.encode(x)};private static var encoder:JSONEncoder{let e=JSONEncoder();e.outputFormatting=[.prettyPrinted,.sortedKeys];return e}}

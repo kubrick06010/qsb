@@ -47,7 +47,7 @@ import Testing
     let document = native.solutionDocument(for: model, solution: solution)
     #expect(try QuadraticProgrammingJSON.decodeSolution(from: QuadraticProgrammingJSON.encodeSolution(document)) == document)
     #expect(ValidateOnlyQuadraticProgrammingBackend().validationReport(for: model).isValid)
-    #expect(QuadraticProgrammingBackends.backend(for: .externalHighPerformance) == nil)
+    #expect((QuadraticProgrammingBackends.backend(for: .externalHighPerformance) != nil) == (HiGHSExecutableLocator.locate() != nil))
     let invalid = QuadraticProgram(title: "Nonconcave", sense: .maximize, variableNames: ["x"], linearCoefficients: [0], quadraticMatrix: [[1]], constraints: [], lowerBounds: [0], upperBounds: [nil], variableTypes: [.continuous])
     let report = ValidateOnlyQuadraticProgrammingBackend().validationReport(for: invalid)
     #expect(!report.isValid)
@@ -63,4 +63,3 @@ import Testing
 private func legacyQuadraticProgram(_ filename: String) throws -> QuadraticProgram {
     try WinQSBQuadraticProgrammingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL(filename))))
 }
-

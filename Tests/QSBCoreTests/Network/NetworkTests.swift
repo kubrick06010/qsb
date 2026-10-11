@@ -323,12 +323,11 @@ import Testing
     guard let backend = HiGHSNetworkBackend.discovered() else { return }
     let count = 24
     let nodes = (0..<count).map { "Node \($0)" }
-    let arcs = (0..<count).flatMap { from in
-        ((from + 1)..<count).map { to in
-            NetworkArc(
-                from: nodes[from], to: nodes[to],
-                cost: to == from + 1 ? 1 : Double(100 + to - from)
-            )
+    var arcs: [NetworkArc] = []
+    for from in 0..<count {
+        for to in (from + 1)..<count {
+            let cost: Double = to == from + 1 ? 1 : Double(100 + to - from)
+            arcs.append(NetworkArc(from: nodes[from], to: nodes[to], cost: cost))
         }
     }
     let problem = MinimumCostNetworkFlowProblem(
@@ -345,10 +344,13 @@ import Testing
     #expect(solution.balanceAdjustments.isEmpty)
     #expect(solution.arcFlows.count == count - 1)
     for index in 0..<(count - 1) {
-        #expect(solution.arcFlows.contains {
-            $0.from == nodes[index] && $0.to == nodes[index + 1]
-                && abs($0.quantity - 1) < 1e-7 && abs($0.unitCost - 1) < 1e-7
+        let origin = nodes[index]
+        let destination = nodes[index + 1]
+        let flow = try #require(solution.arcFlows.first {
+            $0.from == origin && $0.to == destination
         })
+        #expect(abs(flow.quantity - 1) < 1e-7)
+        #expect(abs(flow.unitCost - 1) < 1e-7)
     }
 }
 

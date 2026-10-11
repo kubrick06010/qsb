@@ -62,6 +62,29 @@ import Testing
     #expect(external.runMetadata(for: model).algorithm == "hiGHSLexicographicLP")
 }
 
+@Test func preservesEarlierLexicographicPrioritiesInTheFinalSolution() throws {
+    let model = GoalProgram(
+        title: "Independent priorities",
+        variableNames: ["primary", "secondary"],
+        goals: [
+            GoalObjective(name: "Primary", sense: .maximize, coefficients: [1, 0]),
+            GoalObjective(name: "Secondary", sense: .maximize, coefficients: [0, 1])
+        ],
+        constraints: [LinearConstraint(
+            name: "Shared capacity", coefficients: [1, 1], relation: .lessThanOrEqual, rhs: 10
+        )],
+        lowerBounds: [0, 0],
+        upperBounds: [10, 10],
+        variableTypes: [.continuous, .continuous]
+    )
+
+    let solution = try NativeEducationalGoalProgrammingBackend().solve(model)
+
+    #expect(solution.goalOutcomes.map(\.value) == [10, 0])
+    #expect(solution.variableValues["primary"] == 10)
+    #expect(solution.variableValues["secondary"] == 0)
+}
+
 @Test func solvesIntegerGoalProgrammingWithInstalledHiGHSWhenAvailable() throws {
     guard let backend = HiGHSGoalProgrammingBackend.discovered() else { return }
     let model = try WinQSBGoalProgrammingParser.parse(from: LegacyCompressedFile.expandedData(from: Data(contentsOf: legacyFixtureURL("IGP.GP_"))))
@@ -69,4 +92,32 @@ import Testing
     #expect(solution.goalOutcomes.map(\.value) == [0, 295])
     #expect(solution.variableValues["X1"] == 4)
     #expect(solution.variableValues["X2"] == 3)
+}
+
+@Test func solvesLargerLexicographicIntegerGoalsWithInstalledHiGHSWhenAvailable() throws {
+    guard let backend = HiGHSGoalProgrammingBackend.discovered() else { return }
+    let count = 12
+    let names = (1...count).map { "Choice \($0)" }
+    let model = GoalProgram(
+        title: "Select six integer choices", variableNames: names,
+        goals: [
+            GoalObjective(name: "First priority", sense: .maximize,
+                          coefficients: (1...count).map { Double(count + 1 - $0) }),
+            GoalObjective(name: "Second priority", sense: .minimize,
+                          coefficients: (1...count).map(Double.init))
+        ],
+        constraints: [LinearConstraint(
+            name: "Select six", coefficients: Array(repeating: 1, count: count),
+            relation: .equal, rhs: 6
+        )],
+        lowerBounds: Array(repeating: 0, count: count),
+        upperBounds: Array(repeating: 1, count: count),
+        variableTypes: Array(repeating: .binary, count: count)
+    )
+
+    let solution = try backend.solve(model)
+    #expect(solution.goalOutcomes.map(\.value) == [57, 21])
+    for index in 0..<count {
+        #expect(abs((solution.variableValues[names[index]] ?? -1) - (index < 6 ? 1 : 0)) < 1e-7)
+    }
 }

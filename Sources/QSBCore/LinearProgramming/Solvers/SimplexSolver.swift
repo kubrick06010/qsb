@@ -211,6 +211,13 @@ public enum SimplexSolver {
             if tableau[objectiveRow][rhsColumn] < -1e-8 {
                 throw LinearProgramError.infeasible
             }
+            try pivotArtificialVariablesOutOfBasis(
+                &tableau,
+                basis: &basis,
+                artificialColumns: Set(artificialColumns),
+                constraintCount: constraintCount,
+                rhsColumn: rhsColumn
+            )
         }
 
         var objective = Array(repeating: 0.0, count: width)
@@ -236,6 +243,31 @@ public enum SimplexSolver {
         }
 
         return CanonicalSolution(objectiveValue: tableau[objectiveRow][rhsColumn], variableValues: values)
+    }
+
+    private static func pivotArtificialVariablesOutOfBasis(
+        _ tableau: inout [[Double]],
+        basis: inout [Int],
+        artificialColumns: Set<Int>,
+        constraintCount: Int,
+        rhsColumn: Int
+    ) throws {
+        for row in 0..<constraintCount where artificialColumns.contains(basis[row]) {
+            guard abs(tableau[row][rhsColumn]) <= 1e-8 else {
+                throw LinearProgramError.infeasible
+            }
+
+            guard let replacement = (0..<rhsColumn).first(where: { column in
+                !artificialColumns.contains(column) && abs(tableau[row][column]) > 1e-9
+            }) else {
+                // A zero row is redundant. Its artificial variable remains fixed at zero
+                // and cannot change during phase two because every real coefficient is zero.
+                continue
+            }
+
+            pivot(&tableau, row: row, column: replacement)
+            basis[row] = replacement
+        }
     }
 
     private static func normalized(_ constraint: LinearConstraint) -> LinearConstraint {
@@ -328,4 +360,3 @@ public enum SimplexSolver {
         FileHandle.standardError.write(Data(("\n\(label) basis=\(basis)\n" + rows.joined(separator: "\n") + "\n").utf8))
     }
 }
-

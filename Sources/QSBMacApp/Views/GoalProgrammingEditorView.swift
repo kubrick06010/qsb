@@ -27,7 +27,7 @@ struct GoalProgrammingEditorView: View {
   }
   private var draft: GoalProgrammingDraft? { workspace.goalProgrammingDraft }
 
-  var body: some View {
+  private var editorContent: some View {
     VStack(alignment: .leading, spacing: 0) {
       HeaderView(
         title: workspace.modelTitle,
@@ -45,17 +45,25 @@ struct GoalProgrammingEditorView: View {
             maxWidth: .infinity, alignment: .topLeading)
         }
       }
-    }.navigationTitle("Goal Programming Definition")
+    }
+  }
+
+  private var variableIDs: [UUID] { draft?.variables.map(\.id) ?? [] }
+  private var constraintIDs: [UUID] { draft?.constraints.map(\.id) ?? [] }
+  private var goalIDs: [UUID] { draft?.goals.map(\.id) ?? [] }
+
+  var body: some View {
+    editorContent.navigationTitle("Goal Programming Definition")
       .onChange(of: section) { _, _ in transferIssue = nil }
-      .onChange(of: draft?.variables.map(\.id) ?? []) { previous, current in
+      .onChange(of: variableIDs) { previous, current in
         focusedVariableID = repairedEditorRowSelection(focusedVariableID, previous: previous, current: current)
       }
-      .onChange(of: draft?.constraints.map(\.id) ?? []) { previous, current in
+      .onChange(of: constraintIDs) { previous, current in
         let hadFocus = focusedConstraintID != nil
         focusedConstraintID = repairedEditorRowSelection(focusedConstraintID, previous: previous, current: current)
         if hadFocus { focusedEmptyConstraintAction = current.isEmpty && draft != nil && section == .constraints }
       }
-      .onChange(of: draft?.goals.map(\.id) ?? []) { previous, current in
+      .onChange(of: goalIDs) { previous, current in
         focusedGoalID = repairedEditorRowSelection(focusedGoalID, previous: previous, current: current)
       }
   }

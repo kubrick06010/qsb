@@ -1000,6 +1000,20 @@ final class QSBWorkspace {
     }
 
     @MainActor
+    private func registerDraftUndo(
+        with undoManager: UndoManager?,
+        actionName: String,
+        restore: @escaping @MainActor (QSBWorkspace) -> Void
+    ) {
+        undoManager?.registerUndo(withTarget: self) { target in
+            // UI undo managers invoke synchronously on the main thread. Older
+            // SDKs omit actor annotations; an async Task would break redo grouping.
+            MainActor.assumeIsolated { restore(target) }
+        }
+        undoManager?.setActionName(actionName)
+    }
+
+    @MainActor
     func replaceProjectSchedulingDraft(
         _ draft: ProjectSchedulingDraft,
         undoManager: UndoManager? = nil,
@@ -1007,10 +1021,9 @@ final class QSBWorkspace {
     ) {
         guard projectSchedulingDraft != draft else { return }
         if let previous = projectSchedulingDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceProjectSchedulingDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         projectSchedulingDraft = draft
         markMatrixDraftEdited(status: "Editing \(draft.kind.rawValue) project")
@@ -1024,10 +1037,9 @@ final class QSBWorkspace {
     ) {
         guard aggregatePlanningDraft != draft else { return }
         if let previous = aggregatePlanningDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceAggregatePlanningDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         aggregatePlanningDraft = draft
         markMatrixDraftEdited(status: "Editing aggregate plan")
@@ -1041,10 +1053,9 @@ final class QSBWorkspace {
     ) {
         guard materialRequirementsPlanningDraft != draft else { return }
         if let previous = materialRequirementsPlanningDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceMaterialRequirementsPlanningDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         materialRequirementsPlanningDraft = draft
         markMatrixDraftEdited(status: "Editing material requirements plan")
@@ -1058,10 +1069,9 @@ final class QSBWorkspace {
     ) {
         guard simulationDraft != draft else { return }
         if let previous = simulationDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceSimulationDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         simulationDraft = draft
         markMatrixDraftEdited(status: "Editing simulation")
@@ -1075,10 +1085,9 @@ final class QSBWorkspace {
     ) {
         guard knapsackDraft != draft else { return }
         if let previous = knapsackDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceKnapsackDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         knapsackDraft = draft
         markMatrixDraftEdited(status: "Editing bounded knapsack")
@@ -1092,10 +1101,9 @@ final class QSBWorkspace {
     ) {
         guard acceptanceSamplingDraft != draft else { return }
         if let previous = acceptanceSamplingDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceAcceptanceSamplingDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         acceptanceSamplingDraft = draft
         markMatrixDraftEdited(status: "Editing acceptance-sampling plan")
@@ -1109,19 +1117,30 @@ final class QSBWorkspace {
     ) {
         guard qualityControlDraft != draft else { return }
         if let previous = qualityControlDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceQualityControlDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         qualityControlDraft = draft
         markMatrixDraftEdited(status: "Editing quality-control analysis")
     }
 
     @MainActor
-    func replaceQuadraticProgrammingDraft(_ draft:QuadraticProgrammingDraft,undoManager:UndoManager?=nil,actionName:String="Edit Quadratic Program") {
-        guard quadraticProgrammingDraft != draft else{return};if let previous=quadraticProgrammingDraft{undoManager?.registerUndo(withTarget:self){$0.replaceQuadraticProgrammingDraft(previous,undoManager:undoManager,actionName:actionName)};undoManager?.setActionName(actionName)};quadraticProgrammingDraft=draft;markMatrixDraftEdited(status:"Editing quadratic program")
+    func replaceQuadraticProgrammingDraft(
+        _ draft: QuadraticProgrammingDraft,
+        undoManager: UndoManager? = nil,
+        actionName: String = "Edit Quadratic Program"
+    ) {
+        guard quadraticProgrammingDraft != draft else { return }
+        if let previous = quadraticProgrammingDraft {
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
+                target.replaceQuadraticProgrammingDraft(previous, undoManager: undoManager, actionName: actionName)
+            }
+        }
+        quadraticProgrammingDraft = draft
+        markMatrixDraftEdited(status: "Editing quadratic program")
     }
+
     @MainActor
     func replaceNonlinearProgrammingDraft(
         _ draft: NonlinearProgrammingDraft,
@@ -1130,10 +1149,9 @@ final class QSBWorkspace {
     ) {
         guard nonlinearProgrammingDraft != draft else { return }
         if let previous = nonlinearProgrammingDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceNonlinearProgrammingDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         nonlinearProgrammingDraft = draft
         markMatrixDraftEdited(status: "Editing nonlinear program")
@@ -1147,10 +1165,9 @@ final class QSBWorkspace {
     ) {
         guard goalProgrammingDraft != draft else { return }
         if let previous = goalProgrammingDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceGoalProgrammingDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         goalProgrammingDraft = draft
         markMatrixDraftEdited(status: "Editing goal program")
@@ -1164,10 +1181,9 @@ final class QSBWorkspace {
     ) {
         guard facilityLocationDraft != draft else { return }
         if let previous = facilityLocationDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceFacilityLocationDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         facilityLocationDraft = draft
         markMatrixDraftEdited(status: "Editing facility location")
@@ -1181,10 +1197,9 @@ final class QSBWorkspace {
     ) {
         guard lineBalancingDraft != draft else { return }
         if let previous = lineBalancingDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceLineBalancingDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         lineBalancingDraft = draft
         markMatrixDraftEdited(status: "Editing line balancing")
@@ -1198,10 +1213,9 @@ final class QSBWorkspace {
     ) {
         guard facilityLayoutDraft != draft else { return }
         if let previous = facilityLayoutDraft {
-            undoManager?.registerUndo(withTarget: self) { target in
+            registerDraftUndo(with: undoManager, actionName: actionName) { target in
                 target.replaceFacilityLayoutDraft(previous, undoManager: undoManager, actionName: actionName)
             }
-            undoManager?.setActionName(actionName)
         }
         facilityLayoutDraft = draft
         markMatrixDraftEdited(status: "Editing facility layout")

@@ -181,8 +181,11 @@ struct QualityControlDraft: Equatable, Sendable {
 
     func tabularText() -> String {
         let lead = kind == .pareto || kind == .xbarRChart ? "Subgroup" : "Observation"
-        return ([[lead] + columns.map(\.name)] + rows.enumerated().map { [String($0.offset + 1)] + $0.element.values })
-            .map { $0.joined(separator: "\t") }.joined(separator: "\n")
+        var tableRows: [[String]] = [[lead] + columns.map(\.name)]
+        for (index, row) in rows.enumerated() {
+            tableRows.append([String(index + 1)] + row.values)
+        }
+        return tableRows.map { $0.joined(separator: "\t") }.joined(separator: "\n")
     }
 
     mutating func replaceTable(withTabularText text: String) throws {

@@ -42,7 +42,7 @@ struct MaterialRequirementsPlanningEditorView: View {
         _selectedItemID = State(initialValue: initialItemID)
     }
 
-    var body: some View {
+    private var editorContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             HeaderView(
                 title: workspace.modelTitle,
@@ -73,9 +73,17 @@ struct MaterialRequirementsPlanningEditorView: View {
                 }
             }
         }
+    }
+
+    private var itemIDs: [UUID] { draft?.items.map(\.id) ?? [] }
+    private var billIDs: [UUID] { draft?.billComponents.map(\.id) ?? [] }
+    private var bucketCount: Int { draft?.bucketNames.count ?? 0 }
+
+    var body: some View {
+        editorContent
         .navigationTitle("Material Requirements Planning Definition")
         .onAppear { selectFirstItemIfNeeded() }
-        .onChange(of: draft?.items.map(\.id) ?? []) { previous, current in
+        .onChange(of: itemIDs) { previous, current in
             if let selectedItemID, !current.contains(selectedItemID) {
                 let oldIndex = previous.firstIndex(of: selectedItemID) ?? 0
                 self.selectedItemID = current.isEmpty ? nil : current[min(oldIndex, current.count - 1)]
@@ -85,11 +93,11 @@ struct MaterialRequirementsPlanningEditorView: View {
                 focusedField = repairedEditorRowSelection(id, previous: previous, current: current).map { .item($0) }
             }
         }
-        .onChange(of: draft?.billComponents.map(\.id) ?? []) { previous, current in
+        .onChange(of: billIDs) { previous, current in
             guard case let .bill(id) = focusedField else { return }
             focusedField = draft == nil ? nil : repairedEditorRowSelection(id, previous: previous, current: current).map { .bill($0) } ?? .addBill
         }
-        .onChange(of: draft?.bucketNames.count ?? 0) { _, count in
+        .onChange(of: bucketCount) { _, count in
             scheduleGroup = min(max(0, scheduleGroup), max(0, MatrixEditorNavigation().groupCount(columnCount: count) - 1))
             if case let .bucket(index) = focusedField {
                 let repaired = min(index, max(0, count - 1))

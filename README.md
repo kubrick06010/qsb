@@ -23,6 +23,9 @@ working policy before creating or pushing a remote repository.
 swift build
 ```
 
+Building the macOS app requires Xcode 16 or later so that Swift 6 uses a
+matching SwiftUI SDK. The app deployment target remains macOS 14.
+
 ## Test
 
 ```sh

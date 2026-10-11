@@ -14,6 +14,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      # Swift 6 needs the SwiftUI SDK actor annotations shipped with Xcode 16.
+      - name: Select Xcode 16.2 SDK
+        if: runner.os == 'macOS'
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
       - uses: swift-actions/setup-swift@7ca6abe6b3b0e8b5421b88be48feee39cbf52c6a
         with:
           swift-version: "6.0"
@@ -37,6 +41,10 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+      # Swift 6 needs the SwiftUI SDK actor annotations shipped with Xcode 16.
+      - name: Select Xcode 16.2 SDK
+        if: runner.os == 'macOS'
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
       - uses: swift-actions/setup-swift@7ca6abe6b3b0e8b5421b88be48feee39cbf52c6a
         with:
           swift-version: "6.0"

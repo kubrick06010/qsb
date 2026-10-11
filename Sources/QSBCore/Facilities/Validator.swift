@@ -70,39 +70,68 @@ public enum FacilityLayoutValidator {
             }
         }
 
-        var occupied: [FacilityLayoutCell: FacilityLayoutDepartment] = [:]
-        for department in problem.departments {
-            for cell in layoutCells(in: department.initialLayout).sorted() {
-                guard cell.row >= 1, cell.row <= problem.rowCount, cell.column >= 1, cell.column <= problem.columnCount else {
-                    continue
+        let gridArea = problem.rowCount.multipliedReportingOverflow(by: problem.columnCount)
+        if problem.rowCount > 0, problem.columnCount > 0, gridArea.overflow {
+            diagnostics.append(error(
+                "facilities.layout.grid.overflow",
+                "facility layout grid cell count exceeds the supported integer range",
+                path: "grid"
+            ))
+        }
+        if problem.rowCount > 0, problem.columnCount > 0, !gridArea.overflow {
+            // Ignore invalid rectangles here; their bounds diagnostics are already
+            // present. Geometry checks must never enumerate an invalid or huge area.
+            let validLayouts = problem.departments.map { department in
+                department.initialLayout.filter {
+                    $0.startRow > 0 && $0.startColumn > 0 &&
+                    $0.startRow <= $0.endRow && $0.startColumn <= $0.endColumn &&
+                    $0.endRow <= problem.rowCount && $0.endColumn <= problem.columnCount
                 }
-                if let owner = occupied[cell], owner.id != department.id {
+            }
+            for index in problem.departments.indices {
+                let department = problem.departments[index]
+                for previous in 0..<index {
+                    let owner = problem.departments[previous]
+                    guard owner.id != department.id else { continue }
+                    let intersections = validLayouts[index].flatMap { rect in
+                        validLayouts[previous].compactMap { other -> FacilityLayoutRect? in
+                            let row = max(rect.startRow, other.startRow)
+                            let column = max(rect.startColumn, other.startColumn)
+                            guard row <= min(rect.endRow, other.endRow),
+                                  column <= min(rect.endColumn, other.endColumn) else { return nil }
+                            return FacilityLayoutRect(startRow: row, startColumn: column,
+                                endRow: min(rect.endRow, other.endRow), endColumn: min(rect.endColumn, other.endColumn))
+                        }
+                    }
+                    // One representative cell per department pair keeps diagnostics
+                    // useful even when an overlap spans millions of cells.
+                    guard let cell = intersections.min(by: {
+                        $0.startRow == $1.startRow ? $0.startColumn < $1.startColumn : $0.startRow < $1.startRow
+                    }) else { continue }
+                    let sharedCount = layoutGeometry(in: intersections).cellCount
                     if owner.fixed || department.fixed {
                         diagnostics.append(warning(
                             "facilities.layout.initial.fixedOverlap",
-                            "facility layout cell (\(cell.row),\(cell.column)) is shared by fixed area \(owner.fixed ? owner.name : department.name)",
+                            "facility layout cell (\(cell.startRow),\(cell.startColumn)) is shared by fixed area \(owner.fixed ? owner.name : department.name) (\(sharedCount) shared cells)",
                             path: "departments.\(department.name).initialLayout"
                         ))
                     } else {
                         diagnostics.append(error(
                             "facilities.layout.initial.overlap",
-                            "facility layout cell (\(cell.row),\(cell.column)) is assigned to both \(owner.name) and \(department.name)",
+                            "facility layout cell (\(cell.startRow),\(cell.startColumn)) is assigned to both \(owner.name) and \(department.name) (\(sharedCount) shared cells)",
                             path: "departments.\(department.name).initialLayout"
                         ))
                     }
-                } else {
-                    occupied[cell] = department
                 }
             }
-        }
-
-        let gridCellCount = max(0, problem.rowCount * problem.columnCount)
-        if gridCellCount > 0, occupied.count != gridCellCount {
-            diagnostics.append(warning(
-                "facilities.layout.initial.coverage",
-                "facility layout initial cells cover \(occupied.count) of \(gridCellCount) grid cells",
-                path: "departments.initialLayout"
-            ))
+            let occupiedCount = layoutGeometry(in: validLayouts.flatMap { $0 }).cellCount
+            if occupiedCount != gridArea.partialValue {
+                diagnostics.append(warning(
+                    "facilities.layout.initial.coverage",
+                    "facility layout initial cells cover \(occupiedCount) of \(gridArea.partialValue) grid cells",
+                    path: "departments.initialLayout"
+                ))
+            }
         }
 
         guard diagnostics.contains(where: { $0.severity == .error }) == false else {

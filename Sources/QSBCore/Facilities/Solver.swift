@@ -124,7 +124,7 @@ public enum FacilityLayoutSolver {
     }
 
     private static func sameSizeMovablePairs(in problem: FacilityLayoutProblem) -> [(first: Int, second: Int)] {
-        let cellCounts = problem.departments.map { layoutCells(in: $0.initialLayout).count }
+        let cellCounts = problem.departments.map { layoutGeometry(in: $0.initialLayout).cellCount }
         var pairs: [(first: Int, second: Int)] = []
 
         for firstIndex in problem.departments.indices {
@@ -179,18 +179,15 @@ public enum FacilityLayoutSolver {
     }
 
     private static func placement(for department: FacilityLayoutDepartment) -> FacilityLayoutPlacement {
-        let cells = layoutCells(in: department.initialLayout)
-        let cellCount = cells.count
-        let centroidRow = cells.reduce(0.0) { $0 + Double($1.row) } / Double(cellCount)
-        let centroidColumn = cells.reduce(0.0) { $0 + Double($1.column) } / Double(cellCount)
+        let geometry = layoutGeometry(in: department.initialLayout)
         return FacilityLayoutPlacement(
             departmentID: department.id,
             departmentName: department.name,
             fixed: department.fixed,
             rectangles: department.initialLayout,
-            cellCount: cellCount,
-            centroidRow: centroidRow,
-            centroidColumn: centroidColumn
+            cellCount: geometry.cellCount,
+            centroidRow: geometry.centroidRow,
+            centroidColumn: geometry.centroidColumn
         )
     }
 }

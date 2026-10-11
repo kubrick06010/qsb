@@ -410,9 +410,89 @@ import Testing
 
     #expect(report.backend == .validateOnly)
     #expect(report.isValid)
-    #expect(diagnostics.filter { $0.code == "facilities.layout.initial.fixedOverlap" }.count == 3)
+    let overlaps = diagnostics.filter { $0.code == "facilities.layout.initial.fixedOverlap" }
+    #expect(overlaps.count == 1)
+    #expect(overlaps[0].message.contains("3 shared cells"))
     #expect(diagnostics.contains {
         $0.severity == .info && $0.code == "facilities.layout.valid"
     })
 }
 
+
+@Test func rejectsDuplicateFacilityLocationIDs() throws {
+    let problem = FacilityLocationProblem(title: "Duplicate identity", distanceMeasure: .rectilinear, objective: "MIN", facilities: [
+        FacilityLocationFacility(id: 1, name: "Existing", isNew: false, x: 0, y: 0, interactionCosts: [nil, 1]),
+        FacilityLocationFacility(id: 1, name: "Second existing", isNew: false, x: 1, y: 0, interactionCosts: [1, nil])])
+    #expect(FacilityLocationValidator.diagnostics(for: problem).contains { $0.code == "facilities.location.ids.duplicate" && $0.severity == .error })
+    #expect(throws: FacilitiesModelError.self) { try FacilityLocationValidator.validate(problem) }
+    let data = try FacilityLocationJSON.encodeModel(problem)
+    #expect(throws: FacilitiesModelError.self) { try FacilityLocationJSON.decodeModel(from: data) }
+}
+
+@Test func layoutRectangleGeometryMatchesDiscreteCellUnions() {
+    let rectangles = (1...4).flatMap { startRow in
+        (startRow...4).flatMap { endRow in
+            (1...4).flatMap { startColumn in
+                (startColumn...4).map { endColumn in
+                    FacilityLayoutRect(startRow: startRow, startColumn: startColumn, endRow: endRow, endColumn: endColumn)
+                }
+            }
+        }
+    }
+    for first in rectangles {
+        for second in rectangles.enumerated().filter({ $0.offset.isMultiple(of: 7) }).map(\.element) {
+            let input = [first, second, first]
+            var cells = Set<Int>()
+            for rect in input {
+                for row in rect.startRow...rect.endRow {
+                    for column in rect.startColumn...rect.endColumn { cells.insert(row * 8 + column) }
+                }
+            }
+            let geometry = layoutGeometry(in: input)
+            #expect(geometry.cellCount == cells.count)
+            #expect(abs(geometry.centroidRow - cells.reduce(0.0) { $0 + Double($1 / 8) } / Double(cells.count)) < 1e-10)
+            #expect(abs(geometry.centroidColumn - cells.reduce(0.0) { $0 + Double($1 % 8) } / Double(cells.count)) < 1e-10)
+        }
+    }
+}
+
+@Test func layoutLargeRectanglesAndIntegerBoundariesRemainUsable() throws {
+    let side = 1_000_000_000
+    let large = FacilityLayoutProblem(title: "Large geometry", rowCount: side, columnCount: side, objective: "MIN", departments: [
+        FacilityLayoutDepartment(id: 1, name: "A", fixed: false, flowUnitCosts: [nil], initialLayout: [
+            FacilityLayoutRect(startRow: 1, startColumn: 1, endRow: side, endColumn: side)
+        ])
+    ])
+    #expect(FacilityLayoutValidator.diagnostics(for: large).allSatisfy { $0.severity != .error })
+    let solution = try FacilityLayoutSolver.solve(large)
+    #expect(solution.placements[0].cellCount == side * side)
+    #expect(abs(solution.placements[0].centroidRow - (Double(side) + 1) / 2) < 1e-6)
+    #expect(solution.objectiveValue == 0)
+    let edge = FacilityLayoutProblem(title: "Integer edge", rowCount: Int.max, columnCount: 1, objective: "MIN", departments: [
+        FacilityLayoutDepartment(id: 1, name: "A", fixed: false, flowUnitCosts: [nil], initialLayout: [
+            FacilityLayoutRect(startRow: 1, startColumn: 1, endRow: Int.max, endColumn: 1)
+        ])
+    ])
+    #expect(try FacilityLayoutSolver.solve(edge).placements[0].cellCount == Int.max)
+    let overflow = FacilityLayoutProblem(title: "Overflow", rowCount: Int.max, columnCount: 2, objective: "MIN", departments: edge.departments)
+    #expect(FacilityLayoutValidator.diagnostics(for: overflow).contains { $0.code == "facilities.layout.grid.overflow" && $0.severity == .error })
+    #expect(throws: FacilitiesModelError.self) { try FacilityLayoutSolver.solve(overflow) }
+    let invalidRect = FacilityLayoutRect(startRow: Int.min, startColumn: 1, endRow: Int.max, endColumn: 1)
+    #expect(invalidRect.cellCount == Int.max)
+    let invalid = FacilityLayoutProblem(title: "Invalid bounds", rowCount: 10, columnCount: 10, objective: "MIN", departments: [
+        FacilityLayoutDepartment(id: 1, name: "A", fixed: false, flowUnitCosts: [nil], initialLayout: [invalidRect])
+    ])
+    #expect(FacilityLayoutValidator.diagnostics(for: invalid).contains { $0.code == "facilities.layout.initial.bounds" })
+}
+
+@Test func layoutOverlapDiagnosticsRemainBoundedForLargeAreas() {
+    let rect = FacilityLayoutRect(startRow: 1, startColumn: 1, endRow: 1_000_000, endColumn: 1_000_000)
+    let problem = FacilityLayoutProblem(title: "Overlap", rowCount: 1_000_000, columnCount: 1_000_000, objective: "MIN", departments: [
+        FacilityLayoutDepartment(id: 1, name: "A", fixed: false, flowUnitCosts: [nil, 0], initialLayout: [rect, rect]),
+        FacilityLayoutDepartment(id: 2, name: "B", fixed: false, flowUnitCosts: [0, nil], initialLayout: [rect])
+    ])
+    let diagnostics = FacilityLayoutValidator.diagnostics(for: problem)
+    #expect(diagnostics.filter { $0.code == "facilities.layout.initial.overlap" }.count == 1)
+    #expect(diagnostics.contains { $0.message.contains("cell (1,1)") })
+    #expect(!diagnostics.contains { $0.code == "facilities.layout.initial.coverage" })
+}

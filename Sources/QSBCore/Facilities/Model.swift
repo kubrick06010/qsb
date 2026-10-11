@@ -124,7 +124,19 @@ public struct FacilityLayoutRect: Codable, Equatable, Sendable {
         self.endColumn = endColumn
     }
 
-    public var cellCount: Int { max(0, endRow - startRow + 1) * max(0, endColumn - startColumn + 1) }
+    /// Inclusive rectangle area; inverted rectangles return zero. Areas beyond
+    /// Int's range saturate at Int.max; model validation rejects oversized grids.
+    public var cellCount: Int {
+        guard endRow >= startRow, endColumn >= startColumn else { return 0 }
+        let rowSpan = endRow.subtractingReportingOverflow(startRow)
+        let columnSpan = endColumn.subtractingReportingOverflow(startColumn)
+        guard !rowSpan.overflow, !columnSpan.overflow else { return Int.max }
+        let rows = rowSpan.partialValue.addingReportingOverflow(1)
+        let columns = columnSpan.partialValue.addingReportingOverflow(1)
+        guard !rows.overflow, !columns.overflow else { return Int.max }
+        let area = rows.partialValue.multipliedReportingOverflow(by: columns.partialValue)
+        return area.overflow ? Int.max : area.partialValue
+    }
 }
 
 public struct FacilityLayoutDepartment: Codable, Equatable, Sendable {

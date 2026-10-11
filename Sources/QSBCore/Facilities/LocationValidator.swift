@@ -34,6 +34,15 @@ public enum FacilityLocationValidator {
         }
 
         let facilityNames = problem.facilities.map(\.name)
+        // Legacy location files number existing and new facilities independently.
+        if Set(problem.existingFacilities.map(\.id)).count != problem.existingFacilities.count
+            || Set(problem.newFacilities.map(\.id)).count != problem.newFacilities.count {
+            diagnostics.append(error(
+                "facilities.location.ids.duplicate",
+                "facility location IDs must be unique within existing and new facilities",
+                path: "facilities"
+            ))
+        }
         if Set(facilityNames).count != facilityNames.count {
             diagnostics.append(error(
                 "facilities.location.facilities.duplicate",
@@ -133,5 +142,4 @@ public enum FacilityLocationValidator {
         return "facilities.\(facility.name).interactionCosts.\(problem.facilities[index].name)"
     }
 }
-
 

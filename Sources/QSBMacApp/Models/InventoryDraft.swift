@@ -171,6 +171,42 @@ struct InventoryLotSizingDraft: Equatable, Sendable {
     init(_ model: LotSizingModel) {
         title = model.title; timeUnit = model.timeUnit; periods = model.periods.map(InventoryLotSizingPeriodDraft.init)
     }
+
+    func periodsTabularText() -> String {
+        let header = ["Name", "Demand", "Setup Cost", "Unit Variable Cost", "Unit Holding Cost", "Unit Backorder Cost"]
+        let rows = periods.map {
+            [$0.name, $0.demand, $0.setupCost, $0.unitVariableCost, $0.unitHoldingCost, $0.unitBackorderCost]
+        }
+        return ([header] + rows).map { $0.joined(separator: "\t") }.joined(separator: "\n")
+    }
+
+    mutating func replacePeriods(withTabularText text: String) throws {
+        var rows = try SpreadsheetTable(text: text).rows
+        let expectedColumns = 6
+        if rows[0][0].lowercased().filter(\.isLetter) == "name" { rows.removeFirst() }
+        guard !rows.isEmpty else { throw SpreadsheetTransferError.emptyClipboard }
+
+        let parsed = try rows.enumerated().map { index, values in
+            let row = index + 1
+            guard values.count == expectedColumns else {
+                throw SpreadsheetTransferError.inconsistentColumns(expected: expectedColumns, actual: values.count, row: row)
+            }
+            guard !values[0].isEmpty else {
+                throw SpreadsheetTransferError.invalidValue(values[0], column: "Name", row: row)
+            }
+            guard let demand = Double(values[1]), demand.isFinite, abs(demand - demand.rounded()) <= 1e-8 else {
+                throw SpreadsheetTransferError.invalidValue(values[1], column: "Demand", row: row)
+            }
+            for column in 2..<expectedColumns {
+                try SpreadsheetTable.requireFinite(values[column], column: ["Setup Cost", "Unit Variable Cost", "Unit Holding Cost", "Unit Backorder Cost"][column - 2], row: row)
+            }
+            return InventoryLotSizingPeriodDraft(
+                name: values[0], demand: values[1], setupCost: values[2],
+                unitVariableCost: values[3], unitHoldingCost: values[4], unitBackorderCost: values[5]
+            )
+        }
+        periods = parsed
+    }
 }
 
 enum InventoryDraft: Equatable, Sendable {

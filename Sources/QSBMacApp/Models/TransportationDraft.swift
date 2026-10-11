@@ -160,6 +160,79 @@ struct TransportationDraft: Equatable, Sendable {
         for row in costs.indices where costs[row].indices.contains(index) { costs[row].remove(at: index) }
     }
 
+    func tabularText() -> String {
+        let header = ["Source / Destination"] + destinations.map(\.name) + ["Supply"]
+        let demandRow = ["Demand"] + destinations.map(\.demand) + [""]
+        let body = sources.indices.map { index in
+            [sources[index].name] + costs[index] + [sources[index].supply]
+        }
+        return ([header, demandRow] + body).map { $0.joined(separator: "\t") }.joined(separator: "\n")
+    }
+
+    mutating func replaceTable(withTabularText text: String) throws {
+        let table = try SpreadsheetTable(text: text)
+        let first = table.rows[0][0].lowercased().filter(\.isLetter)
+        let hasHeaders = ["sourcedestination", "source", "name"].contains(first)
+
+        if hasHeaders {
+            guard table.rows.count >= 3, table.rows[0].count >= 3 else {
+                throw SpreadsheetTransferError.inconsistentColumns(expected: 3, actual: table.rows[0].count, row: 1)
+            }
+            let lastColumn = table.rows[0].last?.lowercased().filter(\.isLetter)
+            guard lastColumn == "supply" else {
+                throw SpreadsheetTransferError.invalidValue(table.rows[0].last ?? "", column: "Supply", row: 1)
+            }
+            let destinationNames = Array(table.rows[0].dropFirst().dropLast())
+            guard !destinationNames.contains(where: \.isEmpty) else {
+                throw SpreadsheetTransferError.invalidValue("", column: "Destination", row: 1)
+            }
+            let demandValues = Array(table.rows[1].dropFirst().dropLast())
+            guard table.rows[1][0].lowercased() == "demand" else {
+                throw SpreadsheetTransferError.invalidValue(table.rows[1][0], column: "Demand", row: 2)
+            }
+            for (index, value) in demandValues.enumerated() {
+                try SpreadsheetTable.requireFinite(value, column: "Demand for \(destinationNames[index])", row: 2)
+            }
+
+            var newSources: [TransportationSourceDraft] = []
+            var newCosts: [[String]] = []
+            for (index, values) in table.rows.dropFirst(2).enumerated() {
+                let rowNumber = index + 3
+                guard !values[0].isEmpty else {
+                    throw SpreadsheetTransferError.invalidValue("", column: "Source", row: rowNumber)
+                }
+                let rowCosts = Array(values.dropFirst().dropLast())
+                for (column, value) in rowCosts.enumerated() {
+                    try SpreadsheetTable.requireFinite(value, column: destinationNames[column], row: rowNumber)
+                }
+                let supply = values.last ?? ""
+                try SpreadsheetTable.requireFinite(supply, column: "Supply", row: rowNumber)
+                newSources.append(TransportationSourceDraft(name: values[0], supply: supply))
+                newCosts.append(rowCosts)
+            }
+
+            destinations = zip(destinationNames, demandValues).map {
+                TransportationDestinationDraft(name: $0.0, demand: $0.1)
+            }
+            sources = newSources
+            costs = newCosts
+            return
+        }
+
+        guard table.rows.count == sources.count else {
+            throw SpreadsheetTransferError.inconsistentRows(expected: sources.count, actual: table.rows.count)
+        }
+        for (rowIndex, values) in table.rows.enumerated() {
+            guard values.count == destinations.count else {
+                throw SpreadsheetTransferError.inconsistentColumns(expected: destinations.count, actual: values.count, row: rowIndex + 1)
+            }
+            for (columnIndex, value) in values.enumerated() {
+                try SpreadsheetTable.requireFinite(value, column: destinations[columnIndex].name, row: rowIndex + 1)
+            }
+        }
+        costs = table.rows
+    }
+
     private func parseFinite(_ text: String) -> Double? {
         guard let value = Double(text.trimmingCharacters(in: .whitespacesAndNewlines)), value.isFinite else { return nil }
         return value

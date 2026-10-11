@@ -45,7 +45,7 @@ struct FacilityLayoutSolutionView: View {
                 ScrollView([.horizontal, .vertical]) {
                     if geometry.size.width >= 980 {
                         HStack(alignment: .top, spacing: 0) {
-                            layoutCanvas
+                            layoutCanvas(maximumExtent: max(320, min(geometry.size.width - 420, geometry.size.height - 40)))
                                 .frame(minWidth: 560, minHeight: 440)
                             Divider()
                             detailPanel
@@ -58,7 +58,7 @@ struct FacilityLayoutSolutionView: View {
                         )
                     } else {
                         VStack(alignment: .leading, spacing: 0) {
-                            layoutCanvas
+                            layoutCanvas(maximumExtent: max(320, min(geometry.size.width - 40, geometry.size.height - 40)))
                                 .frame(minWidth: 560, minHeight: 440)
                             Divider()
                             detailPanel
@@ -81,7 +81,7 @@ struct FacilityLayoutSolutionView: View {
                 Text(presentation.problem.title)
                     .font(.headline)
                     .lineLimit(1)
-                Text("\(sourceLabel) · \(presentation.document.backend.algorithm)")
+                Text("\(sourceLabel) · \(presentation.document.backend.algorithmDisplayName)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -133,14 +133,23 @@ struct FacilityLayoutSolutionView: View {
         .padding(.vertical, 8)
     }
 
-    private var layoutCanvas: some View {
-        FacilityLayoutCanvas(
-            problem: presentation.problem,
-            solution: solution,
-            showGrid: showGrid,
-            showTopFlows: showTopFlows,
-            zoom: zoom
-        )
+    private func layoutCanvas(maximumExtent: Double) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            let metrics = FacilityLayoutCanvasMetrics(rows: presentation.problem.rowCount,
+                columns: presentation.problem.columnCount, zoom: zoom, maximumExtent: maximumExtent)
+            if metrics.rowStep > 1 || metrics.columnStep > 1 {
+                Text("Overview grid: every \(metrics.rowStep) rows and \(metrics.columnStep) columns. Exact cell ranges are in Departments.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            FacilityLayoutCanvas(
+                problem: presentation.problem,
+                solution: solution,
+                showGrid: showGrid,
+                showTopFlows: showTopFlows,
+                zoom: zoom,
+                maximumExtent: maximumExtent
+            )
+        }
         .padding(20)
     }
 
@@ -208,7 +217,7 @@ struct FacilityLayoutSolutionView: View {
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer(minLength: 8)
@@ -216,10 +225,17 @@ struct FacilityLayoutSolutionView: View {
                 Text("\(placement.cellCount) cells")
                     .font(.callout.monospacedDigit())
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 9)
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(Array(placement.rectangles.enumerated()), id: \.offset) { index, rect in
+                    Text("Area \(index + 1): rows \(rect.startRow)–\(rect.endRow), columns \(rect.startColumn)–\(rect.endColumn)")
+                        .font(.caption).textSelection(.enabled)
+                }
+            }
+            .padding(.horizontal, 16).padding(.bottom, 9)
             Divider()
         }
     }
@@ -332,19 +348,11 @@ struct FacilityLayoutSolutionView: View {
         }
     }
 
-    private var exactnessLabel: String {
-        switch presentation.document.backend.exactness {
-        case .exact: "Exact"
-        case .closedForm: "Closed form"
-        case .fixtureScale: "Fixture scale"
-        case .heuristic: "Heuristic"
-        case .approximate: "Approximate"
-        }
-    }
+    private var exactnessLabel: String { presentation.document.backend.exactnessDisplayName }
 
     fileprivate static func number(_ value: Double) -> String {
         let rounded = value.rounded()
-        if abs(value - rounded) < 1e-8 {
+        if abs(value - rounded) < 1e-8, rounded >= Double(Int.min), rounded < Double(Int.max) {
             return String(Int(rounded))
         }
         return String(format: "%.2f", value)
@@ -366,17 +374,19 @@ private struct FacilityLayoutCanvas: View {
     let showGrid: Bool
     let showTopFlows: Bool
     let zoom: Double
+    let maximumExtent: Double
 
-    private var cellSize: CGFloat {
-        50 * zoom
+    private var metrics: FacilityLayoutCanvasMetrics {
+        FacilityLayoutCanvasMetrics(rows: problem.rowCount, columns: problem.columnCount, zoom: zoom, maximumExtent: maximumExtent)
     }
+    private var cellSize: CGFloat { metrics.cellSize }
 
     private var canvasWidth: CGFloat {
-        CGFloat(problem.columnCount) * cellSize
+        metrics.width
     }
 
     private var canvasHeight: CGFloat {
-        CGFloat(problem.rowCount) * cellSize
+        metrics.height
     }
 
     private var placementByID: [Int: FacilityLayoutPlacement] {
@@ -427,12 +437,12 @@ private struct FacilityLayoutCanvas: View {
     private var grid: some View {
         Canvas { context, _ in
             var path = Path()
-            for column in 0...problem.columnCount {
+            for column in metrics.columnGridLines {
                 let x = CGFloat(column) * cellSize
                 path.move(to: CGPoint(x: x, y: 0))
                 path.addLine(to: CGPoint(x: x, y: canvasHeight))
             }
-            for row in 0...problem.rowCount {
+            for row in metrics.rowGridLines {
                 let y = CGFloat(row) * cellSize
                 path.move(to: CGPoint(x: 0, y: y))
                 path.addLine(to: CGPoint(x: canvasWidth, y: y))
@@ -473,7 +483,7 @@ private struct FacilityLayoutCanvas: View {
             .lineLimit(1)
             .minimumScaleFactor(0.55)
             .padding(.horizontal, 4)
-            .frame(width: max(36, cellSize * 1.6))
+            .frame(width: max(metrics.rowStep > 1 || metrics.columnStep > 1 ? 120 : 36, cellSize * 1.6))
             .position(centroid(for: placement))
             .allowsHitTesting(false)
             .accessibilityLabel(placement.departmentName)
@@ -529,6 +539,6 @@ private enum FacilityLayoutPalette {
             .teal, .purple, .yellow, .indigo,
             .mint, .red
         ]
-        return colors[abs(id) % colors.count]
+        return colors[(id % colors.count + colors.count) % colors.count]
     }
 }

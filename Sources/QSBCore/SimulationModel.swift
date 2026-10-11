@@ -278,4 +278,36 @@ public extension SimulationBackend { func validationReport(for model: Simulation
 public struct NativeEducationalSimulationBackend: SimulationBackend { public init() {} ; public var capabilities: SolverCapabilities { SolverCapabilities(backendKind: .nativeEducational, solves: true, validates: true, exportsStructuredSolution: true, notes: ["Deterministic-seed discrete-event simulation for preserved fixture-scale networks."]) }; public func solve(_ model: SimulationModel, options: SolverOptions = SolverOptions()) throws -> SimulationSolution { try DiscreteEventSimulationSolver.solveReplicated(model, horizon: options.timeLimitSeconds ?? 1_000, seed: options.randomSeed ?? 1, replications: options.replications ?? 1) }; public func runMetadata(for _: SimulationModel) -> SolverRunMetadata { SolverRunMetadata(backendKind: .nativeEducational, algorithm: "seededDiscreteEventSimulation", exactness: .approximate, notes: ["Supports reproducible independent replications and 95% normal-approximation intervals; warm-up deletion and event traces remain future work."]) } }
 public struct ValidateOnlySimulationBackend: SimulationBackend { public init() {}; public var capabilities: SolverCapabilities { SolverCapabilities(backendKind: .validateOnly, solves: false, validates: true, exportsStructuredSolution: false) }; public func solve(_ model: SimulationModel, options: SolverOptions = SolverOptions()) throws -> SimulationSolution { throw SimulationError.invalidModel("validateOnly backend does not run simulations") }; public func runMetadata(for _: SimulationModel) -> SolverRunMetadata { SolverRunMetadata(backendKind: .validateOnly, algorithm: "validationOnly", exactness: .exact) } }
 public enum SimulationBackends { public static func backend(for kind: SolverBackendKind) -> (any SimulationBackend)? { switch kind { case .nativeEducational: NativeEducationalSimulationBackend(); case .validateOnly: ValidateOnlySimulationBackend(); case .externalHighPerformance: nil } } }
-public enum SimulationJSON { public static func encodeModel(_ value: SimulationModel) throws -> Data { try encoder.encode(value) }; public static func decodeUncheckedModel(from data: Data) throws -> SimulationModel { try JSONDecoder().decode(SimulationModel.self, from: data) }; public static func decodeModel(from data: Data) throws -> SimulationModel { let model = try decodeUncheckedModel(from: data); try SimulationValidator.validate(model); return model }; public static func encodeSolution(_ value: SimulationSolutionDocument) throws -> Data { try encoder.encode(value) }; public static func encodeValidation(_ value: SimulationValidationDocument) throws -> Data { try encoder.encode(value) }; private static var encoder: JSONEncoder { let value = JSONEncoder(); value.outputFormatting = [.prettyPrinted, .sortedKeys]; return value } }
+public enum SimulationJSON {
+    public static func encodeModel(_ value: SimulationModel) throws -> Data {
+        try encoder.encode(value)
+    }
+
+    public static func decodeUncheckedModel(from data: Data) throws -> SimulationModel {
+        try JSONDecoder().decode(SimulationModel.self, from: data)
+    }
+
+    public static func decodeModel(from data: Data) throws -> SimulationModel {
+        let model = try decodeUncheckedModel(from: data)
+        try SimulationValidator.validate(model)
+        return model
+    }
+
+    public static func encodeSolution(_ value: SimulationSolutionDocument) throws -> Data {
+        try encoder.encode(value)
+    }
+
+    public static func decodeSolution(from data: Data) throws -> SimulationSolutionDocument {
+        try JSONDecoder().decode(SimulationSolutionDocument.self, from: data)
+    }
+
+    public static func encodeValidation(_ value: SimulationValidationDocument) throws -> Data {
+        try encoder.encode(value)
+    }
+
+    private static var encoder: JSONEncoder {
+        let value = JSONEncoder()
+        value.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return value
+    }
+}

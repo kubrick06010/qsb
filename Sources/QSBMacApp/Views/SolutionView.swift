@@ -115,6 +115,105 @@ struct SolutionView: View {
                 case .json:
                     solutionEditor
                 }
+            } else if let goalProgrammingSolution = workspace.goalProgrammingSolution {
+                presentationPicker(visualLabel: "Priorities", systemImage: "list.number")
+
+                switch presentation {
+                case .visual:
+                    GoalProgrammingSolutionView(document: goalProgrammingSolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let aggregatePlanningSolution = workspace.aggregatePlanningSolution {
+                presentationPicker(visualLabel: "Plan", systemImage: "chart.bar.xaxis")
+
+                switch presentation {
+                case .visual:
+                    AggregatePlanningSolutionView(document: aggregatePlanningSolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let materialRequirementsPlanningSolution = workspace.materialRequirementsPlanningSolution {
+                presentationPicker(visualLabel: "Schedule", systemImage: "calendar.badge.clock")
+
+                switch presentation {
+                case .visual:
+                    MaterialRequirementsPlanningSolutionView(document: materialRequirementsPlanningSolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let acceptanceSamplingSolution = workspace.acceptanceSamplingSolution {
+                presentationPicker(visualLabel: "OC Curve", systemImage: "chart.xyaxis.line")
+
+                switch presentation {
+                case .visual:
+                    AcceptanceSamplingSolutionView(document: acceptanceSamplingSolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let qualityControlSolution = workspace.qualityControlSolution {
+                presentationPicker(visualLabel: "Chart", systemImage: "chart.line.uptrend.xyaxis")
+
+                switch presentation {
+                case .visual:
+                    QualityControlSolutionView(document: qualityControlSolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let quadraticProgrammingSolution = workspace.quadraticProgrammingSolution {
+                presentationPicker(visualLabel: "Optimum", systemImage: "function")
+
+                switch presentation {
+                case .visual:
+                    QuadraticProgrammingSolutionView(document: quadraticProgrammingSolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let nonlinearProgrammingSolution = workspace.nonlinearProgrammingSolution {
+                presentationPicker(visualLabel: "Optimum", systemImage: "function")
+
+                switch presentation {
+                case .visual:
+                    NonlinearProgrammingSolutionView(document: nonlinearProgrammingSolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let projectSchedulingSolution = workspace.projectSchedulingSolution {
+                presentationPicker(visualLabel: "Critical Path", systemImage: "point.3.connected.trianglepath.dotted")
+
+                switch presentation {
+                case .visual:
+                    ProjectSchedulingSolutionView(document: projectSchedulingSolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let simulationSolution = workspace.simulationSolution {
+                presentationPicker(visualLabel: "Metrics", systemImage: "waveform.path.ecg")
+
+                switch presentation {
+                case .visual:
+                    SimulationSolutionView(document: simulationSolution)
+                case .json:
+                    solutionEditor
+                }
+            } else if let facilityLocation = workspace.facilityLocationPresentation {
+                presentationPicker(visualLabel: "Location", systemImage: "mappin.and.ellipse")
+
+                switch presentation {
+                case .visual:
+                    FacilityLocationSolutionView(presentation: facilityLocation)
+                case .json:
+                    solutionEditor
+                }
+            } else if let lineBalancing = workspace.lineBalancingPresentation {
+                presentationPicker(visualLabel: "Stations", systemImage: "rectangle.3.group")
+
+                switch presentation {
+                case .visual:
+                    LineBalancingSolutionView(presentation: lineBalancing)
+                case .json:
+                    solutionEditor
+                }
             } else if let facilityLayout = workspace.facilityLayoutPresentation {
                 presentationPicker(visualLabel: "Layout", systemImage: "square.grid.3x3")
 
@@ -150,6 +249,8 @@ struct SolutionView: View {
                     .tag(SolutionPresentation.json)
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
+            .accessibilityLabel("Solution presentation")
             .frame(width: 220)
 
             Spacer()

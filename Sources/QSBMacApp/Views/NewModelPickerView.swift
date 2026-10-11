@@ -8,6 +8,11 @@ private enum NewModelFamily: String, CaseIterable, Identifiable {
     case networks
     case forecasting
     case analysis
+    case queuing
+    case optimization
+    case planning
+    case quality
+    case simulation
 
     var id: String { rawValue }
 
@@ -19,6 +24,11 @@ private enum NewModelFamily: String, CaseIterable, Identifiable {
         case .networks: "Networks"
         case .forecasting: "Forecasting"
         case .analysis: "Decision & Markov Analysis"
+        case .queuing: "Queuing"
+        case .optimization: "Optimization"
+        case .planning: "Planning & Scheduling"
+        case .quality: "Quality"
+        case .simulation: "Simulation"
         }
     }
 
@@ -30,6 +40,11 @@ private enum NewModelFamily: String, CaseIterable, Identifiable {
         case .networks: "point.3.connected.trianglepath.dotted"
         case .forecasting: "chart.xyaxis.line"
         case .analysis: "point.3.connected.trianglepath.dotted"
+        case .queuing: "person.2.wave.2"
+        case .optimization: "function"
+        case .planning: "calendar.badge.clock"
+        case .quality: "checkmark.seal"
+        case .simulation: "waveform.path.ecg"
         }
     }
 
@@ -40,6 +55,11 @@ private enum NewModelFamily: String, CaseIterable, Identifiable {
         case .networks: .purple
         case .forecasting: .orange
         case .analysis: .blue
+        case .queuing: .teal
+        case .optimization: .indigo
+        case .planning: .cyan
+        case .quality: .mint
+        case .simulation: .pink
         }
     }
 }
@@ -53,6 +73,22 @@ private enum NewModelCreationAction: Hashable {
     case minimumCostTransshipment
     case forecasting(ForecastingMethod)
     case markov
+    case queuing(QueuingProblemKind)
+    case decisionAnalysis(DecisionAnalysisProblemKind)
+    case projectScheduling
+    case aggregatePlanning
+    case materialRequirementsPlanning
+    case simulation
+    case boundedKnapsack
+    case acceptanceSampling
+    case qualityControl
+    case quadraticProgramming
+    case nonlinearProgramming
+    case goalProgramming
+    case facilityLocation
+    case lineBalancing
+    case facilityLayout
+    case guided(SampleModel)
 }
 
 private struct NewModelTemplate: Identifiable {
@@ -174,6 +210,38 @@ struct NewModelPickerView: View {
             workspace.startNewForecasting(method)
         case .markov:
             workspace.startNewMarkov()
+        case .queuing(let kind):
+            workspace.startNewQueuing(kind)
+        case .decisionAnalysis(let kind):
+            workspace.startNewDecisionAnalysis(kind)
+        case .projectScheduling:
+            workspace.startNewProjectScheduling()
+        case .aggregatePlanning:
+            workspace.startNewAggregatePlanning()
+        case .materialRequirementsPlanning:
+            workspace.startNewMaterialRequirementsPlanning()
+        case .simulation:
+            workspace.startNewSimulation()
+        case .boundedKnapsack:
+            workspace.startNewKnapsack()
+        case .acceptanceSampling:
+            workspace.startNewAcceptanceSampling()
+        case .qualityControl:
+            workspace.startNewQualityControl()
+        case .facilityLayout:
+            workspace.startNewFacilityLayout()
+        case .lineBalancing:
+            workspace.startNewLineBalancing()
+        case .facilityLocation:
+            workspace.startNewFacilityLocation()
+        case .goalProgramming:
+            workspace.startNewGoalProgramming()
+        case .nonlinearProgramming:
+            workspace.startNewNonlinearProgramming()
+        case .quadraticProgramming:
+            workspace.startNewQuadraticProgramming()
+        case .guided(let sample):
+            workspace.startNewGuidedModel(from: sample)
         }
         dismiss()
     }
@@ -215,7 +283,119 @@ struct NewModelPickerView: View {
             description: "Edit states, transition probabilities, costs, and transient periods.",
             systemImage: "point.3.connected.trianglepath.dotted", action: .markov
         )
-        return [linear] + inventory + networks + additionalNetworks + forecasting + [markov]
+        let decisions = [DecisionAnalysisProblemKind.payoff, .bayesian, .decisionTree, .zeroSumGame].map { kind in
+            let description: String = switch kind {
+            case .payoff: "Compare decisions with prior probabilities, evidence, and payoffs."
+            case .bayesian: "Update state probabilities from observed outcomes."
+            case .decisionTree: "Build decisions, chance branches, and terminal payoffs."
+            case .zeroSumGame: "Compare two players' strategies with a payoff matrix."
+            }
+            return NewModelTemplate(
+                id: "decision-\(kind.rawValue)", family: .analysis, title: kind.displayName,
+                description: description,
+                systemImage: kind == .decisionTree ? "point.3.connected.trianglepath.dotted" : "tablecells",
+                action: .decisionAnalysis(kind)
+            )
+        }
+        let queues = [QueuingProblemKind.mm1, .finiteCapacity].map { kind in
+            NewModelTemplate(
+                id: "queuing-\(kind.rawValue)", family: .queuing, title: kind.displayName,
+                description: kind == .mm1
+                    ? "Analyze a single-server queue with exponential arrivals and service."
+                    : "Analyze a multi-server queue with limited waiting capacity.",
+                systemImage: "person.2.wave.2", action: .queuing(kind)
+            )
+        }
+        let guided = [
+            NewModelTemplate(
+                id: "guided-quadratic-programming", family: .optimization,
+                title: "Quadratic Programming",
+                description: "Edit variables, bounds, objective coefficients, a quadratic matrix, and constraints in native tables.",
+                systemImage: "function", action: .quadraticProgramming
+            ),
+            NewModelTemplate(
+                id: "guided-nonlinear-programming", family: .optimization,
+                title: "Nonlinear Programming",
+                description: "Edit an objective expression, variables, bounds, and constraints in a guided starter.",
+                systemImage: "function", action: .nonlinearProgramming
+            ),
+            NewModelTemplate(
+                id: "guided-goal-programming", family: .optimization,
+                title: "Goal Programming",
+                description: "Prioritize several objectives over shared variables and constraints.",
+                systemImage: "list.number", action: .goalProgramming
+            ),
+            NewModelTemplate(
+                id: "bounded-knapsack", family: .planning,
+                title: "Bounded Knapsack",
+                description: "Allocate limited capacity across bounded item quantities in a native table.",
+                systemImage: "shippingbox.and.arrow.backward", action: .boundedKnapsack
+            ),
+            NewModelTemplate(
+                id: "aggregate-planning", family: .planning,
+                title: "Aggregate Planning",
+                description: "Plan production, workforce, inventory, and backorders in native period tables.",
+                systemImage: "chart.bar.xaxis", action: .aggregatePlanning
+            ),
+            NewModelTemplate(
+                id: "material-requirements-planning", family: .planning,
+                title: "Material Requirements Planning",
+                description: "Edit items, time-phased schedules, inventory, and BOM relationships in native forms.",
+                systemImage: "calendar.badge.clock", action: .materialRequirementsPlanning
+            ),
+            NewModelTemplate(
+                id: "project-scheduling", family: .planning,
+                title: "PERT / CPM",
+                description: "Edit activities, predecessors, times, costs, and project settings in a native table.",
+                systemImage: "point.3.connected.trianglepath.dotted", action: .projectScheduling
+            ),
+            NewModelTemplate(
+                id: "guided-facility-layout", family: .planning,
+                title: "Facility Layout",
+                description: "Edit departments, areas, flows, and a starter placement.",
+                systemImage: "square.grid.3x3", action: .facilityLayout
+            ),
+            NewModelTemplate(
+                id: "guided-facility-location", family: .planning,
+                title: "Facility Location",
+                description: "Edit existing sites, coordinates, weights, and proposed facilities.",
+                systemImage: "mappin.and.ellipse", action: .facilityLocation
+            ),
+            NewModelTemplate(
+                id: "guided-line-balancing", family: .planning,
+                title: "Line Balancing",
+                description: "Edit tasks, precedence, cycle time, and station constraints.",
+                systemImage: "rectangle.3.group", action: .lineBalancing
+            ),
+            NewModelTemplate(
+                id: "guided-acceptance-sampling", family: .quality,
+                title: "Acceptance Sampling",
+                description: "Edit single or double plans, acceptance limits, AQL, RQL, risks, and costs.",
+                systemImage: "chart.xyaxis.line", action: .acceptanceSampling
+            ),
+            NewModelTemplate(
+                id: "guided-quality-control", family: .quality,
+                title: "Quality Control",
+                description: "Edit c, p, X-bar/R, Pareto, and probability-plot data in native tables.",
+                systemImage: "chart.line.uptrend.xyaxis", action: .qualityControl
+            ),
+            NewModelTemplate(
+                id: "simulation", family: .simulation,
+                title: "Discrete-Event Simulation",
+                description: "Edit components, routes, arrival distributions, and service rules in native forms.",
+                systemImage: "waveform.path.ecg", action: .simulation
+            )
+        ]
+        var templates = [linear]
+        templates.append(contentsOf: inventory)
+        templates.append(contentsOf: networks)
+        templates.append(contentsOf: additionalNetworks)
+        templates.append(contentsOf: forecasting)
+        templates.append(markov)
+        templates.append(contentsOf: decisions)
+        templates.append(contentsOf: queues)
+        templates.append(contentsOf: guided)
+        return templates
     }
 
     private static func inventoryDescription(for kind: InventoryProblemKind) -> String {

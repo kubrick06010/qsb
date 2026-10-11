@@ -45,7 +45,7 @@ private struct PayoffAnalysisPresentation: View {
                         ForEach(Array(model.decisions.enumerated()), id: \.offset) { index, decision in
                             GridRow {
                                 Text(decision).gridColumnAlignment(.leading)
-                                ForEach(model.payoffs[safe: index] ?? [], id: \.self) { value in
+                                ForEach(Array((model.payoffs[safe: index] ?? []).enumerated()), id: \.offset) { _, value in
                                     Text(Self.number(value)).monospacedDigit()
                                 }
                                 Text(Self.number(solution.priorExpectedValues[safe: index]?.expectedValue ?? 0))
@@ -136,7 +136,7 @@ private struct BayesianAnalysisPresentation: View {
                             GridRow {
                                 Text(outcome.outcome).gridColumnAlignment(.leading)
                                 Text(Self.number(outcome.probability)).monospacedDigit()
-                                ForEach(outcome.posteriorProbabilities, id: \.self) { value in
+                                ForEach(Array(outcome.posteriorProbabilities.enumerated()), id: \.offset) { _, value in
                                     Text(Self.number(value)).monospacedDigit()
                                 }
                             }
@@ -170,7 +170,9 @@ private struct ZeroSumGamePresentation: View {
                         ForEach(Array(model.rowStrategies.enumerated()), id: \.offset) { index, strategy in
                             GridRow {
                                 Text(strategy).gridColumnAlignment(.leading)
-                                ForEach(model.payoffs[safe: index] ?? [], id: \.self) { Text(Self.number($0)).monospacedDigit() }
+                                ForEach(Array((model.payoffs[safe: index] ?? []).enumerated()), id: \.offset) { _, value in
+                                    Text(Self.number(value)).monospacedDigit()
+                                }
                             }
                         }
                     }
@@ -207,8 +209,8 @@ private struct ZeroSumGamePresentation: View {
                         Text(Self.number(item.probability)).monospacedDigit()
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("(title) strategy (item.strategy)")
-                    .accessibilityValue("Probability (Self.number(item.probability))")
+                    .accessibilityLabel("\(title) strategy \(item.strategy)")
+                    .accessibilityValue("Probability \(Self.number(item.probability))")
                 }
             }
             .padding(4)
@@ -219,7 +221,10 @@ private struct ZeroSumGamePresentation: View {
         values.filter { $0.probability > 0.0001 }.map { "\($0.strategy): \(Self.number($0.probability))" }.joined(separator: ", ")
     }
 
-    private static func number(_ value: Double) -> String { value.formatted(.number.precision(.significantDigits(6))) }
+    private static func number(_ value: Double) -> String {
+        let displayValue = abs(value) < 1e-9 ? 0 : value
+        return displayValue.formatted(.number.precision(.fractionLength(0...6)))
+    }
 }
 
 private struct RunMetadataView: View {

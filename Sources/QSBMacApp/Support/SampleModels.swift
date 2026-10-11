@@ -298,6 +298,59 @@ enum SampleModels {
     }
     """
 
+    static let facilityLocationJSON = """
+    {
+      "kind" : "location",
+      "model" : {
+        "distanceMeasure" : "rectilinear",
+        "facilities" : [
+          {
+            "id" : 1,
+            "interactionCosts" : [null, null, null],
+            "isNew" : false,
+            "name" : "Warehouse West",
+            "x" : 0,
+            "y" : 0
+          },
+          {
+            "id" : 2,
+            "interactionCosts" : [null, null, null],
+            "isNew" : false,
+            "name" : "Warehouse East",
+            "x" : 10,
+            "y" : 0
+          },
+          {
+            "id" : 3,
+            "interactionCosts" : [2, 1, null],
+            "isNew" : true,
+            "name" : "New Depot",
+            "x" : null,
+            "y" : null
+          }
+        ],
+        "objective" : "MIN",
+        "title" : "Two-Warehouse Location"
+      }
+    }
+    """
+
+    static let lineBalancingJSON = """
+    {
+      "kind" : "lineBalancing",
+      "model" : {
+        "cycleTime" : 7,
+        "tasks" : [
+          { "id" : 1, "isolated" : false, "name" : "Prepare", "successorIDs" : [3], "time" : 4 },
+          { "id" : 2, "isolated" : false, "name" : "Inspect", "successorIDs" : [3], "time" : 3 },
+          { "id" : 3, "isolated" : false, "name" : "Assemble", "successorIDs" : [], "time" : 5 }
+        ],
+        "timeUnit" : "minute",
+        "title" : "Compact Assembly Line"
+      }
+    }
+    """
+
     static let economicOrderQuantityJSON = """
     {
       "kind" : "eoq",
@@ -488,6 +541,145 @@ enum SampleModels {
       "upperBounds" : [10, 10],
       "variableNames" : ["Primary", "Secondary"],
       "variableTypes" : ["continuous", "continuous"]
+    }
+    """
+
+    static let aggregatePlanningJSON = """
+    {
+      "backorderCost" : [8, 8, 8],
+      "capacityIsPerWorker" : false,
+      "capacityRequirementPerUnit" : [1, 1, 1],
+      "capacityUnit" : "units",
+      "demand" : [80, 120, 100],
+      "dismissalCost" : [0, 0, 0],
+      "hiringCost" : [0, 0, 0],
+      "initialInventory" : 0,
+      "initialWorkforce" : null,
+      "inventoryHoldingCost" : [0.5, 0.5, 0.5],
+      "maximumBackorder" : [0, 0, 0],
+      "maximumInventory" : [50, 50, 50],
+      "maximumSubcontracting" : [20, 20, 20],
+      "maximumWorkforce" : [null, null, null],
+      "method" : 1,
+      "minimumInventory" : [0, 0, 0],
+      "minimumWorkforce" : [0, 0, 0],
+      "otherUnitProductionCost" : [0, 0, 0],
+      "overtimeCapacity" : [30, 30, 30],
+      "overtimeCost" : [3, 3, 3],
+      "periodNames" : ["Jan", "Feb", "Mar"],
+      "regularCapacity" : [100, 100, 100],
+      "regularCost" : [2, 2, 2],
+      "subcontractingCost" : [4, 4, 4],
+      "title" : "Three-Period Production Plan",
+      "undertimeCost" : [0, 0, 0],
+      "workforceUnit" : "workers"
+    }
+    """
+
+    static let materialRequirementsPlanningJSON = """
+    {
+      "billsOfMaterial" : [
+        {
+          "components" : [{ "itemIdentifier" : "COMP", "quantityPerParent" : 2 }],
+          "parentIdentifier" : "FINAL"
+        }
+      ],
+      "bucketNames" : ["Overdue", "Week 1", "Week 2", "Week 3", "Week 4"],
+      "items" : [
+        {
+          "annualDemand" : 780,
+          "annualHoldingCost" : 1,
+          "capacity" : [null, 50, 50, 50, 50],
+          "description" : "Finished assembly",
+          "identifier" : "FINAL",
+          "initialOnHand" : 0,
+          "leadTime" : 1,
+          "levelCode" : "0",
+          "lotSizingLookahead" : null,
+          "lotSizingRule" : "LFL",
+          "materialType" : "Assembly",
+          "orderingCost" : 20,
+          "safetyStock" : 0,
+          "scheduledReceipts" : [0, 0, 0, 0, 0],
+          "sourceCode" : "M",
+          "unit" : "unit",
+          "unitCost" : 25
+        },
+        {
+          "annualDemand" : 1560,
+          "annualHoldingCost" : 0.5,
+          "capacity" : [null, null, null, null, null],
+          "description" : "Purchased component",
+          "identifier" : "COMP",
+          "initialOnHand" : 20,
+          "leadTime" : 1,
+          "levelCode" : "1",
+          "lotSizingLookahead" : null,
+          "lotSizingRule" : "LFL",
+          "materialType" : "Component",
+          "orderingCost" : 10,
+          "safetyStock" : 10,
+          "scheduledReceipts" : [0, 0, 0, 0, 0],
+          "sourceCode" : "P",
+          "unit" : "piece",
+          "unitCost" : 4
+        }
+      ],
+      "masterProductionSchedule" : {
+        "FINAL" : [0, 20, 0, 30, 10]
+      },
+      "periodsPerYear" : 52,
+      "timeUnit" : "Week",
+      "title" : "Four-Week Assembly Plan"
+    }
+    """
+
+    static let acceptanceSamplingJSON = """
+    {
+      "kind" : "single",
+      "model" : {
+        "acceptableQualityLevel" : 0.02,
+        "acceptanceNumber" : 2,
+        "economics" : {
+          "consumerDefectiveCost" : 12,
+          "lotSize" : 500,
+          "producerDefectiveCost" : 4,
+          "unitInspectionCost" : 0.5,
+          "unitSamplingCost" : 1
+        },
+        "nominalConsumerRisk" : 0.1,
+        "nominalProducerRisk" : 0.05,
+        "rejectableQualityLevel" : 0.08,
+        "sampleSize" : 60,
+        "title" : "Incoming Lot Inspection"
+      }
+    }
+    """
+
+    static let qualityControlJSON = """
+    {
+      "kind" : "cChart",
+      "model" : {
+        "characteristic" : "Defects",
+        "counts" : [4, 5, 3, 6, 4, 5, 18, 4, 3, 5],
+        "title" : "Weekly Defect Count"
+      }
+    }
+    """
+
+    static let projectSchedulingJSON = """
+    {
+      "kind" : "CPM",
+      "model" : {
+        "activities" : [
+          { "crashCost" : 140, "crashTime" : 2, "name" : "A", "normalCost" : 100, "normalTime" : 4, "predecessors" : [] },
+          { "crashCost" : 100, "crashTime" : 2, "name" : "B", "normalCost" : 80, "normalTime" : 3, "predecessors" : [] },
+          { "crashCost" : 180, "crashTime" : 3, "name" : "C", "normalCost" : 120, "normalTime" : 5, "predecessors" : ["A"] },
+          { "crashCost" : 90, "crashTime" : 1, "name" : "D", "normalCost" : 60, "normalTime" : 2, "predecessors" : ["B", "C"] }
+        ],
+        "timeUnit" : "day",
+        "title" : "Product Launch CPM"
+      }
     }
     """
 }

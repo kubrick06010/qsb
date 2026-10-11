@@ -55,7 +55,7 @@ struct DynamicProgrammingSolutionView: View {
             Text(document.title)
                 .font(.headline)
                 .lineLimit(1)
-            Text("\(presentation.kindLabel) - \(document.backend.algorithm)")
+            Text("\(presentation.kindLabel) - \(document.backend.algorithmDisplayName)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -74,6 +74,9 @@ struct DynamicProgrammingSolutionView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(item.label)
+                .accessibilityValue(item.value)
             }
         }
     }
@@ -149,6 +152,9 @@ struct DynamicProgrammingSolutionView: View {
                                 .frame(width: 100, alignment: .trailing)
                         }
                         .tableRowStyle()
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Selected item \(selection.item)")
+                        .accessibilityValue("Quantity \(selection.quantity), capacity used \(selection.capacityUsed), return \(DynamicProgrammingPresentation.number(selection.returnValue))")
                     }
                 }
             }
@@ -336,6 +342,9 @@ struct DynamicProgrammingSolutionView: View {
                             .frame(width: 90, alignment: .trailing)
                     }
                     .tableRowStyle()
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Policy stage \(step.stage)")
+                    .accessibilityValue("State \(step.state), action \(step.action), next state \(step.nextState ?? "none"), value \(DynamicProgrammingPresentation.number(step.value))")
                 }
             }
         }
@@ -385,15 +394,7 @@ private struct DynamicProgrammingPresentation {
         }
     }
 
-    var exactnessLabel: String {
-        switch document.backend.exactness {
-        case .exact: "Exact"
-        case .closedForm: "Closed form"
-        case .fixtureScale: "Fixture scale"
-        case .heuristic: "Heuristic"
-        case .approximate: "Approximate"
-        }
-    }
+    var exactnessLabel: String { document.backend.exactnessDisplayName }
 
     var summaryMetrics: [DynamicProgrammingMetric] {
         switch document.solution {

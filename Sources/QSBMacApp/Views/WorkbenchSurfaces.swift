@@ -48,7 +48,7 @@ struct ModelOverviewView: View {
                         Button("Validate") { workspace.validateCurrentModel() }
                             .buttonStyle(.borderedProminent)
                         if workspace.canSolveCurrentModel {
-                            Button("Run") { workspace.solveCurrentModel() }
+                            Button("Run") { workspace.startCurrentModelRun() }
                         }
                     }
                     .padding(.vertical, 4)
@@ -116,6 +116,18 @@ struct RunConfigurationView: View {
                         Text("Pairwise swap").tag(FacilityLayoutSolvingStrategy.pairwiseSwap)
                     }
                 }
+                if workspace.isSimulationModel {
+                    Stepper(
+                        "Replications: \(workspace.simulationReplications)",
+                        value: $workspace.simulationReplications,
+                        in: 1...100
+                    )
+                    .accessibilityLabel("Simulation replications")
+                    .accessibilityValue("\(workspace.simulationReplications)")
+                    Text("Multiple replications use independent deterministic seeds and report 95% confidence intervals.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
                 if workspace.selectedBackend == .externalHighPerformance {
                     Text(workspace.externalBackendSummary)
                         .font(.callout)
@@ -128,7 +140,7 @@ struct RunConfigurationView: View {
             }
             Section {
                 Button(workspace.selectedBackend == .validateOnly ? "Validate" : "Run") {
-                    workspace.runCurrentModel()
+                    workspace.startCurrentModelRun()
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(workspace.modelState == .empty || workspace.runState == .solving)
@@ -252,6 +264,143 @@ struct JSONRepresentationView: View {
                 }
             }
             .padding(.horizontal, 12)
+        } else if !solution && (workspace.decisionDraft != nil || workspace.zeroSumGameDraft != nil) {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Decision Analysis draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Decision Analysis Editor") {
+                    workspace.applyDecisionAnalysisJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        } else if !solution && workspace.queuingDraft != nil {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Queuing draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Queuing Editor") {
+                    workspace.applyQueuingJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        } else if !solution && workspace.projectSchedulingDraft != nil {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Project Scheduling draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Project Scheduling Editor") {
+                    workspace.applyProjectSchedulingJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        } else if !solution && workspace.aggregatePlanningDraft != nil {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Aggregate Planning draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Aggregate Planning Editor") {
+                    workspace.applyAggregatePlanningJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        } else if !solution && workspace.materialRequirementsPlanningDraft != nil {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Material Requirements Planning draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to MRP Editor") {
+                    workspace.applyMaterialRequirementsPlanningJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        } else if !solution && workspace.simulationDraft != nil {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Simulation draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Simulation Editor") {
+                    workspace.applySimulationJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        } else if !solution && workspace.knapsackDraft != nil {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Bounded Knapsack draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Knapsack Editor") {
+                    workspace.applyKnapsackJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        } else if !solution && workspace.acceptanceSamplingDraft != nil {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Acceptance Sampling draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Acceptance Sampling Editor") {
+                    workspace.applyAcceptanceSamplingJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        } else if !solution && workspace.qualityControlDraft != nil {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Quality Control draft.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Quality Control Editor") {
+                    workspace.applyQualityControlJSONToNativeEditor()
+                }
+            }
+            .padding(.horizontal, 12)
+        } else if !solution && workspace.facilityLayoutDraft != nil {
+            HStack {
+                Text("Apply JSON changes explicitly to the native Facility Layout draft.").font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Layout Editor") { workspace.applyFacilityLayoutJSONToNativeEditor() }
+            }.padding(.horizontal, 12)
+        } else if !solution && workspace.lineBalancingDraft != nil {
+            HStack {
+                Text("Apply JSON changes explicitly to the native Line Balancing draft.").font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Line Editor") { workspace.applyLineBalancingJSONToNativeEditor() }
+            }.padding(.horizontal, 12)
+        } else if !solution && workspace.facilityLocationDraft != nil {
+            HStack {
+                Text("Apply JSON changes explicitly to the native Facility Location draft.").font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Location Editor") { workspace.applyFacilityLocationJSONToNativeEditor() }
+            }.padding(.horizontal, 12)
+        } else if !solution && workspace.goalProgrammingDraft != nil {
+            HStack {
+                Text("Apply JSON changes explicitly to the native Goal Programming draft.")
+                    .font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to Goal Editor") { workspace.applyGoalProgrammingJSONToNativeEditor() }
+            }.padding(.horizontal, 12)
+        } else if !solution && workspace.nonlinearProgrammingDraft != nil {
+            HStack {
+                Text("Apply JSON changes explicitly to the native Nonlinear Programming draft.")
+                    .font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to NLP Editor") { workspace.applyNonlinearProgrammingJSONToNativeEditor() }
+            }.padding(.horizontal, 12)
+        } else if !solution && workspace.quadraticProgrammingDraft != nil {
+            HStack {
+                Text("JSON changes are applied explicitly to the native Quadratic Programming draft.").font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("Apply JSON to QP Editor") { workspace.applyQuadraticProgrammingJSONToNativeEditor() }
+            }.padding(.horizontal, 12)
         }
     }
 }

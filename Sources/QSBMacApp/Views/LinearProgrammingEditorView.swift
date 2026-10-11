@@ -1,8 +1,11 @@
+import AppKit
 import SwiftUI
 import QSBCore
 
 struct LinearProgrammingEditorView: View {
     @Bindable var workspace: QSBWorkspace
+    @State private var variablesTransferIssue: String?
+    @State private var constraintsTransferIssue: String?
 
     private var draft: LinearProgrammingDraft? { workspace.lpDraft }
 
@@ -42,7 +45,7 @@ struct LinearProgrammingEditorView: View {
                     .keyboardShortcut("v", modifiers: [.command, .shift])
                     .help("Validate model (⌘⇧V)")
                 Button(workspace.lpDraft?.variables.contains(where: { $0.type != .continuous }) == true ? "Run ILP" : "Run LP") {
-                    workspace.runCurrentModel()
+                    workspace.startCurrentModelRun()
                 }
                 .keyboardShortcut("r", modifiers: [.command])
                 .buttonStyle(.borderedProminent)
@@ -60,12 +63,15 @@ struct LinearProgrammingEditorView: View {
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 280)
                 }
-                Picker("Objective", selection: senseBinding) {
-                    Text("Maximize").tag(ObjectiveSense.maximize)
-                    Text("Minimize").tag(ObjectiveSense.minimize)
+                LabeledContent("Objective") {
+                    Picker("Objective", selection: senseBinding) {
+                        Text("Maximize").tag(ObjectiveSense.maximize)
+                        Text("Minimize").tag(ObjectiveSense.minimize)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 190)
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 190)
                 Spacer()
             }
             .padding(.vertical, 4)
@@ -94,6 +100,12 @@ struct LinearProgrammingEditorView: View {
                         variableRow(index: index)
                     }
                 }
+                tabularActions(
+                    issue: variablesTransferIssue,
+                    paste: pasteVariables,
+                    copy: copyVariables,
+                    label: "variables and objective"
+                )
             }
             .padding(.vertical, 4)
         }
@@ -187,6 +199,12 @@ struct LinearProgrammingEditorView: View {
                         }
                     }
                 }
+                tabularActions(
+                    issue: constraintsTransferIssue,
+                    paste: pasteConstraints,
+                    copy: copyConstraints,
+                    label: "constraints"
+                )
             }
             .padding(.vertical, 4)
         }
@@ -265,6 +283,84 @@ struct LinearProgrammingEditorView: View {
 
     private func constraintRHSBinding(_ index: Int) -> Binding<String> {
         Binding(get: { workspace.lpDraft?.constraints[index].rhs ?? "" }, set: { value in workspace.updateLPDraft { $0.constraints[index].rhs = value } })
+    }
+
+    @ViewBuilder
+    private func tabularActions(
+        issue: String?,
+        paste: @escaping () -> Void,
+        copy: @escaping () -> Void,
+        label: String
+    ) -> some View {
+        Divider()
+        HStack(spacing: 10) {
+            Button(action: paste) {
+                Label("Paste Table", systemImage: "doc.on.clipboard")
+            }
+            .help("Replace \(label) with a rectangular range from Excel, Numbers, LibreOffice, TSV, or CSV. A header row is optional.")
+            .accessibilityHint("Checks every pasted cell before replacing the \(label) table")
+            Button(action: copy) {
+                Label("Copy Table", systemImage: "doc.on.doc")
+            }
+            .help("Copy \(label) as tab-separated text for a spreadsheet")
+            Text("Excel, Numbers, LibreOffice, TSV, or CSV · headers optional")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        if let issue {
+            Label(issue, systemImage: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityLabel("Table import error: \(issue)")
+        }
+    }
+
+    private func pasteVariables() {
+        guard let text = NSPasteboard.general.string(forType: .string) else {
+            variablesTransferIssue = LPDraftTabularError.emptyClipboard.description
+            return
+        }
+        guard var updated = workspace.lpDraft else { return }
+        do {
+            try updated.replaceVariables(withTabularText: text)
+            workspace.updateLPDraft { $0 = updated }
+            variablesTransferIssue = nil
+        } catch {
+            variablesTransferIssue = String(describing: error)
+        }
+    }
+
+    private func pasteConstraints() {
+        guard let text = NSPasteboard.general.string(forType: .string) else {
+            constraintsTransferIssue = LPDraftTabularError.emptyClipboard.description
+            return
+        }
+        guard var updated = workspace.lpDraft else { return }
+        do {
+            try updated.replaceConstraints(withTabularText: text)
+            workspace.updateLPDraft { $0 = updated }
+            constraintsTransferIssue = nil
+        } catch {
+            constraintsTransferIssue = String(describing: error)
+        }
+    }
+
+    private func copyVariables() {
+        guard let draft = workspace.lpDraft else { return }
+        copyToPasteboard(draft.variablesTabularText())
+        variablesTransferIssue = nil
+    }
+
+    private func copyConstraints() {
+        guard let draft = workspace.lpDraft else { return }
+        copyToPasteboard(draft.constraintsTabularText())
+        constraintsTransferIssue = nil
+    }
+
+    private func copyToPasteboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     private func inlineDiagnostic(for name: String?, index: Int, prefix: String) -> ValidationDiagnostic? {

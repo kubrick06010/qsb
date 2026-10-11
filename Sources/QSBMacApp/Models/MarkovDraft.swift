@@ -214,6 +214,96 @@ struct MarkovDraft: Equatable, Sendable {
         states[0].initialProbabilityText = "1"
     }
 
+    func tabularText() -> String {
+        var header = ["State", "Cost"]
+        if includesInitialDistribution { header.append("Initial Probability") }
+        header.append(contentsOf: states.map { "To \($0.name)" })
+        let rows = states.indices.map { index in
+            var values = [states[index].name, states[index].costText]
+            if includesInitialDistribution { values.append(states[index].initialProbabilityText) }
+            values.append(contentsOf: transitionMatrix[index])
+            return values
+        }
+        return ([header] + rows).map { $0.joined(separator: "\t") }.joined(separator: "\n")
+    }
+
+    mutating func replaceTable(withTabularText text: String) throws {
+        let table = try SpreadsheetTable(text: text)
+        let hasHeader = table.rows[0][0].lowercased().filter(\.isLetter) == "state"
+        let currentMetadataColumns = includesInitialDistribution ? 3 : 2
+
+        if hasHeader {
+            let header = table.rows[0]
+            let pastedIncludesInitial = header.count >= 3
+                && header[2].lowercased().filter(\.isLetter) == "initialprobability"
+            let metadataColumns = pastedIncludesInitial ? 3 : 2
+            let destinationNames = header.dropFirst(metadataColumns).map { value in
+                value.replacingOccurrences(of: "^\\s*To\\s+", with: "", options: [.regularExpression, .caseInsensitive])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            let dataRows = Array(table.rows.dropFirst())
+            guard !dataRows.isEmpty else { throw SpreadsheetTransferError.emptyClipboard }
+            guard destinationNames.count == dataRows.count else {
+                throw SpreadsheetTransferError.inconsistentColumns(expected: dataRows.count, actual: destinationNames.count, row: 1)
+            }
+            let sourceNames = dataRows.map { ($0.first ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }
+            guard !sourceNames.contains(where: \.isEmpty), sourceNames == destinationNames else {
+                throw SpreadsheetTransferError.invalidValue(header.dropFirst(metadataColumns).joined(separator: ", "), column: "Transition state headers", row: 1)
+            }
+            let parsed = try Self.parseTabularRows(dataRows, stateNames: sourceNames, metadataColumns: metadataColumns, includesInitial: pastedIncludesInitial, firstRowNumber: 2)
+            states = parsed.states
+            transitionMatrix = parsed.matrix
+            includesInitialDistribution = pastedIncludesInitial
+            return
+        }
+
+        let expected = currentMetadataColumns + states.count
+        for (index, row) in table.rows.enumerated() where row.count != expected {
+            throw SpreadsheetTransferError.inconsistentColumns(expected: expected, actual: row.count, row: index + 1)
+        }
+        guard table.rows.count == states.count else {
+            throw SpreadsheetTransferError.inconsistentRows(expected: states.count, actual: table.rows.count)
+        }
+        let stateNames = table.rows.map { ($0.first ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }
+        let parsed = try Self.parseTabularRows(table.rows, stateNames: stateNames, metadataColumns: currentMetadataColumns, includesInitial: includesInitialDistribution, firstRowNumber: 1)
+        states = parsed.states
+        transitionMatrix = parsed.matrix
+    }
+
+    private static func parseTabularRows(
+        _ rows: [[String]],
+        stateNames: [String],
+        metadataColumns: Int,
+        includesInitial: Bool,
+        firstRowNumber: Int
+    ) throws -> (states: [MarkovStateDraft], matrix: [[String]]) {
+        var parsedStates: [MarkovStateDraft] = []
+        var matrix: [[String]] = []
+        for (index, values) in rows.enumerated() {
+            let rowNumber = firstRowNumber + index
+            let expected = metadataColumns + stateNames.count
+            guard values.count == expected else {
+                throw SpreadsheetTransferError.inconsistentColumns(expected: expected, actual: values.count, row: rowNumber)
+            }
+            let name = values[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else {
+                throw SpreadsheetTransferError.invalidValue(values[0], column: "State", row: rowNumber)
+            }
+            try SpreadsheetTable.requireFinite(values[1], column: "Cost", row: rowNumber)
+            let initial = includesInitial ? values[2] : "0"
+            if includesInitial {
+                try SpreadsheetTable.requireFinite(initial, column: "Initial Probability", row: rowNumber)
+            }
+            let transitions = Array(values.dropFirst(metadataColumns))
+            for (column, value) in transitions.enumerated() {
+                try SpreadsheetTable.requireFinite(value, column: "To \(stateNames[column])", row: rowNumber)
+            }
+            parsedStates.append(MarkovStateDraft(name: name, costText: values[1], initialProbabilityText: initial))
+            matrix.append(transitions)
+        }
+        return (parsedStates, matrix)
+    }
+
     private func nextStateName() -> String {
         let names = Set(states.map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) })
         var number = states.count + 1

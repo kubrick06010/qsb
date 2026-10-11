@@ -148,6 +148,60 @@ struct AssignmentDraft: Equatable, Sendable {
         for row in costs.indices where costs[row].indices.contains(index) { costs[row].remove(at: index) }
     }
 
+    func tabularText() -> String {
+        let header = ["Worker / Task"] + columns.map(\.name)
+        let body = rows.indices.map { index in [rows[index].name] + costs[index] }
+        return ([header] + body).map { $0.joined(separator: "\t") }.joined(separator: "\n")
+    }
+
+    mutating func replaceTable(withTabularText text: String) throws {
+        let table = try SpreadsheetTable(text: text)
+        let first = table.rows[0][0].lowercased().filter(\.isLetter)
+        let hasHeaders = ["workertask", "worker", "name"].contains(first)
+
+        if hasHeaders {
+            guard table.rows[0].count >= 2 else {
+                throw SpreadsheetTransferError.inconsistentColumns(expected: 2, actual: table.rows[0].count, row: 1)
+            }
+            let columnNames = Array(table.rows[0].dropFirst())
+            guard !columnNames.contains(where: \.isEmpty) else {
+                throw SpreadsheetTransferError.invalidValue("", column: "Task", row: 1)
+            }
+            let dataRows = Array(table.rows.dropFirst())
+            guard !dataRows.isEmpty else { throw SpreadsheetTransferError.emptyClipboard }
+            var newRows: [AssignmentRowDraft] = []
+            var newCosts: [[String]] = []
+            for (index, values) in dataRows.enumerated() {
+                let rowNumber = index + 2
+                guard !values[0].isEmpty else {
+                    throw SpreadsheetTransferError.invalidValue("", column: "Worker", row: rowNumber)
+                }
+                for (column, value) in values.dropFirst().enumerated() {
+                    try SpreadsheetTable.requireFinite(value, column: columnNames[column], row: rowNumber)
+                }
+                newRows.append(AssignmentRowDraft(name: values[0]))
+                newCosts.append(Array(values.dropFirst()))
+            }
+            rows = newRows
+            columns = columnNames.map { AssignmentColumnDraft(name: $0) }
+            costs = newCosts
+            return
+        }
+
+        guard table.rows.count == rows.count else {
+            throw SpreadsheetTransferError.inconsistentRows(expected: rows.count, actual: table.rows.count)
+        }
+        for (rowIndex, values) in table.rows.enumerated() {
+            guard values.count == columns.count else {
+                throw SpreadsheetTransferError.inconsistentColumns(expected: columns.count, actual: values.count, row: rowIndex + 1)
+            }
+            for (columnIndex, value) in values.enumerated() {
+                try SpreadsheetTable.requireFinite(value, column: columns[columnIndex].name, row: rowIndex + 1)
+            }
+        }
+        costs = table.rows
+    }
+
     private func parseFinite(_ text: String) -> Double? {
         guard let value = Double(text.trimmingCharacters(in: .whitespacesAndNewlines)), value.isFinite else { return nil }
         return value

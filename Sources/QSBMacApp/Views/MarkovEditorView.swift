@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MarkovEditorView: View {
     @Bindable var workspace: QSBWorkspace
+    @State private var transferIssue: String?
 
     private var draft: MarkovDraft? { workspace.markovDraft }
 
@@ -12,17 +13,24 @@ struct MarkovEditorView: View {
                 subtitle: "Native Markov editor · \(workspace.modelState.rawValue)"
             )
             if let draft {
-                ScrollView([.vertical, .horizontal]) {
+                ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 16) {
                         actionBar
                         draftIssues(draft)
                         identityEditor
+                        SpreadsheetTransferActions(
+                            subject: "states, costs, initial probabilities, and transitions",
+                            issue: transferIssue,
+                            paste: pasteTable,
+                            copy: copyTable
+                        )
                         stateEditor(draft)
                         transitionEditor(draft)
                         interpretation
                     }
                     .padding(20)
-                    .frame(minWidth: 820, alignment: .topLeading)
+                    .frame(minWidth: 820, maxWidth: 1_180, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
             } else {
                 ContentUnavailableView(
@@ -45,7 +53,7 @@ struct MarkovEditorView: View {
             Button("Validate") { workspace.validateCurrentModel() }
                 .keyboardShortcut("v", modifiers: [.command, .shift])
                 .accessibilityIdentifier("markov-validate")
-            Button("Run") { workspace.runCurrentModel() }
+            Button("Run") { workspace.startCurrentModelRun() }
                 .keyboardShortcut("r", modifiers: [.command])
                 .buttonStyle(.borderedProminent)
                 .disabled(workspace.runState == .solving)
@@ -275,5 +283,23 @@ struct MarkovEditorView: View {
         else { return false }
         let values = draft.transitionMatrix[row].compactMap(Double.init)
         return values.count == draft.states.count && abs(values.reduce(0, +) - 1) <= 1e-8
+    }
+
+    private func pasteTable() {
+        do {
+            let text = try SpreadsheetClipboard.read()
+            guard var draft = workspace.markovDraft else { return }
+            try draft.replaceTable(withTabularText: text)
+            workspace.updateMarkovDraft { $0 = draft }
+            transferIssue = nil
+        } catch {
+            transferIssue = String(describing: error)
+        }
+    }
+
+    private func copyTable() {
+        guard let draft = workspace.markovDraft else { return }
+        SpreadsheetClipboard.write(draft.tabularText())
+        transferIssue = nil
     }
 }

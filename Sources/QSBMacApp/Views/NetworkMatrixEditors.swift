@@ -1,29 +1,50 @@
+import AppKit
 import SwiftUI
 
 struct AssignmentEditorView: View {
     @Bindable var workspace: QSBWorkspace
+    @State private var transferIssue: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HeaderView(title: workspace.modelTitle, subtitle: "Native Assignment matrix editor · (workspace.modelState.rawValue)")
-            HStack {
-                Button("Add Worker", systemImage: "plus") { workspace.updateAssignmentDraft { _ = $0.addRow() } }
-                    .accessibilityIdentifier("network-assignment-add-row")
-                Text("\(workspace.assignmentDraft?.rows.count ?? 0) workers")
-                    .accessibilityIdentifier("network-assignment-row-count")
-                Button("Add Task", systemImage: "plus") { workspace.updateAssignmentDraft { _ = $0.addColumn() } }
-                    .accessibilityIdentifier("network-assignment-add-column")
-                Text("\(workspace.assignmentDraft?.columns.count ?? 0) tasks")
-                    .accessibilityIdentifier("network-assignment-column-count")
-                Spacer()
-                Button("Validate") { workspace.validateCurrentModel() }
-                    .keyboardShortcut("v", modifiers: [.command, .shift])
-                Button("Run") { workspace.solveCurrentModel() }
-                    .keyboardShortcut("r", modifiers: [.command])
-                    .buttonStyle(.borderedProminent)
+            HeaderView(title: workspace.modelTitle, subtitle: "Native Assignment matrix editor · \(workspace.modelState.rawValue)")
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Button("Add Worker", systemImage: "plus") { workspace.updateAssignmentDraft { _ = $0.addRow() } }
+                        .accessibilityIdentifier("network-assignment-add-row")
+                    Text("\(workspace.assignmentDraft?.rows.count ?? 0) workers")
+                        .accessibilityIdentifier("network-assignment-row-count")
+                    Button("Add Task", systemImage: "plus") { workspace.updateAssignmentDraft { _ = $0.addColumn() } }
+                        .accessibilityIdentifier("network-assignment-add-column")
+                    Text("\(workspace.assignmentDraft?.columns.count ?? 0) tasks")
+                        .accessibilityIdentifier("network-assignment-column-count")
+                    Spacer()
+                    Button("Validate") { workspace.validateCurrentModel() }
+                        .keyboardShortcut("v", modifiers: [.command, .shift])
+                    Button("Run") { workspace.startCurrentModelRun() }
+                        .keyboardShortcut("r", modifiers: [.command])
+                        .buttonStyle(.borderedProminent)
+                }
+                HStack {
+                    Button("Paste Table", systemImage: "doc.on.clipboard", action: pasteTable)
+                        .help("Replace the matrix from Excel, Numbers, LibreOffice, TSV, or CSV. Include worker and task headers to replace names too.")
+                    Button("Copy Table", systemImage: "doc.on.doc", action: copyTable)
+                        .help("Copy worker names, task names, and costs as tab-separated text")
+                    Text("Excel, Numbers, LibreOffice, TSV, or CSV")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 10)
+
+            if let transferIssue {
+                Label(transferIssue, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 18)
+                    .accessibilityLabel("Table import error: \(transferIssue)")
+            }
 
             if let draft = workspace.assignmentDraft {
                 ScrollView([.vertical, .horizontal]) {
@@ -112,32 +133,74 @@ struct AssignmentEditorView: View {
             draft.removeColumn(at: index)
         }
     }
+
+    private func pasteTable() {
+        guard let text = NSPasteboard.general.string(forType: .string) else {
+            transferIssue = SpreadsheetTransferError.emptyClipboard.description
+            return
+        }
+        guard var updated = workspace.assignmentDraft else { return }
+        do {
+            try updated.replaceTable(withTabularText: text)
+            workspace.updateAssignmentDraft { $0 = updated }
+            transferIssue = nil
+        } catch {
+            transferIssue = String(describing: error)
+        }
+    }
+
+    private func copyTable() {
+        guard let draft = workspace.assignmentDraft else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(draft.tabularText(), forType: .string)
+        transferIssue = nil
+    }
 }
 
 struct TransportationEditorView: View {
     @Bindable var workspace: QSBWorkspace
+    @State private var transferIssue: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HeaderView(title: workspace.modelTitle, subtitle: "Native Transportation matrix editor · (workspace.modelState.rawValue)")
-            HStack {
-                Button("Add Source", systemImage: "plus") { workspace.updateTransportationDraft { _ = $0.addSource() } }
-                    .accessibilityIdentifier("network-transport-add-source")
-                Text("\(workspace.transportationDraft?.sources.count ?? 0) sources")
-                    .accessibilityIdentifier("network-transport-source-count")
-                Button("Add Destination", systemImage: "plus") { workspace.updateTransportationDraft { _ = $0.addDestination() } }
-                    .accessibilityIdentifier("network-transport-add-destination")
-                Text("\(workspace.transportationDraft?.destinations.count ?? 0) destinations")
-                    .accessibilityIdentifier("network-transport-destination-count")
-                Spacer()
-                Button("Validate") { workspace.validateCurrentModel() }
-                    .keyboardShortcut("v", modifiers: [.command, .shift])
-                Button("Run") { workspace.solveCurrentModel() }
-                    .keyboardShortcut("r", modifiers: [.command])
-                    .buttonStyle(.borderedProminent)
+            HeaderView(title: workspace.modelTitle, subtitle: "Native Transportation matrix editor · \(workspace.modelState.rawValue)")
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Button("Add Source", systemImage: "plus") { workspace.updateTransportationDraft { _ = $0.addSource() } }
+                        .accessibilityIdentifier("network-transport-add-source")
+                    Text("\(workspace.transportationDraft?.sources.count ?? 0) sources")
+                        .accessibilityIdentifier("network-transport-source-count")
+                    Button("Add Destination", systemImage: "plus") { workspace.updateTransportationDraft { _ = $0.addDestination() } }
+                        .accessibilityIdentifier("network-transport-add-destination")
+                    Text("\(workspace.transportationDraft?.destinations.count ?? 0) destinations")
+                        .accessibilityIdentifier("network-transport-destination-count")
+                    Spacer()
+                    Button("Validate") { workspace.validateCurrentModel() }
+                        .keyboardShortcut("v", modifiers: [.command, .shift])
+                    Button("Run") { workspace.startCurrentModelRun() }
+                        .keyboardShortcut("r", modifiers: [.command])
+                        .buttonStyle(.borderedProminent)
+                }
+                HStack {
+                    Button("Paste Table", systemImage: "doc.on.clipboard", action: pasteTable)
+                        .help("Replace the transportation table from Excel, Numbers, LibreOffice, TSV, or CSV. Include headers, demand, and supply to replace the whole model table.")
+                    Button("Copy Table", systemImage: "doc.on.doc", action: copyTable)
+                        .help("Copy sources, destinations, costs, supply, and demand as tab-separated text")
+                    Text("Excel, Numbers, LibreOffice, TSV, or CSV")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 10)
+
+            if let transferIssue {
+                Label(transferIssue, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 18)
+                    .accessibilityLabel("Table import error: \(transferIssue)")
+            }
 
             if let draft = workspace.transportationDraft {
                 ScrollView([.vertical, .horizontal]) {
@@ -208,4 +271,26 @@ struct TransportationEditorView: View {
     }
     private func removeSource(_ id: UUID) { workspace.updateTransportationDraft { draft in if let i = draft.sources.firstIndex(where: { $0.id == id }) { draft.removeSource(at: i) } } }
     private func removeDestination(_ id: UUID) { workspace.updateTransportationDraft { draft in if let i = draft.destinations.firstIndex(where: { $0.id == id }) { draft.removeDestination(at: i) } } }
+
+    private func pasteTable() {
+        guard let text = NSPasteboard.general.string(forType: .string) else {
+            transferIssue = SpreadsheetTransferError.emptyClipboard.description
+            return
+        }
+        guard var updated = workspace.transportationDraft else { return }
+        do {
+            try updated.replaceTable(withTabularText: text)
+            workspace.updateTransportationDraft { $0 = updated }
+            transferIssue = nil
+        } catch {
+            transferIssue = String(describing: error)
+        }
+    }
+
+    private func copyTable() {
+        guard let draft = workspace.transportationDraft else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(draft.tabularText(), forType: .string)
+        transferIssue = nil
+    }
 }

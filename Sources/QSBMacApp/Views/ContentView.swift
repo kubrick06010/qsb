@@ -47,6 +47,12 @@ struct ContentView: View {
                     Button("Facility Layout Sample") {
                         workspace.loadSample(.facilityLayout)
                     }
+                    Button("Facility Location Sample") {
+                        workspace.loadSample(.facilityLocation)
+                    }
+                    Button("Line Balancing Sample") {
+                        workspace.loadSample(.lineBalancing)
+                    }
                     Divider()
                     Button("EOQ Inventory Sample") {
                         workspace.loadSample(.economicOrderQuantity)
@@ -83,6 +89,21 @@ struct ContentView: View {
                     Button("Goal Programming Sample") {
                         workspace.loadSample(.goalProgramming)
                     }
+                    Button("Aggregate Planning Sample") {
+                        workspace.loadSample(.aggregatePlanning)
+                    }
+                    Button("MRP Sample") {
+                        workspace.loadSample(.materialRequirementsPlanning)
+                    }
+                    Button("Acceptance Sampling Sample") {
+                        workspace.loadSample(.acceptanceSampling)
+                    }
+                    Button("Quality Control Sample") {
+                        workspace.loadSample(.qualityControl)
+                    }
+                    Button("PERT / CPM Sample") {
+                        workspace.loadSample(.projectScheduling)
+                    }
                 } label: {
                     Label("Samples", systemImage: "tray.and.arrow.down")
                 }
@@ -110,7 +131,7 @@ struct ContentView: View {
                 .accessibilityIdentifier("workbench-validate")
 
                 Button {
-                    workspace.runCurrentModel()
+                    workspace.startCurrentModelRun()
                 } label: {
                     Label("Solve", systemImage: "play.circle")
                 }
@@ -119,7 +140,7 @@ struct ContentView: View {
                 .accessibilityIdentifier("workbench-run")
 
                 Button {
-                    workspace.isExportingModel = true
+                    workspace.beginModelExport()
                 } label: {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }

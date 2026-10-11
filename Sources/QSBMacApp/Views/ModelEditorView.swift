@@ -18,26 +18,46 @@ struct ModelEditorView: View {
             ForecastingEditorView(workspace: workspace)
         } else if workspace.markovDraft != nil {
             MarkovEditorView(workspace: workspace)
+        } else if workspace.queuingDraft != nil {
+            QueuingEditorView(workspace: workspace)
+        } else if workspace.decisionDraft != nil {
+            DecisionAnalysisEditorView(workspace: workspace)
+        } else if workspace.zeroSumGameDraft != nil {
+            ZeroSumGameEditorView(workspace: workspace)
+        } else if workspace.decisionTreeDraft != nil {
+            DecisionTreeEditorView(workspace: workspace)
+        } else if workspace.projectSchedulingDraft != nil {
+            ProjectSchedulingEditorView(workspace: workspace)
+        } else if workspace.aggregatePlanningDraft != nil {
+            AggregatePlanningEditorView(workspace: workspace)
+        } else if workspace.materialRequirementsPlanningDraft != nil {
+            MaterialRequirementsPlanningEditorView(workspace: workspace)
+        } else if workspace.simulationDraft != nil {
+            SimulationEditorView(workspace: workspace)
+        } else if workspace.knapsackDraft != nil {
+            KnapsackEditorView(workspace: workspace)
+        } else if workspace.acceptanceSamplingDraft != nil {
+            AcceptanceSamplingEditorView(workspace: workspace)
+        } else if workspace.qualityControlDraft != nil {
+            QualityControlEditorView(workspace: workspace)
+        } else if workspace.facilityLayoutDraft != nil {
+            FacilityLayoutEditorView(workspace: workspace)
+        } else if workspace.lineBalancingDraft != nil {
+            LineBalancingEditorView(workspace: workspace)
+        } else if workspace.facilityLocationDraft != nil {
+            FacilityLocationEditorView(workspace: workspace)
+        } else if workspace.goalProgrammingDraft != nil {
+            GoalProgrammingEditorView(workspace: workspace)
+        } else if workspace.nonlinearProgrammingDraft != nil {
+            NonlinearProgrammingEditorView(workspace: workspace)
+        } else if workspace.quadraticProgrammingDraft != nil {
+            QuadraticProgrammingEditorView(workspace: workspace)
         } else if workspace.isNetworkModel, workspace.networkDraft != nil {
             NetworkEditorView(workspace: workspace)
+        } else if workspace.hasModel {
+            StructuredModelEditorView(workspace: workspace)
         } else {
-            VStack(alignment: .leading, spacing: 0) {
-                HeaderView(
-                    title: workspace.modelTitle,
-                    subtitle: "Model JSON · \(workspace.modelState.rawValue)"
-                )
-
-                if workspace.hasModel {
-                    TextEditor(text: $workspace.modelJSON)
-                        .font(.system(.body, design: .monospaced))
-                        .scrollContentBackground(.hidden)
-                        .padding(12)
-                        .accessibilityLabel("Normalized model JSON definition")
-                } else {
-                    EmptyWorkspaceView(workspace: workspace)
-                }
-            }
-            .navigationTitle("Model")
+            EmptyWorkspaceView(workspace: workspace)
         }
     }
 }

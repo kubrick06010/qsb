@@ -223,6 +223,7 @@ private struct NewsboyEditor: View {
 
 private struct LotSizingEditor: View {
     @Bindable var workspace: QSBWorkspace
+    @State private var transferIssue: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -244,6 +245,12 @@ private struct LotSizingEditor: View {
                 .accessibilityLabel("Add lot sizing period")
                 .accessibilityIdentifier("inventory-add-period")
             }
+            SpreadsheetTransferActions(
+                subject: "lot-sizing periods",
+                issue: transferIssue,
+                paste: pastePeriods,
+                copy: copyPeriods
+            )
             ScrollView(.horizontal) {
                 VStack(alignment: .leading, spacing: 6) {
                     periodHeader
@@ -317,5 +324,23 @@ private struct LotSizingEditor: View {
                 draft = .lotSizing(valueDraft)
             }
         })
+    }
+
+    private func pastePeriods() {
+        do {
+            let text = try SpreadsheetClipboard.read()
+            guard case .lotSizing(var draft) = workspace.inventoryDraft else { return }
+            try draft.replacePeriods(withTabularText: text)
+            workspace.updateInventoryDraft { $0 = .lotSizing(draft) }
+            transferIssue = nil
+        } catch {
+            transferIssue = String(describing: error)
+        }
+    }
+
+    private func copyPeriods() {
+        guard case .lotSizing(let draft) = workspace.inventoryDraft else { return }
+        SpreadsheetClipboard.write(draft.periodsTabularText())
+        transferIssue = nil
     }
 }

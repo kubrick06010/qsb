@@ -35,6 +35,47 @@ func markovDraftStateMutationsAreDimensionSafe() throws {
     #expect(draft.states.first?.id == firstID)
 }
 
+@Test("Markov spreadsheet transfer replaces states, metadata, and transitions atomically")
+func markovSpreadsheetTransfer() throws {
+    var draft = MarkovDraft.blank()
+    try draft.replaceTable(
+        withTabularText: """
+        State\tCost\tInitial Probability\tTo Healthy\tTo Sick\tTo Recovered
+        Healthy\t0\t1\t0.8\t0.2\t0
+        Sick\t5\t0\t0.1\t0.6\t0.3
+        Recovered\t1\t0\t0.5\t0\t0.5
+        """
+    )
+    let request = try draft.makeRequest()
+    #expect(request.model.states == ["Healthy", "Sick", "Recovered"])
+    #expect(request.model.stateCosts == [0, 5, 1])
+    #expect(request.model.initialProbabilities == [1, 0, 0])
+    #expect(request.model.transitionMatrix[1] == [0.1, 0.6, 0.3])
+    #expect(draft.tabularText().hasPrefix("State\tCost\tInitial Probability\tTo Healthy"))
+
+    let before = draft
+    #expect(throws: SpreadsheetTransferError.self) {
+        try draft.replaceTable(
+            withTabularText: "State\tCost\tTo A\nA\tbad\t1"
+        )
+    }
+    #expect(draft == before)
+}
+
+@Test("Markov spreadsheet headers can disable the optional initial distribution")
+func markovSpreadsheetTransferWithoutInitialDistribution() throws {
+    var draft = MarkovDraft.blank()
+    try draft.replaceTable(
+        withTabularText: """
+        State\tCost\tTo A\tTo B
+        A\t0\t0.7\t0.3
+        B\t1\t0.4\t0.6
+        """
+    )
+    #expect(!draft.includesInitialDistribution)
+    #expect(try draft.makeRequest().model.initialProbabilities == nil)
+}
+
 @Test("Markov draft keeps malformed input visible as structured diagnostics")
 func markovDraftDiagnosticsPreserveInputErrors() {
     var draft = MarkovDraft.blank()

@@ -233,11 +233,13 @@ private extension FacilitiesProblemKind {
     }
 }
 
-enum SampleModel {
+enum SampleModel: Hashable {
     case linearProgram
     case integerProgram
     case travelingSalesperson
     case facilityLayout
+    case facilityLocation
+    case lineBalancing
     case economicOrderQuantity
     case boundedKnapsack
     case linearTrendForecast
@@ -249,6 +251,11 @@ enum SampleModel {
     case nonlinearProgramming
     case markov
     case goalProgramming
+    case aggregatePlanning
+    case materialRequirementsPlanning
+    case acceptanceSampling
+    case qualityControl
+    case projectScheduling
 
     var label: String {
         switch self {
@@ -256,6 +263,8 @@ enum SampleModel {
         case .integerProgram: "Integer Programming"
         case .travelingSalesperson: "Traveling Salesperson"
         case .facilityLayout: "Facility Layout"
+        case .facilityLocation: "Facility Location"
+        case .lineBalancing: "Line Balancing"
         case .economicOrderQuantity: "Economic Order Quantity"
         case .boundedKnapsack: "Bounded Knapsack"
         case .linearTrendForecast: "Linear Trend Forecast"
@@ -267,6 +276,11 @@ enum SampleModel {
         case .nonlinearProgramming: "Nonlinear Programming"
         case .markov: "Markov Analysis"
         case .goalProgramming: "Goal Programming"
+        case .aggregatePlanning: "Aggregate Planning"
+        case .materialRequirementsPlanning: "Material Requirements Planning"
+        case .acceptanceSampling: "Acceptance Sampling"
+        case .qualityControl: "Quality Control"
+        case .projectScheduling: "PERT / CPM"
         }
     }
 }

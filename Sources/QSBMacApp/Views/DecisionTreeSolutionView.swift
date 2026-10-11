@@ -57,7 +57,11 @@ struct DecisionTreeSolutionView: View {
                 ScrollView([.horizontal, .vertical]) {
                     VStack(alignment: .leading, spacing: 20) {
                         policyOverview
-                        treeTable
+                        if geometry.size.width < 960 {
+                            compactTreeList
+                        } else {
+                            treeTable
+                        }
                         runContext
                     }
                     .padding(18)
@@ -189,10 +193,67 @@ struct DecisionTreeSolutionView: View {
                     .tableRowStyle()
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(row.node.kind.label) \(row.node.name)")
-                    .accessibilityValue("Rollback value \(value.map { Self.number($0.expectedValue) } ?? "not available")")
+                    .accessibilityValue(rowAccessibilityValue(row.node, value: value))
                 }
             }
         }
+    }
+
+    private var compactTreeList: some View {
+        section(title: "Tree inspection", subtitle: "Terminal payoffs, chance probabilities, and rollback values.") {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(visibleRows) { row in
+                    let value = valuesByID[row.node.id]
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("\(row.branch.map { "\($0) " } ?? "")\(row.node.name)", systemImage: row.node.kind.symbol)
+                            .font(.headline)
+                            .foregroundStyle(row.node.kind.color)
+                            .padding(.leading, CGFloat(row.depth * 12))
+                        Text(row.node.kind.label)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        HStack(spacing: 16) {
+                            compactValue("Probability", value: row.node.probability.map(Self.number) ?? "—")
+                            compactValue("Payoff", value: row.node.payoff.map(Self.number) ?? "—")
+                            compactValue("Rollback", value: value.map { Self.number($0.expectedValue) } ?? "—")
+                        }
+                        if let selectedChildName = value?.selectedChildName {
+                            Text("Choose \(selectedChildName)")
+                                .font(.callout)
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(row.node.kind.label) \(row.node.name)")
+                    .accessibilityValue(rowAccessibilityValue(row.node, value: value))
+                }
+            }
+        }
+    }
+
+    private func compactValue(_ label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .monospacedDigit()
+        }
+        .frame(minWidth: 100, alignment: .leading)
+    }
+
+    private func rowAccessibilityValue(_ node: DecisionTreeNode, value: DecisionTreeNodeValue?) -> String {
+        var parts = [
+            "Probability \(node.probability.map(Self.number) ?? "not set")",
+            "Payoff \(node.payoff.map(Self.number) ?? "not set")",
+            "Rollback value \(value.map { Self.number($0.expectedValue) } ?? "not available")"
+        ]
+        if let selectedChildName = value?.selectedChildName {
+            parts.append("Selected child \(selectedChildName)")
+        }
+        return parts.joined(separator: ", ")
     }
 
     private var runContext: some View {

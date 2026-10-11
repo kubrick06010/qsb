@@ -48,7 +48,7 @@ struct ForecastingEditorView: View {
                 Spacer()
                 Button("Validate") { workspace.validateCurrentModel() }
                     .keyboardShortcut("v", modifiers: [.command, .shift])
-                Button("Run") { workspace.runCurrentModel() }
+                Button("Run") { workspace.startCurrentModelRun() }
                     .keyboardShortcut("r", modifiers: [.command])
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("forecasting-run")

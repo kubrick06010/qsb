@@ -86,4 +86,53 @@ struct LinearProgrammingDraftTests {
         let roundTripped = try LinearProgrammingDraft(program: program).makeLinearProgram()
         #expect(roundTripped == program)
     }
+
+    @Test("spreadsheet variable paste accepts headers and resizes constraints")
+    func spreadsheetVariablePaste() throws {
+        var draft = LinearProgrammingDraft.blank()
+        draft.addConstraint()
+
+        try draft.replaceVariables(
+            withTabularText: """
+            Name\tObjective\tType\tLower\tUpper\tUnrestricted
+            Product A\t40\tcontinuous\t0\t\tfalse
+            Product B\t30\tinteger\t0\t20\tfalse
+            Switch\t12\tbinary\t0\t1\tfalse
+            """
+        )
+
+        let program = try draft.makeLinearProgram()
+        #expect(program.variableNames == ["Product A", "Product B", "Switch"])
+        #expect(program.objectiveCoefficients == [40, 30, 12])
+        #expect(program.variableTypes == [.continuous, .integer, .binary])
+        #expect(program.upperBounds == [nil, 20, 1])
+        #expect(program.constraints[0].coefficients == [0, 0, 0])
+        #expect(draft.variablesTabularText().contains("Product B\t30\tinteger\t0\t20\tfalse"))
+    }
+
+    @Test("spreadsheet constraint paste accepts symbols and remains atomic on errors")
+    func spreadsheetConstraintPaste() throws {
+        var draft = LinearProgrammingDraft.blank()
+        draft.addVariable()
+        try draft.replaceConstraints(
+            withTabularText: """
+            Name\tx1\tx2\tRelation\tRHS
+            Capacity\t2\t1\t≤\t100
+            Minimum\t0\t3\t>=\t20
+            """
+        )
+
+        let beforeInvalidPaste = draft
+        let program = try draft.makeLinearProgram()
+        #expect(program.constraints.count == 2)
+        #expect(program.constraints[0].coefficients == [2, 1])
+        #expect(program.constraints[0].relation == .lessThanOrEqual)
+        #expect(program.constraints[1].relation == .greaterThanOrEqual)
+        #expect(draft.constraintsTabularText().hasPrefix("Name\tx1\tx2\tRelation\tRHS"))
+
+        #expect(throws: LPDraftTabularError.self) {
+            try draft.replaceConstraints(withTabularText: "Broken\t1\tnot-a-number\t<=\t10")
+        }
+        #expect(draft == beforeInvalidPaste)
+    }
 }

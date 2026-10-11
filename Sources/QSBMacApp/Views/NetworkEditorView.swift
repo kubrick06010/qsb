@@ -80,7 +80,7 @@ struct NetworkEditorView: View {
                     .keyboardShortcut("v", modifiers: [.command, .shift])
                     .help("Validate model (⌘⇧V)")
                     .accessibilityIdentifier("network-validate")
-                Button("Run") { workspace.runCurrentModel() }
+                Button("Run") { workspace.startCurrentModelRun() }
                     .keyboardShortcut("r", modifiers: [.command])
                     .buttonStyle(.borderedProminent)
                     .disabled(workspace.modelState == .invalid || workspace.runState == .solving)

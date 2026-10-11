@@ -42,6 +42,31 @@ struct InventoryDraftTests {
         #expect(typed.periods.count == value.periods.count)
     }
 
+    @Test("lot sizing spreadsheet transfer replaces every period field atomically")
+    func lotSizingSpreadsheetTransfer() throws {
+        var draft = InventoryLotSizingDraft()
+        try draft.replacePeriods(
+            withTabularText: """
+            Name\tDemand\tSetup Cost\tUnit Variable Cost\tUnit Holding Cost\tUnit Backorder Cost
+            January\t10\t20\t2\t1\t3
+            February\t12\t25\t2.5\t1.25\t4
+            """
+        )
+        #expect(draft.periods.map(\.name) == ["January", "February"])
+        #expect(draft.periods[1].unitVariableCost == "2.5")
+        #expect(draft.periodsTabularText().hasPrefix("Name\tDemand\tSetup Cost"))
+
+        let model = try InventoryDraft.lotSizing(draft).makeModel()
+        guard case .lotSizing(let lotSizing) = model else { Issue.record("Expected lot sizing"); return }
+        #expect(lotSizing.periods.map(\.demand) == [10, 12])
+
+        let before = draft
+        #expect(throws: SpreadsheetTransferError.self) {
+            try draft.replacePeriods(withTabularText: "March\t10.5\t20\t2\t1\t3")
+        }
+        #expect(draft == before)
+    }
+
     @Test("incomplete draft diagnostics are separate from core validation")
     func draftDiagnostics() {
         var draft = InventoryDraft.blank(.eoq)

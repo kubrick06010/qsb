@@ -18,7 +18,7 @@ struct NetworkFlowEditorView: View {
                 Spacer()
                 Button("Validate") { workspace.validateCurrentModel() }
                     .keyboardShortcut("v", modifiers: [.command, .shift])
-                Button("Run") { workspace.solveCurrentModel() }
+                Button("Run") { workspace.startCurrentModelRun() }
                     .keyboardShortcut("r", modifiers: [.command])
                     .buttonStyle(.borderedProminent)
             }

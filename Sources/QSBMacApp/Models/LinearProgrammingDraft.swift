@@ -53,6 +53,23 @@ enum LPDraftError: Error, Equatable, CustomStringConvertible {
     var description: String { message }
 }
 
+enum LPDraftTabularError: Error, Equatable, CustomStringConvertible {
+    case emptyClipboard
+    case inconsistentColumns(expected: Int, actual: Int, row: Int)
+    case invalidValue(String, column: String, row: Int)
+
+    var description: String {
+        switch self {
+        case .emptyClipboard:
+            "The copied range is empty."
+        case .inconsistentColumns(let expected, let actual, let row):
+            "Row \(row) has \(actual) columns; expected \(expected)."
+        case .invalidValue(let value, let column, let row):
+            "“\(value)” is not valid for \(column) in row \(row)."
+        }
+    }
+}
+
 struct LinearProgrammingDraft: Equatable, Sendable {
     var title: String
     var sense: ObjectiveSense
@@ -236,6 +253,159 @@ struct LinearProgrammingDraft: Equatable, Sendable {
     mutating func removeConstraint(at index: Int) {
         guard constraints.indices.contains(index) else { return }
         constraints.remove(at: index)
+    }
+
+    func variablesTabularText() -> String {
+        let header = ["Name", "Objective", "Type", "Lower", "Upper", "Unrestricted"].joined(separator: "\t")
+        let rows = variables.indices.map { index in
+            let variable = variables[index]
+            let upper = switch variable.upperBound {
+            case .unbounded: ""
+            case .value(let value): value
+            }
+            return [
+                variable.name,
+                objectiveCoefficients[index],
+                variable.type.rawValue,
+                variable.lowerBound,
+                upper,
+                variable.unrestricted ? "true" : "false"
+            ].joined(separator: "\t")
+        }
+        return ([header] + rows).joined(separator: "\n")
+    }
+
+    mutating func replaceVariables(withTabularText text: String) throws {
+        var rows = try Self.tabularRows(from: text)
+        let columns = ["Name", "Objective", "Type", "Lower", "Upper", "Unrestricted"]
+        if Self.isHeader(rows[0], matching: columns) { rows.removeFirst() }
+        guard !rows.isEmpty else { throw LPDraftTabularError.emptyClipboard }
+
+        var pastedVariables: [LPDraftVariable] = []
+        var pastedObjectives: [String] = []
+        for (index, row) in rows.enumerated() {
+            try Self.requireColumnCount(row, expected: columns.count, row: index + 1)
+            let rowNumber = index + 1
+            let name = row[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else {
+                throw LPDraftTabularError.invalidValue(row[0], column: "Name", row: rowNumber)
+            }
+            try Self.requireNumber(row[1], column: "Objective", row: rowNumber)
+            guard let type = VariableType(rawValue: row[2].lowercased()) else {
+                throw LPDraftTabularError.invalidValue(row[2], column: "Type", row: rowNumber)
+            }
+            try Self.requireNumber(row[3], column: "Lower", row: rowNumber)
+            if !row[4].isEmpty { try Self.requireNumber(row[4], column: "Upper", row: rowNumber) }
+            let unrestricted = try Self.boolean(row[5], column: "Unrestricted", row: rowNumber)
+
+            pastedVariables.append(LPDraftVariable(
+                name: name,
+                type: type,
+                lowerBound: row[3],
+                upperBound: row[4].isEmpty ? .unbounded : .value(row[4]),
+                unrestricted: unrestricted
+            ))
+            pastedObjectives.append(row[1])
+        }
+
+        let newCount = pastedVariables.count
+        let resizedConstraints = constraints.map { constraint in
+            var coefficients = Array(constraint.coefficients.prefix(newCount))
+            coefficients.append(contentsOf: repeatElement("0", count: max(0, newCount - coefficients.count)))
+            return LPDraftConstraint(
+                name: constraint.name,
+                coefficients: coefficients,
+                relation: constraint.relation,
+                rhs: constraint.rhs
+            )
+        }
+        variables = pastedVariables
+        objectiveCoefficients = pastedObjectives
+        constraints = resizedConstraints
+    }
+
+    func constraintsTabularText() -> String {
+        let header = ["Name"] + variables.map(\.name) + ["Relation", "RHS"]
+        let rows = constraints.map { constraint in
+            [constraint.name] + constraint.coefficients + [constraint.relation.rawValue, constraint.rhs]
+        }
+        return ([header] + rows).map { $0.joined(separator: "\t") }.joined(separator: "\n")
+    }
+
+    mutating func replaceConstraints(withTabularText text: String) throws {
+        var rows = try Self.tabularRows(from: text)
+        let columns = ["Name"] + variables.map(\.name) + ["Relation", "RHS"]
+        if Self.isHeader(rows[0], matching: columns) { rows.removeFirst() }
+        guard !rows.isEmpty else { throw LPDraftTabularError.emptyClipboard }
+
+        let pasted = try rows.enumerated().map { index, row in
+            try Self.requireColumnCount(row, expected: columns.count, row: index + 1)
+            let rowNumber = index + 1
+            let name = row[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else {
+                throw LPDraftTabularError.invalidValue(row[0], column: "Name", row: rowNumber)
+            }
+            let coefficients = Array(row[1..<(1 + variables.count)])
+            for (column, value) in coefficients.enumerated() {
+                try Self.requireNumber(value, column: variables[column].name, row: rowNumber)
+            }
+            let relationIndex = 1 + variables.count
+            let relationText = row[relationIndex]
+                .replacingOccurrences(of: "≤", with: "<=")
+                .replacingOccurrences(of: "≥", with: ">=")
+            guard let relation = ConstraintRelation(rawValue: relationText) else {
+                throw LPDraftTabularError.invalidValue(row[relationIndex], column: "Relation", row: rowNumber)
+            }
+            try Self.requireNumber(row[relationIndex + 1], column: "RHS", row: rowNumber)
+            return LPDraftConstraint(
+                name: name,
+                coefficients: coefficients,
+                relation: relation,
+                rhs: row[relationIndex + 1]
+            )
+        }
+        constraints = pasted
+    }
+
+    private static func tabularRows(from text: String) throws -> [[String]] {
+        let normalized = text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let lines = normalized.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        guard !lines.isEmpty else { throw LPDraftTabularError.emptyClipboard }
+        let delimiter: Character = normalized.contains("\t") ? "\t" : (normalized.contains(";") ? ";" : ",")
+        return lines.map { line in
+            line.split(separator: delimiter, omittingEmptySubsequences: false)
+                .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+        }
+    }
+
+    private static func requireColumnCount(_ rowValues: [String], expected: Int, row: Int) throws {
+        guard rowValues.count == expected else {
+            throw LPDraftTabularError.inconsistentColumns(expected: expected, actual: rowValues.count, row: row)
+        }
+    }
+
+    private static func requireNumber(_ value: String, column: String, row: Int) throws {
+        guard let number = Double(value), number.isFinite else {
+            throw LPDraftTabularError.invalidValue(value, column: column, row: row)
+        }
+    }
+
+    private static func boolean(_ value: String, column: String, row: Int) throws -> Bool {
+        switch value.lowercased() {
+        case "true", "yes", "1": true
+        case "false", "no", "0": false
+        default: throw LPDraftTabularError.invalidValue(value, column: column, row: row)
+        }
+    }
+
+    private static func isHeader(_ values: [String], matching columns: [String]) -> Bool {
+        guard values.count == columns.count else { return false }
+        let normalizedValues = values.map { $0.lowercased().filter(\.isLetter) }
+        let normalizedColumns = columns.map { $0.lowercased().filter(\.isLetter) }
+        let matches = zip(normalizedValues, normalizedColumns).filter(==).count
+        return matches * 2 >= columns.count
     }
 
     private static func number(_ text: String, path: String) throws -> Double {

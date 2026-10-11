@@ -269,6 +269,28 @@ func assignmentDraftMutationsAreDimensionallySafe() throws {
     #expect(draft.costs.allSatisfy { $0.count == draft.columns.count })
 }
 
+@Test("assignment spreadsheet transfer replaces labels and costs atomically")
+func assignmentSpreadsheetTransfer() throws {
+    var draft = AssignmentDraft.blank()
+    try draft.replaceTable(
+        withTabularText: """
+        Worker / Task\tCutting\tPacking
+        Alice\t4\t1
+        Bob\t2\t5
+        """
+    )
+    #expect(draft.rows.map(\.name) == ["Alice", "Bob"])
+    #expect(draft.columns.map(\.name) == ["Cutting", "Packing"])
+    #expect(draft.costs == [["4", "1"], ["2", "5"]])
+    #expect(draft.tabularText().hasPrefix("Worker / Task\tCutting\tPacking"))
+
+    let before = draft
+    #expect(throws: SpreadsheetTransferError.self) {
+        try draft.replaceTable(withTabularText: "Worker / Task\tCutting\nAlice\tnot-a-number")
+    }
+    #expect(draft == before)
+}
+
 @Test("transportation draft preserves supply demand alignment and JSON semantics")
 func transportationDraftRoundTripsAndSolves() throws {
     let draft = TransportationDraft(
@@ -302,6 +324,26 @@ func transportationDraftMutationsAreDimensionallySafe() {
     #expect(draft.costs.allSatisfy { $0.count == draft.destinations.count })
     draft.removeDestination(at: 0)
     #expect(draft.costs.allSatisfy { $0.count == draft.destinations.count })
+}
+
+@Test("transportation spreadsheet transfer replaces costs, supply, demand, and labels")
+func transportationSpreadsheetTransfer() throws {
+    var draft = TransportationDraft.blank()
+    try draft.replaceTable(
+        withTabularText: """
+        Source / Destination\tNorth\tSouth\tSupply
+        Demand\t8\t12\t
+        Plant A\t1\t3\t10
+        Plant B\t2\t4\t10
+        """
+    )
+    let model = try draft.makeModel()
+    #expect(model.origins == ["Plant A", "Plant B"])
+    #expect(model.destinations == ["North", "South"])
+    #expect(model.costs == [[1, 3], [2, 4]])
+    #expect(model.supply == [10, 10])
+    #expect(model.demand == [8, 12])
+    #expect(draft.tabularText().contains("Demand\t8\t12\t"))
 }
 
 @Test("matrix drafts report incomplete numeric cells before core validation")

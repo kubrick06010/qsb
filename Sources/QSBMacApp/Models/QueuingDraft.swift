@@ -100,8 +100,7 @@ struct MM1QueueDraft: Equatable, Sendable {
     }
 
     fileprivate static func format(_ value: Double) -> String {
-        let rounded = value.rounded()
-        return abs(value - rounded) < 1e-10 ? String(Int(rounded)) : String(format: "%.6g", value)
+        String(value)
     }
 }
 
@@ -227,13 +226,14 @@ struct FiniteCapacityQueueDraft: Equatable, Sendable {
     private static func integer(_ value: String, path: String) throws -> Int {
         let number = try number(value, path: path)
         let rounded = number.rounded()
-        guard abs(number - rounded) < 1e-8 else { throw QueuingDraftError.invalidInteger(path: path, value: value) }
-        return Int(rounded)
+        guard number == rounded, let integer = Int(exactly: rounded) else {
+            throw QueuingDraftError.invalidInteger(path: path, value: value)
+        }
+        return integer
     }
 
     fileprivate static func format(_ value: Double) -> String {
-        let rounded = value.rounded()
-        return abs(value - rounded) < 1e-10 ? String(Int(rounded)) : String(format: "%.6g", value)
+        String(value)
     }
 }
 

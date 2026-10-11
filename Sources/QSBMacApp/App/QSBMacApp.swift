@@ -46,7 +46,7 @@ struct QSBMacApp: App {
                 Divider()
 
                 Button("Run Current Model") {
-                    workspace.runCurrentModel()
+                    workspace.startCurrentModelRun()
                 }
                 .keyboardShortcut("r", modifiers: [.command])
                 .disabled(!workspace.canSolveCurrentModel)
@@ -67,7 +67,6 @@ struct QSBMacApp: App {
                 Button("Solve Network") {
                     workspace.solveNetwork()
                 }
-                .keyboardShortcut("n", modifiers: [.command])
                 .disabled(!workspace.isNetworkModel)
 
                 Button("Solve Facilities") {

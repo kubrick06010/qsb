@@ -118,6 +118,39 @@ the backend and presents each supported result natively:
 - the common policy trace with stage, state, action, next state, and local
   value for every variant.
 
+Bounded Knapsack also has a native definition editor. Capacity and item limits,
+resource use, and return values are edited as typed fields, while the complete
+item table can be copied to or pasted from Excel, Numbers, LibreOffice, TSV,
+or CSV. Table repair works while the title or capacity remains incomplete.
+Complete-header matching accepts a headerless item named `Item`; unambiguous
+matching names retain row identities across reorder, and duplicate names remain
+core validation errors with distinct row identities. Required names, integer
+quantities/capacities, and finite returns are checked atomically for the pasted
+range. Paste retains a surviving focus target; removal targets a neighbor and
+undo/replacement repairs orphaned name-field focus. Live focus timing remains
+unverified. Validation remains in `QSBCore`, undo/redo preserves
+the typed draft, and normalized JSON remains available as the advanced
+interchange and repair surface.
+
+Bounded Knapsack interactive Run captures the typed request and executes core
+validation, solving, and normalized output outside the main thread. Pending
+progress disables duplicate runs. Draft/model/backend changes, validation, and
+newer runs prevent stale results or errors from replacing current state.
+Incomplete native fields and invalid core bounds lead to Validation; current
+worker failures remain explicit. External solving is unavailable, with guidance
+to use QSB Native or Validate only. Superseded workers finish in the background;
+no cancellation control is currently provided. Other dynamic-programming variants
+retain their existing synchronous UI path.
+
 The view does not recompute policies or parse trace strings. It renders the
 typed result and trace supplied by `QSBCore`, keeps exactness and assumptions
 visible, and retains the normalized solution through the Stages/JSON selector.
+
+
+## Native result accessibility
+
+The Knapsack result exposes named summary metrics and selected-item rows with
+quantity, capacity use and return. Policy trace rows expose stage, state, action,
+next state and value as related accessible content. The chart retains named marks
+and the table provides the text alternative. Compact/wide result renders are
+covered; live VoiceOver and keyboard verification remains pending.

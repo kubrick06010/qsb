@@ -174,6 +174,20 @@ solution and validation documents. Its Samples menu includes compact Payoff
 Analysis and Decision Tree models for exercising EVSI/EVPI and rollback/policy
 workflows.
 
+Payoff, Bayesian, and zero-sum game models have native table editors. Decision
+trees have a native node editor for names, kinds, ordered child IDs, payoffs,
+and probabilities. New Model creates valid starter models; normalized imports
+and samples populate typed drafts. State, evidence, decision, and strategy rows
+or columns can be added or removed while their probability and payoff matrices
+stay aligned. Tree nodes can be added as terminal children or removed as leaves;
+editing the ordered child IDs permits other links. A malformed child-ID list
+blocks structural edits until corrected, so the editor does not discard input.
+Validation and solving use the shared `QSBCore` model and backend, and editing
+JSON requires an explicit Apply action to replace the draft.
+Export serializes current draft values even before a separate validation run;
+malformed numeric fields open the validation report instead of exporting stale
+JSON.
+
 Decision-tree solution documents open in a native inspection view that shows the
 rollback value at every node, the recommended policy at decision nodes, chance
 probabilities, terminal payoffs, backend exactness metadata, and the original

@@ -123,6 +123,17 @@ QSBMacApp decodes the same `QueuingSolutionDocument` emitted by the shared
 backend and presents a native Metrics/JSON solution surface for both supported
 queue variants.
 
+The New Model picker offers M/M/1 and finite-capacity queue drafts. The native
+editor keeps incomplete text visible, uses the shared QSBCore validators and
+backend, and converts to the existing normalized JSON envelope for export.
+Legacy and JSON imports open in the same editor.
+The definition form uses adaptive columns and vertical scrolling so its
+parameters, optional costs, and action buttons stay reachable at the 1000×700
+minimum window size. Queue fields have explicit accessibility names. In the
+M/M/1 route, the compact editor and solution were visually inspected, the
+field names were checked through macOS accessibility, and Command-Shift-V and
+Command-R were exercised through validation and solving.
+
 - M/M/1 and finite-capacity results show utilization, arrival and effective
   throughput, service capacity, blocking, customer counts, and waiting times.
 - Finite-capacity results include an accessible state-probability chart with

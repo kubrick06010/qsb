@@ -80,6 +80,10 @@ The main workspace should distinguish at least these modes:
 
 Family-specific editors are the preferred long-term input layer. They should
 produce the same normalized request types consumed by the CLI and `QSBCore`.
+Until a specialized editor exists, every decodable normalized model must use a
+guided structured editor for fields, lists, and tables. Raw JSON remains an
+advanced interchange and repair surface; it is never the only definition
+surface for a supported model.
 
 ### Shared editor structure
 
@@ -125,12 +129,23 @@ Use period- or entity-oriented tables with visible units and a compact summary
 of the active policy or assumptions. Avoid forcing users to infer whether a
 number is demand, stock, time, probability, capacity, or cost.
 
+Lot Sizing spreadsheet transfer should use one row per period and explicit
+columns for demand, setup cost, variable cost, holding cost, and backorder cost.
+Demand remains integral and the complete pasted range must pass structural and
+numeric checks before replacing the draft.
+
 ### Decision analysis and Markov models
 
 Use tree/state editors with an equivalent tabular representation. Every node or
 transition must have a stable name, an editable value, and a visible semantic
 type. Never make color the only distinction between chance, decision, and
 terminal nodes.
+
+For Markov models, copy and paste state names, costs, optional initial
+probabilities, and the transition matrix as one aligned table. For payoff and
+Bayesian models, keep states/priors, likelihoods, and decision payoffs in named
+tables whose state headers must agree. Zero-sum games use row and column
+strategy headers around the payoff matrix.
 
 ## Validation and Error Handling
 
@@ -163,6 +178,15 @@ step. For model creation, prefer a reversible draft followed by explicit
 - Let users resize table columns and sort where ordering has meaning.
 - Support undo/redo for model edits as the implementation matures.
 - Support paste of rectangular numeric data into compatible tables.
+- Provide explicit `Paste Table` and `Copy Table` actions for repeated tabular
+  data. Accept tab-delimited ranges copied from Excel, Numbers, and LibreOffice,
+  plus practical TSV/CSV input where the table schema is unambiguous.
+- Treat an optional matching header row as metadata, validate the complete
+  pasted range before committing it, and preserve the last valid table when a
+  cell, type, or dimension is invalid.
+- Keep clipboard parsing and draft conversion outside the view. Native editors
+  may use typed draft adapters; the guided fallback must preserve the existing
+  normalized JSON types and continue through QSBCore validation.
 - Do not hide core actions behind custom gestures.
 - Use sheets for focused creation or confirmation, not for the whole workbench.
 - Support window resizing and compact widths without clipping labels or values.
@@ -231,3 +255,12 @@ Before merging a GUI or editor change, verify:
 - Are accessibility labels, values, and non-visual alternatives present?
 - Are tests, docs, and roadmap notes updated with the behavior?
 
+
+### Result metadata presentation
+
+Specialized result headers and run context use readable backend, algorithm and
+exactness names from the app's `SolverMetadataPresentation`. Native results say
+QSB Native; fixture-scale metadata says Limited scale without claiming global
+exactness. Unknown algorithms display Custom algorithm. Normalized JSON retains
+the original backend/algorithm/exactness identifiers and notes for interchange
+and advanced inspection. Presentation must not reinterpret solver guarantees.

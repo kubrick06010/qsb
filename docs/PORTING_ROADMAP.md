@@ -1,6 +1,6 @@
 # QSB Porting Roadmap
 
-Status audited: 2026-09-16
+Status updated: 2026-10-11
 
 This project is a clean-room modernization and compatibility replacement for the WinQSB application payload preserved in `reference/winqsb`.
 
@@ -254,7 +254,7 @@ Purpose:
 
 Candidate external engines:
 
-- HiGHS for LP/MIP: current adapter; QP needs a separate translation;
+- HiGHS for LP/MIP and strictly convex/concave continuous QP: current adapters;
 - CBC/CLP for LP/MILP;
 - OR-Tools for routing, flows, assignment, scheduling, and CP-SAT;
 - GLPK where licensing and deployment are acceptable;
@@ -288,8 +288,7 @@ Implemented:
   CLI workflows, with runnable EOQ and bounded-knapsack samples;
 - legacy WinQSB reference organization under `reference/winqsb`;
 - foundational backend and validation diagnostic types in `QSBCore`;
-- `swift test` verification with 213 passing tests on the current macOS working
-  tree as of 2026-09-16;
+- `swift test` verification passes 286 tests on macOS as of 2026-09-28;
 - Phase A structural consolidation is complete for Facilities, Inventory, LP,
   CLI support files, and legacy tests.
 - Phase B infrastructure convergence is complete, including shared normalized
@@ -301,11 +300,35 @@ Implemented:
 - The repository hygiene checkpoint is complete. Phase 6 now includes an
   optional HiGHS command-line adapter for LP/MIP models and typed translations
   for LP-backed network/planning families; no solver binary is vendored.
-- The current GUI working-tree checkpoint adds native Decision Analysis result
-  surfaces, a Markov editor/result surface, Queuing metrics, and Network canvas
-  position editing. Its automated suite passes; compact/wide visual,
-  interaction, and accessibility verification remains before the checkpoint is
-  closed.
+- The GUI includes native Decision Analysis payoff, Bayesian, decision-tree,
+  and zero-sum game editors and result surfaces, a Markov
+  editor/result surface, Queuing metrics and editing, and Network canvas
+  position editing. Automated tests pass. The Decision Tree editor has been
+  inspected at 1000×700 with accessible field descriptions, leaf creation,
+  keyboard validation, and keyboard solving; its result uses compact cards at
+  that size and the full table at 1400×900. A repeatable rendering audit now
+  covers the Decision Tree and both Queuing editors plus ten newly prioritized
+  native result surfaces at 1000×700 and 1400×900. The audit also corrected the
+  common segmented presentation control so its accessible label no longer
+  wraps into the visible layout.
+- Every decodable normalized family now opens on a guided Definition surface
+  when a specialized editor is unavailable. Guided starters are available from
+  New Model for Optimization, Planning & Scheduling, Quality, and Simulation;
+  normalized JSON remains the advanced interchange and repair surface.
+- Spreadsheet transfer is atomic and typed for guided compatible lists and
+  matrices; LP variables/objective and constraints; Assignment; Transportation;
+  Forecasting; Lot Sizing periods; Markov states and transitions; Payoff and
+  Bayesian state/likelihood/payoff tables; and Zero-Sum strategy matrices.
+- Aggregate Planning, Project Scheduling, MRP, Simulation, and Bounded Knapsack now have native typed
+  definition editors with macOS undo/redo, focus restoration for new rows,
+  QSBCore-owned semantic validation, explicit JSON Apply paths, and atomic
+  spreadsheet transfer for their dense period, activity, item, schedule, and
+  BOM, component, route, service-rule, and bounded-item tables.
+
+- Acceptance Sampling, Quality Control, QP, NLP, and Goal Programming also have native typed
+  definition editors. QP and NLP include spreadsheet transfer, normalized file
+  import, explicit JSON Apply/export, undo/redo, and compact/wide checks with
+  invalid input. Runtime VoiceOver and keyboard traversal audits remain open.
 
 Next:
 
@@ -313,7 +336,8 @@ Next:
 - keep GUI logic thin;
 - maintain the shared backend, normalized JSON, and diagnostic abstractions now
   implemented across all current families;
-- close the current GUI checkpoint with app build/run and visual verification.
+- continue family-specific editing and live VoiceOver/focus refinement after
+  the current GUI checkpoint.
 
 ### Legacy File Handling
 
@@ -480,8 +504,8 @@ Implemented:
   newsvendor, and lot sizing, using a discriminated `InventoryDraft` that
   converts into existing QSBCore envelopes; discount tiers and lot-sizing
   periods preserve dimensions during structural edits;
-- stochastic review remains available through legacy import, normalized JSON,
-  validation, and solving, but its native editor is deliberately deferred.
+- stochastic review is available through legacy import, normalized JSON,
+  validation, solving, and its policy-aware native editor.
 
 UI Phase 3D status:
 
@@ -513,10 +537,12 @@ UI Phase 3E status:
   atomic validation, exact row ordering, and useful failure diagnostics;
 - Command-V remains Paste and Command-Shift-V remains Validate.
 
-Future work: extend this proven tabular paste interaction to the existing LP,
-Assignment, Transportation, Lot Sizing, and other appropriate editors. Methods
-and parameters absent from the current QSBCore request schema, including
-weighted moving average and confidence intervals, are not advertised.
+The proven tabular paste interaction covers LP, Assignment, Transportation,
+Lot Sizing, Markov, Payoff, Bayesian, Zero-Sum, and compatible guided-editor
+tables. Each specialized table exports domain-specific headers, validates the
+entire incoming range, and commits atomically. Methods and parameters absent
+from the current QSBCore request schema, including weighted moving average and
+confidence intervals, are not advertised.
 
 UI Phase 3B status:
 
@@ -595,12 +621,28 @@ Recommended next:
 
 Implemented:
 
+- native typed Facility Layout definition editor for grid dimensions,
+  departments, fixed flags, multiple cell rectangles, and directed flow/unit
+  costs, with atomic spreadsheet transfer, ID-preserving geometry and matrix
+  remapping, undo/redo, row focus, normalized import, JSON Apply/export, and
+  compact/wide valid/invalid rendering coverage;
+- native typed Line Balancing definition editor for cycle time, units, task
+  identity, durations, isolation flags, and immediate successor IDs, with atomic
+  spreadsheet transfer, undo/redo, row focus, normalized file import, JSON
+  Apply/export, and compact/wide valid/invalid rendering coverage;
+- native typed Facility Location definition editor for coordinates, roles,
+  distance measure, and directed interaction matrix; atomic spreadsheet paste,
+  ID-preserving matrix remapping, undo/redo, row focus, normalized file import,
+  JSON Apply/export, and compact/wide valid/invalid rendering coverage;
 - assembly line balancing (`FLL ... LINE BALANCING`) parser, validation diagnostics, normalized model/solution JSON, and exact fixture-scale station minimization solver with `qsb solve-line-balancing`, `qsb solve-line-balancing-json`, and generic `qsb solve-facilities-json`;
 - single-new-facility location (`FLL ... LOCATION`) parser, validation diagnostics, normalized model/solution JSON, and continuous weighted-distance solver with `qsb solve-location`, `qsb solve-location-json`, and generic `qsb solve-facilities-json`;
 - facility layout (`FLL ... LAYOUT`) parser, validation diagnostics, normalized model/solution JSON, initial-layout load-distance evaluation, and fixture-scale pairwise-swap local search with `qsb solve-layout`, `qsb solve-layout-json`, and generic `qsb solve-facilities-json`;
 - named `FacilitiesBackend` seam with native educational and validation-only implementations, typed and generic-envelope solving, layout strategy selection, and backend-owned run metadata;
 - all legacy, family-specific JSON, and generic facilities-envelope CLI solve paths routed through the same `FacilitiesBackend` selected in `QSBCore`;
-- verified support for `reference/winqsb/LINEBAL.FL_`, `reference/winqsb/LOCATION.FL_`, and `reference/winqsb/LAYOUT.FL_`.
+- verified support for `reference/winqsb/LINEBAL.FL_`, `reference/winqsb/LOCATION.FL_`, and `reference/winqsb/LAYOUT.FL_`;
+- native macOS location maps with weighted interactions and line-balancing
+  station load/idle, assignment, and precedence presentations, alongside the
+  existing layout canvas and normalized JSON fallbacks.
 
 Next priority:
 
@@ -647,11 +689,15 @@ Implemented:
   and zero-sum game results, including posterior/payoff tables, information
   values, rollback policy, mixed strategies, backend context, accessibility,
   and JSON fallback.
+- native payoff, Bayesian, and zero-sum game table editors for states, priors,
+  evidence likelihoods, strategies, and payoffs, with dimension-safe draft
+  changes, QSBCore validation/solving, normalized import, and explicit JSON
+  Apply; decision-tree definitions use a native node editor with ordered child
+  IDs, payoffs, probabilities, leaf creation/removal, and the same JSON path.
 
 Recommended next:
 
-- add native Decision Analysis model editing where each model contract supports
-  reversible structured input;
+- continue live VoiceOver and focus-order refinement as the editor grows;
 - retain the LP backend seam for mixed strategies when external LP backends arrive.
 
 ### Queuing
@@ -669,6 +715,13 @@ Implemented:
   metrics, finite-state probabilities, cost breakdowns, assumptions, backend
   context, accessibility values, Metrics/JSON switching, and a runnable M/M/1
   sample;
+- native definition editors for both supported queue variants with New Model,
+  legacy import, and normalized JSON paths;
+- adaptive queue definition columns, persistent Validate/Run actions, and
+  named text fields; the M/M/1 compact editor and solution were visually
+  inspected at 1000×700, accessibility field names were checked, and both
+  validation and run keyboard shortcuts were exercised. Repeatable rendering
+  checks cover both queue variants at 1000×700 and 1400×900;
 - verified support for `reference/winqsb/QUEUE1.QA_` and `reference/winqsb/QUEUE2.QA_`.
 
 Recommended next:
@@ -676,8 +729,7 @@ Recommended next:
 - classify and validate additional recognized WinQSB queue variants before solving them;
 - add a future simulation or external queue backend for distributions that the mean-rate birth-death approximation does not model faithfully;
 - add richer diagnostics for finite-population, bulk-arrival, and non-exponential interarrival variants;
-- add a native queue-definition editor once the supported variant contract is
-  broad enough to justify model creation beyond the current JSON/import path.
+- continue live VoiceOver and focus-order refinement for dense queue forms.
 
 ## Roadmap Phases
 
@@ -729,8 +781,9 @@ UI Phase 2 status:
 - LP/ILP native editor implemented in `QSBMacApp`;
 - normalized JSON schema and QSBCore solver behavior unchanged;
 - later GUI phases now provide native editors for all current Inventory,
-  Network, and Forecasting variants plus Markov analysis; remaining model
-  families continue to use normalized JSON when no native editor exists.
+  Network, and Forecasting variants plus Markov, Aggregate Planning, Project
+  Scheduling, MRP, and Simulation; remaining model families use the guided Definition
+  surface when no specialized editor exists.
 
 Next refinement:
 
@@ -776,16 +829,20 @@ Implemented:
   critical activities;
 - PERT expected times, activity variances, critical-path variance, and standard
   deviation;
+- continuous CPM crash-cost/time tradeoff optimization for a requested
+  deadline through the native LP backend;
 - named `ProjectSchedulingBackend` with native educational and validation-only
   modes;
 - legacy and JSON CLI solve/validate/export workflows;
-- verified coverage for all four preserved PERT/CPM fixtures.
+- verified coverage for all four preserved PERT/CPM fixtures;
+- a native macOS critical-path schedule with earliest/latest timing, slack,
+  critical highlighting, tables, accessible values, and JSON fallback.
 
 Recommended next:
 
-- add CPM crash-cost/time tradeoff optimization without changing the normal-time
-  critical-path command;
-- add project-network and Gantt-style views to the macOS workbench;
+- broaden and document the existing continuous CPM crash-cost/time tradeoff
+  optimization without changing the normal-time critical-path command;
+- add a node-link project-network view to complement the schedule;
 - consider a future external scheduling backend for larger project networks.
 
 ### Markov Processes
@@ -800,20 +857,24 @@ Implemented:
 - named `MarkovBackend` with native educational and validation-only modes;
 - legacy and JSON CLI solve/validate/export workflows;
 - a native state/matrix editor and stationary/transient result presentation in
-  the current GUI working-tree checkpoint, using the existing request,
+  the GUI, using the existing request,
   validation, backend, and normalized JSON boundaries.
 
 Recommended next:
 
 - add communicating-class diagnostics for reducible chains before solving;
-- complete compact/wide, interaction, and accessibility verification for the
-  new Markov surfaces;
+- continue live interaction and accessibility verification for the Markov
+  surfaces; compact/wide rendering regression coverage is in place;
 - reserve external integration for sparse or very large state spaces.
 
 ### Goal Programming
 
 Implemented:
 
+- native typed macOS definition editor with variable/bound, ordered-goal, and
+  linear-constraint tables; priority reordering, atomic spreadsheet transfer,
+  name-preserving variable remapping, undo/redo, row focus, normalized file
+  import, JSON Apply/export, and compact/wide valid/invalid rendering coverage;
 - matrix and normal-model parsing through shared LP parser semantics;
 - continuous and integer goal-program fixtures;
 - ordered preemptive lexicographic optimization through
@@ -823,12 +884,16 @@ Implemented:
 - optional HiGHS-backed lexicographic LP/MIP execution through the same typed
   backend seam;
 - legacy and JSON CLI solve/validate/export workflows;
-- verified coverage for all three preserved Goal Programming fixtures.
+- a native responsive macOS priority/outcome presentation with final variable
+  values, bounds and domains, backend context, accessibility values, and a
+  Priorities/JSON switch;
+- verified coverage for all three preserved Goal Programming fixtures, plus a
+  regression that keeps each earlier lexicographic optimum active in the final
+  solution.
 
 Recommended next:
 
-- exercise the external route on larger integer goal programs and expose
-  priority/outcome tables in the macOS workbench;
+- continue compact/wide and VoiceOver inspection of the native result surface;
 - retain explicit `fixtureScale` characterization for native integer solving.
 
 ### Acceptance Sampling
@@ -840,14 +905,20 @@ Implemented:
 - normalized model/solution/validation JSON with diagram-ready OC points;
 - structured validation and a named `AcceptanceSamplingBackend` with native
   educational and validation-only modes;
+- single-plan binomial risk-constrained design and exact finite-lot
+  hypergeometric acceptance-probability utilities;
 - legacy and JSON CLI solve/validate/export workflows;
-- `qsb expand` for complete non-mutating SZDD payload inspection.
+- `qsb expand` for complete non-mutating SZDD payload inspection;
+- a native macOS OC-curve presentation with AQL/RQL markers, risk and
+  operating-measure tables, plan context, accessible points, and JSON fallback;
+- a native single/double plan definition editor with typed decision, quality,
+  risk, lot, and economic fields, undo/redo, and explicit JSON Apply.
 
 Recommended next:
 
-- add automatic plan design and hypergeometric finite-lot evaluation;
-- model nonzero inspection-classification errors if fixtures become available;
-- add OC/AOQ charts to the macOS workbench.
+- extend the existing single-plan design and finite-lot probability utilities
+  to double-plan design and full finite-lot evaluation where useful;
+- model nonzero inspection-classification errors if fixtures become available.
 
 ### Quality Control
 
@@ -857,16 +928,26 @@ Implemented:
   probability plot fixtures;
 - classical three-sigma control limits, standard Xbar-R constants, descending
   Pareto aggregation, and Blom-score normal probability fitting;
+- fixed Western Electric two-of-three, four-of-five, and eight-on-one-side
+  signals in control-chart solutions;
 - structured validation and a named `QualityControlBackend` with native
   educational and validation-only modes;
 - normalized model, solution, and validation JSON with chart-ready points;
-- legacy and JSON CLI solve/validate/export workflows.
+- legacy and JSON CLI solve/validate/export workflows;
+- native macOS c, p, Xbar-R, Pareto, and normal-probability presentations with
+  control signals, accessible chart values, details, and JSON fallback;
+- a native definition editor for all five variants with dimension-safe rows
+  and columns, atomic spreadsheet transfer, focus routing, undo/redo, and
+  explicit JSON Apply;
+- session-local retention of each variant's unfinished table when switching
+  analysis type, plus repairable missing imported cells and regression tests.
+  Runtime keyboard traversal and VoiceOver verification remain pending.
 
 Recommended next:
 
 - preserve cause/action/comment metadata in an optional normalized extension;
-- evaluate configured Western Electric run rules;
-- add control-chart and Pareto visualizations to the macOS workbench.
+- make the existing fixed Western Electric signals configurable when the
+  model contract can express the selected rules.
 
 ### Aggregate Planning
 
@@ -880,13 +961,15 @@ Implemented:
 - structured validation and a named `AggregatePlanningBackend` with native
   educational and validation-only modes;
 - optional HiGHS-backed execution of the normalized continuous planning LP;
-- normalized model/solution/validation JSON and complete legacy/JSON CLI flows.
+- normalized model/solution/validation JSON and complete legacy/JSON CLI flows;
+- a native macOS result surface with adaptive summaries, stacked production
+  and demand visualization, signed inventory/backorder visualization, a
+  scrollable period plan, accessible marks, and a normalized JSON fallback.
 
 Recommended next:
 
 - expose optional integer workforce domains through a future external MIP
   extension while keeping the current continuous contract explicit;
-- add period tables and stacked production/inventory charts to the macOS app;
 - compare additional historical outputs if more aggregate fixtures are found.
 
 ### Material Requirements Planning
@@ -901,18 +984,24 @@ Implemented:
 - LFL, EOQ, LUC, LTC, and PPB lot-sizing behavior;
 - capacity-excess reporting, structured validation, normalized JSON, and a
   named native educational/validation-only backend seam;
-- complete legacy and JSON CLI solve/validate/export workflows.
+- complete legacy and JSON CLI solve/validate/export workflows;
+- an item-selectable native macOS result surface with requirements and
+  inventory charts, planned order timing, time-phased tables, BOM context,
+  accessible values, and a normalized JSON fallback.
 
 Recommended next:
 
 - add finite-capacity rescheduling or an external planning backend;
-- add pegging records that trace each component requirement to its parent;
-- add BOM and time-phased schedule views to the macOS workbench.
+- add pegging records that trace each component requirement to its parent.
 
 ### Quadratic Programming
 
 Implemented:
 
+- native typed macOS definition editor for variables/bounds, quadratic matrix,
+  and linear constraints, with atomic spreadsheet transfer, name-preserving
+  variable reordering, undo/redo, new-row focus, normalized-file import, and
+  explicit JSON Apply/export;
 - MatrixFormat and NormalModel parsers normalized to one symmetric quadratic
   objective representation with shared linear constraints and bounds;
 - exact active-set KKT enumeration for strictly convex/concave continuous QP;
@@ -920,14 +1009,19 @@ Implemented:
 - structured curvature, dimension, bound, and integer-scope diagnostics;
 - named native educational/validation-only backend modes, normalized JSON, and
   complete legacy/JSON CLI workflows for all three preserved fixtures.
-- documented HiGHS translation assessment: the current linear MPS boundary
-  cannot preserve QP matrices, so external QP remains explicitly unavailable.
+- optional HiGHS 1.15.1 process adapter for continuous, strictly convex/concave
+  QP through a dedicated `QUADOBJ` exporter; installed-engine checks cover both
+  continuous fixtures, cross terms, objective sense, bounds, and zero-row exit
+  handling, while portable fake-executable tests cover statuses and options.
+  HiGHS rejects MIQP;
+- a native macOS optimum surface with variable values and bounds, active
+  constraints, accessible charts, backend qualification, and JSON fallback.
 
 Recommended next:
 
-- compare a QP-capable HiGHS export with its direct API before enabling an
-  external QP backend; preserve cross terms, sense, domains, and statuses;
-- add contour/objective and active-constraint views to the macOS workbench;
+- assess general MIQP with another engine when a concrete model scale or user
+  workflow justifies that integration;
+- add a contour view for one- and two-variable teaching models;
 - retain explicit rejection of indefinite native models rather than returning
   an unqualified local optimum.
 
@@ -935,6 +1029,10 @@ Recommended next:
 
 Implemented:
 
+- native typed macOS definition editor for objective expressions, variable
+  bounds, and expression constraints, with atomic Copy/Paste Table, undo/redo,
+  new-row focus, normalized-file import, explicit JSON Apply/export, and
+  compact/wide rendering coverage of valid and invalid input;
 - parser coverage for all three preserved `.NL_` fixtures;
 - case-insensitive expression parsing with arithmetic, powers, implicit
   multiplication, and common elementary functions;
@@ -943,7 +1041,10 @@ Implemented:
 - a low-dimensional equality-manifold search for the preserved constrained
   fixture;
 - structured diagnostics, normalized model/solution JSON, complete legacy and
-  JSON CLI workflows, and native educational/validation-only backend modes.
+  JSON CLI workflows, and native educational/validation-only backend modes;
+- a native macOS optimum surface with objective expression, variables and
+  bounds, convergence and violation summaries, typed constraint evaluations,
+  accessible values, and JSON fallback.
 
 Solver character and next refinement:
 
@@ -952,7 +1053,8 @@ Solver character and next refinement:
 - strict legacy inequalities normalize to non-strict boundaries with a warning;
 - native solving is limited to four variables;
 - route larger or harder NLP models to a future external high-performance
-  backend and add objective/constraint visualization to the macOS workbench.
+  backend; add richer objective-landscape visualization where dimensionality
+  permits it.
 
 ### Simulation
 
@@ -969,19 +1071,24 @@ Implemented:
 
 Solver character and next refinement:
 
-- native output is a stochastic estimate from one seeded replication;
-- warm-up deletion, repeated runs, confidence intervals, gate behavior beyond
-  the preserved payload, and interactive event traces remain future work;
+- native output is a stochastic estimate; the default is one seeded replication;
+- optional independently seeded replications and 95% normal-approximation
+  intervals for queue length and server utilization are implemented;
+- warm-up deletion, gate behavior beyond the preserved payload, and
+  interactive event traces remain future work;
 - Simulation import, validation, solving, sample loading, and structured metric
   output are available in the macOS workbench through the existing backend seam;
-- next add richer queue/server metric views and configurable replication options.
+- native queue/server metric charts and tables, confidence intervals when
+  present, run summaries, accessible values, and JSON fallback are implemented;
+- the Run inspector configures 1 through 100 replications through the shared
+  backend options boundary.
 
 Next refinement:
 
 - audit cross-family JSON consistency and introduce schema versioning only when
   a backward-incompatible change is necessary;
-- fill the remaining dedicated documentation gaps for LP/ILP and backend
-  architecture;
+- keep the existing LP/ILP and backend guides synchronized with implemented
+  behavior;
 - maintain exhaustive fixture classification when the preserved payload
   changes;
 - preserve the implemented generic CLI routing and avoid unnecessary new
@@ -1052,8 +1159,13 @@ Reopen this phase when additional clean-room Facilities fixtures are added to
 
 Status: all normalized QSBCore model families and direct legacy-file imports are
 routed through the shell. Native editors and result surfaces cover the highest-
-priority families, while deeper family-specific UX and final verification of
-the current GUI working-tree checkpoint remain pending.
+priority families, and a guided structured editor covers every remaining
+decodable model instead of routing Definition to raw JSON. The current GUI
+checkpoint has compact/wide rendering coverage for the prioritized Decision
+Tree, Queuing, LP, Assignment, Transportation, Goal Programming, QP, and
+Simulation editors and the newest native result surfaces, with explicit
+accessibility labels and tested typed state transitions. Deeper family-specific
+UX and live VoiceOver/focus refinement remain future work.
 
 Implemented in the current shell:
 
@@ -1111,6 +1223,43 @@ Implemented in the current shell:
   documents, with utilization, flow, congestion, finite-state probabilities,
   costs, assumptions, backend context, accessibility values, and Metrics/JSON
   switching.
+- native M/M/1 and finite-capacity queue definition editors, available from the
+  New Model picker and imported models, using typed drafts and the existing
+  QSBCore validation, backend, and normalized JSON paths.
+- native Aggregate Planning, Project Scheduling, MRP, Simulation, and Bounded Knapsack definition editors
+  with typed drafts, row identity, focus restoration, macOS undo/redo, atomic
+  table transfer, and compact/wide rendering coverage; MRP covers item master,
+  time-phased schedules, and BOM relationships, while Simulation covers
+  components, routes, distributions, and service rules;
+- native QP and NLP definition editors for matrices, linear constraints,
+  nonlinear expressions, and variable bounds, with atomic spreadsheet transfer,
+  normalized file import, explicit JSON Apply/export, and invalid-input tests;
+- a guided structured Definition editor for every model that lacks a
+  specialized native editor, with typed scalar controls, object/list/matrix
+  editing, known empty-row starters, automatic normalized JSON preservation,
+  and QSBCore validation;
+- native definition editors for all 13 families in the specialization goal,
+  including Goal Programming, Acceptance Sampling, Quality Control, Facility
+  Location, Line Balancing, and Facility Layout, with typed drafts and JSON
+  Apply/export paths;
+- a categorized New Model picker with native starters for Optimization,
+  Planning & Scheduling, Quality, and Simulation families;
+- atomic `Paste Table` and `Copy Table` actions for compatible guided sections,
+  LP variables/objective and constraints, Assignment matrices, and complete
+  Transportation cost/supply/demand tables. Clipboard input accepts ranges
+  copied from Excel, Numbers, and LibreOffice plus TSV/CSV, with optional
+  schema headers where applicable;
+- atomic spreadsheet actions for Lot Sizing period rows; combined Markov
+  state/cost/initial-probability/transition tables; Payoff and Bayesian
+  state/prior and likelihood tables; Payoff decision tables; and Zero-Sum
+  strategy/payoff matrices;
+- compact/wide rendering regression coverage at 1000×700 and 1400×900 for the
+  LP, Assignment, Transportation, Lot Sizing, Markov, Payoff, Bayesian,
+  Zero-Sum, Decision Tree, M/M/1, finite-capacity, Goal Programming, QP,
+  Aggregate Planning, Project Scheduling, MRP, and Simulation definition editors,
+  and the Aggregate Planning, MRP, Acceptance
+  Sampling, Quality Control, QP, NLP, Facility Location, Line Balancing,
+  PERT/CPM, and Simulation result surfaces.
 
 Goals:
 
@@ -1129,44 +1278,175 @@ GUI milestones:
 3. JSON editor/viewer with validation: implemented.
 4. Solve panel with backend selector: implemented.
 5. Solution JSON viewer: implemented.
-6. Family-specific visualizations: ongoing.
+6. Guided structured definition fallback: implemented for every current
+   decodable family without a specialized editor.
+7. Family-specific visualizations: ongoing.
    - LP tables: implemented;
    - network paths/flows/tours: implemented;
    - forecasting charts: implemented;
    - inventory cost breakdowns: implemented;
    - DP stage tables: implemented;
-   - decision-analysis tables and decision trees: implemented in the current
-     working-tree checkpoint;
-   - Markov stationary/transient analysis: implemented in the current
-     working-tree checkpoint;
-   - queue metrics: implemented in the current working-tree checkpoint;
+   - decision-analysis tables and decision trees: implemented;
+   - Markov stationary/transient analysis: implemented;
+   - Goal Programming priority outcomes and final variables: implemented;
+   - queue metrics: implemented;
    - scheduling Gantt charts: implemented;
    - facilities layouts: implemented;
-   - facility-location and line-balancing presentations, PERT/CPM, Goal
-     Programming, Acceptance Sampling, Quality Control, Aggregate Planning,
-     MRP, QP/NLP, and richer Simulation presentations: pending, with normalized
-     JSON retained as the supported fallback.
+   - Aggregate Planning production, demand, inventory/backorder charts and
+     period plan: implemented;
+   - MRP item schedules, requirements/inventory charts, planned orders, and
+     BOM context: implemented;
+   - Acceptance Sampling OC curves, risks, and operating measures: implemented;
+   - Quality Control control charts, Pareto analysis, and probability plots:
+     implemented;
+   - QP/NLP optimum, variable, active-constraint, and convergence details:
+     implemented;
+   - facility-location maps and line-balancing station plans: implemented;
+   - PERT/CPM critical-path schedule and timing details: implemented;
+   - Simulation queue/server metrics, confidence intervals, and run context:
+     implemented.
+
+Recent usability checkpoints:
+
+- QP, NLP, Goal Programming, Acceptance Sampling, and Quality Control now execute
+  interactive validation, solving, and normalized output outside the main thread.
+  Typed request/snapshot checks preserve invalid and dormant input and reject
+  stale results/errors after edits, replacement, validation, backend/JSON changes,
+  or newer runs. Native/core invalidity leads to Validation. Tests cover all five
+  families, five QC variants, and both sampling plans; pending compact/wide layouts
+  are rendered. QP guidance now reflects its existing optional HiGHS integration.
+  All thirteen specialized families in this UI goal now have background Run paths.
+  NLP/QC spreadsheet repair now works independently of unfinished metadata or
+  other tables, atomically preserving identifiable rows and the surviving selection.
+  NLP import retains excess bounds, exposes missing names, and requires explicit
+  review of missing/unbounded defaults; review supports undo/redo. Live keyboard
+  and VoiceOver verification remain open. NLP now tracks each editable table
+  field; NLP/QC, QP/Goal, and Facilities repair orphaned row focus after replacement
+  or undo/redo. QP reveals its focused matrix cell after variable identity changes;
+  Layout preserves its department and handles empty rectangles. Simulation routes
+  and MRP BOM now repair orphaned row focus; shared/QP matrix paste retains the
+  selected row/group. Simulation component/route/service paste now validates each
+  section independently and retains unambiguous component/row identities, with
+  atomic rejection and full-header recognition. Knapsack result metrics, selection
+  rows and policy traces now expose named related accessibility values; Goal and
+  Knapsack result renders cover compact/wide windows. All thirteen specialized
+  result families now use friendly backend/algorithm/exactness labels while keeping
+  normalized metadata intact. Live keyboard/VoiceOver verification remains open:
+  native inspection fails during creation even with a separate audit bundle ID.
+  The complete UI
+  requirement audit is recorded in `docs/UI_UX_WORKBENCH.md`.
+
+- Bounded Knapsack, Line Balancing, Facility Location, and Facility Layout now
+  execute interactive core validation/solving/output outside the main thread.
+  Captured drafts, JSON, backend, run identifier, and layout strategy guard result
+  application. Edits, validation, replacement, and newer runs discard stale
+  success/errors. Core results match synchronous routes; incomplete fields and
+  invalid core bounds lead to Validation. Unavailable external solving directs
+  users to native/validation modes. Pending compact/wide layouts are covered.
+
+- Bounded Knapsack and Line Balancing now repair their spreadsheet tables
+  independently of unfinished model settings. Unambiguous item names/task IDs
+  preserve native row identities across reorder (and task rename); duplicate
+  names/IDs receive distinct rows and remain core diagnostics. Complete-header
+  matching avoids dropping a headerless item named `Item` and accepts case changes.
+  Atomic malformed-input and undo/redo regressions, focus restoration paths, and
+  compact/wide incomplete-setting renders are covered. Live focus/VoiceOver
+  verification remains open.
+
+- Aggregate Planning and MRP now execute interactive core validation, solving,
+  and normalized output outside the main thread. Pending progress is visible;
+  duplicate runs and stale results/errors after edits, replacement, validation,
+  changed backend/JSON, or superseding runs are covered by async regressions.
+  Invalid native and core inputs lead to Validation. Aggregate retains optional
+  HiGHS integration; unavailable MRP external guidance directs users to native or
+  validation-only modes. Pending/failure compact/wide layouts are covered.
+
+- Project Scheduling UI Run now publishes pending progress and computes core
+  validation, CPM/PERT scheduling, and normalized output outside the main thread.
+  Duplicate runs are rejected; edited models/methods, changed backend/JSON,
+  validation, and superseding runs prevent stale results/errors from taking over.
+  Invalid native fields lead to Validation; invalid core models are reported by
+  the worker. External-backend guidance no longer suggests installing HiGHS for
+  scheduling. Pending/failure compact/wide layouts and asynchronous regressions
+  are covered. Runtime keyboard/focus/VoiceOver checks remain open.
+
+- Project Scheduling now retains CPM times/crash costs and PERT estimates across
+  method switches, including unfinished values. The first counterpart visit uses
+  a seeded estimate; subsequent switches preserve both drafts. Activity table
+  repairs are independent of incomplete project settings and retain identities
+  and dormant method fields for unambiguous names. Addition/removal/paste expose
+  focus targets and undo/redo covers method history. Compact/wide invalid states
+  are rendered. Native creation-selector AX inspection and Cmd-N were observed;
+  editor keyboard/focus and VoiceOver verification remain open because the native
+  inspection service crashes after Create.
+
+- Aggregate Planning table repair now works independently of unfinished plan
+  settings, preserves unambiguous period identities across reorder, and recognizes
+  complete headers without dropping a period named `Period`. Imported unequal
+  vectors retain all values for native repair and explicit dimension review with
+  undo/redo. Missing required values stay blank; optional maxima require review.
+  Addition avoids default-name collisions and removal targets nearby focus.
+  Compact/wide rendering is covered; live keyboard and VoiceOver checks remain open.
+
+- MRP now pages schedules in groups of 12 periods while retaining whole-plan
+  spreadsheet transfer. Its three table sections can repair independently of
+  unfinished fields elsewhere; ambiguous labels are rejected atomically, row
+  identities are retained where unambiguous, and short schedules can be copied
+  or trimmed safely. Imported arrays now preserve their largest period extent;
+  extra names and required values stay blank, and orphan MPS vectors become
+  incomplete native items. Explicit dimension acceptance supports undo/redo.
+  Live keyboard/focus and VoiceOver checks remain open.
+
+- Simulation UI Run actions now publish a pending state and compute immutable
+  core requests outside the main thread. Duplicate runs are rejected, and edits,
+  replacement models, validation, or changed run options prevent stale results
+  and errors from replacing current workspace state. Simulation, Project
+  Scheduling, Aggregate Planning, MRP, Bounded Knapsack, the three Facilities
+  families, QP, NLP, Goal Programming, Acceptance Sampling, and Quality Control
+  now run outside the main thread. Other existing families retain their current
+  paths; runtime accessibility verification remains open.
+
+- Facility Layout validation and evaluation now compute rectangle unions without
+  enumerating grid cells, reject overflowing grid areas, and summarize overlap
+  areas. Its native solution overview bounds canvas size and grid-line density;
+  its dense cost matrix now offers source selection and 12-column groups.
+  Location interactions share that navigation and use role/ID-qualified labels
+  for repeated facility names. Complete spreadsheet transfer remains available,
+  and valid matrix pastes can repair models with unfinished geometry or
+  coordinates. Runtime keyboard and accessibility audits remain open.
+- QP imports retain extra coefficients and support explicit native dimension
+  review; independent table pastes allow repair of unfinished sections. Large
+  quadratic matrices use row selection and 12-column groups while preserving
+  complete-table spreadsheet transfer. Runtime focus and VoiceOver checks remain
+  open.
+- Goal Programming now retains extra imported coefficients and supports native
+  dimension review and independent section repair with undo/redo regression
+  coverage. Dense priority and constraint tables now offer row selection,
+  row-property controls, and 12-variable coefficient groups; complete-table
+  spreadsheet transfer retains all columns. Runtime focus, keyboard, and
+  VoiceOver confirmation remain open.
 
 Next priority:
 
-- close the current GUI working-tree checkpoint with
-  `./script/build_and_run.sh --verify`, compact/wide visual checks, interaction
-  checks, and accessibility review;
-- continue compact/wide and accessibility refinement for family-specific
-  editors while retaining JSON as the fallback;
-- add native Decision Analysis data editing where the model contracts support
-  reversible structured input;
-- add a native queue-definition editor once the supported queue contract is
-  sufficiently explicit;
+- audit the completed native definition editors across all 13 specialization
+  families; preserve normalized JSON and QSBCore validation boundaries when
+  introducing any additional model family;
+- continue live VoiceOver, focus restoration, and keyboard traversal refinement
+  for dense family-specific editors while retaining JSON as the advanced
+  interchange and repair fallback;
+- add subsequent family-specific definition forms where fixtures and validation
+  make the editing contract clear;
+- preserve the completed atomic spreadsheet paths when specialized table
+  schemas or draft dimensions evolve;
 - choose subsequent family-specific presentations by educational and workflow
-  value rather than attempting to replace the universal JSON surface at once;
+  value while preserving the guided definition baseline;
 - keep all transformations in QSBCore or thin presentation adapters.
 
 ### Phase 6 — External Solver Integration
 
-Status: HiGHS command-line integration is implemented for LP/MIP and the
-LP-backed CNF, TP, Aggregate Planning, and Goal Programming families. QP has a
-documented translation assessment; direct QP integration remains pending.
+Status: HiGHS command-line integration is implemented for LP/MIP, continuous
+strictly convex/concave QP, and the LP-backed CNF, TP, Aggregate Planning, and
+Goal Programming families. MIQP remains outside the HiGHS route.
 
 Export checkpoint verified on 2026-09-16:
 
@@ -1189,7 +1469,14 @@ Export checkpoint verified on 2026-09-16:
 - `HiGHSGoalProgrammingBackend` solves each lexicographic priority through LP or
   MIP and preserves QSBCore's presolve and typed outcomes;
 - installed-engine acceptance checks and injected translation checks cover all
-  three family adapters.
+  three family adapters;
+- 16×16 transportation, 24-node minimum-cost-flow, 12-period aggregate
+  planning, and 12-variable two-priority integer-goal regressions exercise
+  HiGHS 1.15.1 and typed solution reconstruction on larger instances.
+- a separate `QUADOBJ` exporter and process adapter handle continuous QP;
+  installed HiGHS tests cover both preserved continuous fixtures, a constrained
+  cross-term case, and a zero-row case. Portable fake-executable tests cover
+  typed statuses, malformed output, options, and nonzero exits.
 
 Goals:
 
@@ -1205,21 +1492,21 @@ Candidate sequence:
 3. Parse external solution output back into structured solution models: HiGHS
    text solution parsing implemented for LP/MIP primal values and statuses.
 4. Add backend metadata and warnings: capability notes and typed unavailable,
-   failed, malformed, infeasible, and unbounded states implemented; richer
-   solver-native run metadata remains pending.
+   failed, malformed, infeasible, and unbounded states are implemented. Richer
+   solver-native timing and iteration metadata is an optional future extension.
 5. Add tests using small models and skip external tests when solver is absent:
    implemented with injected and conditional installed-engine tests.
 6. Extend the stable route to LP-backed families: CNF, TP, Aggregate Planning,
    and Goal Programming are implemented with typed wrappers and registry
    discovery.
-7. Evaluate QP interchange before enabling an external QP backend; preserve
-   quadratic terms and statuses through a dedicated export or direct API.
+7. Continuous-QP `QUADOBJ` export, typed status parsing, and zero-row
+   reconciliation are implemented; HiGHS does not cover MIQP.
 8. Consider direct library integration only after the CLI/export path is stable.
 
 Potential integrations:
 
-- HiGHS for LP/MIP and the LP-backed CNF/TP, Aggregate Planning, and Goal
-  Programming families: current integration;
+- HiGHS for LP/MIP, continuous convex/concave QP, and the LP-backed CNF/TP,
+  Aggregate Planning, and Goal Programming families: current integration;
 - CBC/CLP for LP/MILP;
 - OR-Tools for CP-SAT scheduling/routing/network variants;
 - GLPK if deployment/licensing constraints are acceptable.
@@ -1285,12 +1572,15 @@ swift run qsb solve-bayesian <file>
 swift run qsb solve-decision-tree <file>
 swift run qsb solve-game <file> [--backend native|validate]
 swift run qsb validate-game <file>
+swift run qsb solve-cpm-crash <file> <target-duration> [--backend native|validate]
+swift run qsb design-acceptance <lot-size> <aql> <rql> <producer-risk> <consumer-risk>
 swift run qsb solve-mm1 <file> [--backend native|validate]
 swift run qsb solve-mm1-json <file> [--backend native|validate]
 swift run qsb validate-mm1 <file>
 swift run qsb solve-finite-queue <file> [--backend native|validate]
 swift run qsb solve-finite-queue-json <file> [--backend native|validate]
 swift run qsb validate-finite-queue <file>
+swift run qsb solve-simulation <file> [--backend native|validate] [--replications N]
 ```
 
 Implemented generic direction:
@@ -1301,18 +1591,13 @@ swift run qsb validate <file>
 swift run qsb export-json <legacy-file>
 swift run qsb solve <legacy-file> [--backend native|validate|external]
 swift run qsb solve-json <json-file> [--backend native|validate|external]
+swift run qsb compare-fixture <legacy-file> [--expected <json-or-snapshot>]
 ```
 
 The normalized-family detector currently tries the existing typed decoders in
 sequence. No ambiguous normalized schemas are known; the sequential approach
 is retained as acceptable technical debt until a demonstrated collision or
 performance requirement justifies a change.
-
-Future generic direction:
-
-```bash
-swift run qsb compare-fixture <legacy-file> [--expected <json-or-snapshot>]
-```
 
 Do not remove existing commands just to pursue generic elegance. Prefer backward compatibility.
 
@@ -1411,11 +1696,10 @@ Snapshot testing may be useful for stable JSON outputs, but avoid brittle format
 
 Keep docs close to the implementation.
 
-Dedicated family documentation exists for the normalized non-LP families
-represented in the preserved payload. The remaining dedicated documentation
-gaps are an LP/ILP family guide and a consolidated backend architecture guide;
-LP/ILP schema and backend behavior are currently described across
-`docs/NORMALIZED_JSON.md`, this roadmap, and source-level APIs.
+Dedicated family documentation exists for the normalized model families
+represented in the preserved payload, including `docs/LP_ILP.md` and
+`docs/BACKENDS.md`. Keep these guides synchronized with changes to the
+normalized JSON and backend contracts.
 
 Recommended docs:
 
@@ -1446,16 +1730,16 @@ Each family doc should include:
 
 ## Current Verified Commands and Expected Results
 
-As of 2026-08-31 on the current macOS working tree:
+As of 2026-10-11 on macOS:
 
 ```bash
 swift test
 ```
 
-passes 179 tests. The earlier 118-test baseline also passed in the official
-Swift 6.0 Linux container, and public CI continues to run the portable-core
-suite unconditionally. This checkpoint does not claim a new full Linux run for
-the later GUI-only additions.
+passes 406 tests (228 macOS app, 169 core, and 9 portable MPS tests). The earlier 118-test baseline also passed in the official Swift 6.0
+Linux container, and public CI continues to run the portable-core suite
+unconditionally. This checkpoint does not claim a new full Linux run for later
+GUI-only additions.
 
 Backend/validation commands:
 
@@ -1683,28 +1967,22 @@ Recommended next tasks for contributors, in order:
 
 1. Read this roadmap and the relevant project documentation before modifying code.
 2. Run `swift test` to establish baseline.
-3. Close the current GUI working-tree checkpoint with
-   `./script/build_and_run.sh --verify`, compact and wide visual checks,
-   interaction checks, and accessibility review.
-4. Preserve normalized JSON as the universal editor, audit, and export fallback
-   while the native surfaces are refined.
-5. Add native Decision Analysis data editing where conversion to and from the
-   existing QSBCore models is reversible.
-6. Add a native queue-definition editor once the supported queue variants and
-   approximation boundaries are explicit in the editing contract.
-7. Choose the next family-specific result surface by educational and workflow
-   value; facility location/line balancing, PERT/CPM, Goal Programming,
-   Acceptance Sampling, Quality Control, Aggregate Planning, MRP, QP/NLP, and
-   Simulation remain candidates.
-8. Continue Phase 6 by exercising the verified HiGHS translations on larger
-   LP-backed network/planning instances; do not couple legacy parsing to an
-   external solver.
-9. Maintain the current exhaustive fixture classification. There are no partial
+3. Preserve the compact/wide rendering regression at 1000×700 and 1400×900 and
+   extend it when a prioritized editor or result surface changes.
+4. Preserve normalized JSON as the universal interchange, audit, repair, and
+   export fallback while Definition remains guided or family-specific.
+5. Continue live VoiceOver, focus-order, and keyboard-navigation refinement for
+   dense family-specific editors.
+6. Refine existing family-specific result surfaces when a concrete usability or
+   accessibility issue is observed.
+7. Consider a separate MIQP engine only when its concrete problem scale and
+   workflow justify the dependency; keep legacy parsing independent of it.
+8. Maintain the current exhaustive fixture classification. There are no partial
    or unknown entries in the preserved payload; reopen discovery work only when
    that payload changes.
-10. Update the relevant family documentation and this roadmap after each
+9. Update the relevant family documentation and this roadmap after each
     meaningful milestone.
-11. Finish with `swift test`, `git diff --check`,
+10. Finish with `swift test`, `git diff --check`,
     `git status --short --ignored`, and confirmation that no reference material
     is staged.
 
@@ -1712,15 +1990,12 @@ Recommended next tasks for contributors, in order:
 
 Prefer small commits:
 
-1. Network direct-manipulation refinements and tests.
-2. Markov native editor/result surface, tests, and family documentation.
-3. Decision Analysis result surfaces and focused verification.
-4. Queuing result surface, model-envelope coverage, tests, and documentation.
-5. GUI checkpoint visual/accessibility fixes.
-6. Roadmap and workbench documentation synchronization.
-7. A future Decision Analysis or Queuing editor as its own typed-draft change.
-8. Each later family-specific presentation as a separate vertical slice.
-9. LP/MPS export and any external adapter in separate Phase 6 commits.
+1. Queue editor wiring, typed-draft tests, and documentation.
+2. GUI checkpoint visual, interaction, and accessibility fixes.
+3. Decision Analysis editing as a separate typed-draft change.
+4. Each later family-specific presentation as a separate vertical slice.
+5. The scoped continuous-QP HiGHS exporter and adapter as a separate Phase 6
+   change.
 
 ## Definition of Done for a New Family or Variant
 

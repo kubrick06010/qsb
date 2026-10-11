@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QSB — Modern Operations Research Workbench</title>
+  <meta name="description" content="A clean-room, portable modernization of WinQSB operations research workflows for macOS and CLI in Swift. 16 model families, deterministic solvers, and normalized JSON interchange.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/favicon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Site Navigation -->
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a href="#" class="brand">
+        <img src="assets/app-icon.svg" alt="QSB Icon" width="36" height="36">
+        <span>QSB</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#quickstart">Quickstart</a>
+        <a href="#catalog">Model Catalog</a>
+        <a href="#shortcuts">Shortcuts</a>
+        <a href="#manuals">Manuals</a>
+        <a href="#architecture">Architecture</a>
+      </nav>
+      <div class="nav-cta">
+        <a href="https://github.com/kubrick06010/qsb" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span>Clean-Room Modernization &bull; Swift 6 Native</span>
+      </div>
+
+      <div class="hero-icon-wrap">
+        <img src="assets/app-icon.svg" alt="QSB Application Icon" class="hero-icon">
+      </div>
+
+      <h1>Operations Research, Modernized.</h1>
+      <p class="lead">
+        A fast, native Operations Research workbench for macOS and portable CLI in Swift. Deterministic educational solvers, high-performance external solver integration, and seamless legacy WinQSB compatibility.
+      </p>
+
+      <div class="hero-actions">
+        <a href="#catalog" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span>Explore 16 Model Families</span>
+        </a>
+        <a href="#manuals" class="btn btn-secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <span>Download Manuals (PDF)</span>
+        </a>
+      </div>
+
+      <div class="hero-specs">
+        <div class="spec-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>16 OR Model Families</span>
+        </div>
+        <div class="spec-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Deterministic Exact Solvers</span>
+        </div>
+        <div class="spec-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>macOS Desktop &amp; CLI</span>
+        </div>
+        <div class="spec-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Normalized JSON Interchange</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quickstart Section -->
+  <section id="quickstart">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-tag">Getting Started</div>
+        <h2 class="section-title">Two First-Class Interfaces</h2>
+        <p class="section-desc">Run via a native macOS desktop application with live sensitivity inspection, or use the fast CLI in automated pipelines.</p>
+      </div>
+
+      <div class="quickstart-card">
+        <div class="tab-nav">
+          <button class="tab-btn active" data-tab="tab-gui">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span>macOS Desktop App</span>
+          </button>
+          <button class="tab-btn" data-tab="tab-cli">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+            <span>Command-Line Tool (`qsb`)</span>
+          </button>
+        </div>
+
+        <div id="tab-gui" class="tab-content active">
+          <div class="steps-list">
+            <div class="step-card">
+              <span class="step-number">1</span>
+              <h4>Build &amp; Run</h4>
+              <p>Compile and launch the native SwiftUI &amp; AppKit application with one automated command.</p>
+            </div>
+            <div class="step-card">
+              <span class="step-number">2</span>
+              <h4>Open or Create</h4>
+              <p>Import legacy WinQSB files (<code>.LP_</code>, <code>.NE_</code>, etc.) or create models from built-in templates.</p>
+            </div>
+            <div class="step-card">
+              <span class="step-number">3</span>
+              <h4>Solve &amp; Analyze</h4>
+              <p>Inspect step-by-step Simplex iterations, shadow price allowable ranges, and interactive network layouts.</p>
+            </div>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <span>Terminal Command</span>
+              <button class="copy-btn" onclick="copyTextToClipboard('./script/build_and_run.sh', 'Command copied!')">Copy</button>
+            </div>
+            <code>./script/build_and_run.sh</code>
+          </div>
+        </div>
+
+        <div id="tab-cli" class="tab-content">
+          <div class="steps-list">
+            <div class="step-card">
+              <span class="step-number">1</span>
+              <h4>Compile CLI</h4>
+              <p>Build the release binary using Swift Package Manager on macOS or Linux.</p>
+            </div>
+            <div class="step-card">
+              <span class="step-number">2</span>
+              <h4>Inspect &amp; Validate</h4>
+              <p>Verify structural integrity and check equations against mathematical boundaries.</p>
+            </div>
+            <div class="step-card">
+              <span class="step-number">3</span>
+              <h4>Automate Solutions</h4>
+              <p>Emit JSON solutions directly to standard output for pipeline integration.</p>
+            </div>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <span>CLI Workflow Examples</span>
+              <button class="copy-btn" onclick="copyTextToClipboard('swift run qsb solve model.lp_ --backend native', 'Command copied!')">Copy</button>
+            </div>
+            <code># Solve a legacy model with native deterministic engine
+swift run qsb solve model.lp_ --backend native
+
+# Validate model semantics and bounds
+swift run qsb validate model.lp_
+
+# Export clean normalized JSON
+swift run qsb export-json model.lp_ > model.json
+
+# Solve normalized JSON directly
+swift run qsb solve-json model.json</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Model Families Catalog Section -->
+  <section id="catalog">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-tag">Interactive Catalog</div>
+        <h2 class="section-title">16 Operations Research Families</h2>
+        <p class="section-desc">Filter by mathematical discipline or search for algorithms, equations, and ready-to-run JSON templates.</p>
+      </div>
+
+      <div class="catalog-controls">
+        <div class="filter-pills">
+          <button class="pill-btn active" data-category="all">All Families</button>
+          <button class="pill-btn" data-category="optimization">Optimization</button>
+          <button class="pill-btn" data-category="networks">Networks</button>
+          <button class="pill-btn" data-category="planning">Planning</button>
+          <button class="pill-btn" data-category="production">Production</button>
+          <button class="pill-btn" data-category="uncertainty">Uncertainty</button>
+        </div>
+        <input type="text" id="search-input" class="search-input" placeholder="Search algorithms, models...">
+      </div>
+
+      <div id="catalog-grid" class="families-grid">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Keyboard Shortcuts Section -->
+  <section id="shortcuts">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-tag">Productivity</div>
+        <h2 class="section-title">macOS Keyboard Shortcuts</h2>
+        <p class="section-desc">Designed for power users and operations research instructors.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="shortcuts-table">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Description</th>
+              <th style="text-align: right;">Shortcut</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Solve Model</strong></td>
+              <td>Execute selected solver backend and calculate optimal values</td>
+              <td style="text-align: right;"><kbd>⌘</kbd> <kbd>R</kbd></td>
+            </tr>
+            <tr>
+              <td><strong>Step / Next Tableau</strong></td>
+              <td>Perform a single pivot iteration in the educational Simplex tableau</td>
+              <td style="text-align: right;"><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>R</kbd></td>
+            </tr>
+            <tr>
+              <td><strong>Validate Model</strong></td>
+              <td>Run full semantic checks, rank verification, and diagnostics</td>
+              <td style="text-align: right;"><kbd>⌘</kbd> <kbd>B</kbd></td>
+            </tr>
+            <tr>
+              <td><strong>Export Normalized JSON</strong></td>
+              <td>Save model as portable, human-readable JSON schema</td>
+              <td style="text-align: right;"><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>E</kbd></td>
+            </tr>
+            <tr>
+              <td><strong>Export MPS Format</strong></td>
+              <td>Generate standardized Mathematical Programming System file</td>
+              <td style="text-align: right;"><kbd>⌘</kbd> <kbd>⌥</kbd> <kbd>M</kbd></td>
+            </tr>
+            <tr>
+              <td><strong>Sensitivity Analysis Tab</strong></td>
+              <td>Switch directly to allowable ranges, dual prices, and reduced costs</td>
+              <td style="text-align: right;"><kbd>⌘</kbd> <kbd>2</kbd></td>
+            </tr>
+            <tr>
+              <td><strong>Network Graph View</strong></td>
+              <td>Toggle topology visualization for graphs and networks</td>
+              <td style="text-align: right;"><kbd>⌘</kbd> <kbd>3</kbd></td>
+            </tr>
+            <tr>
+              <td><strong>About QSB &amp; Credits</strong></td>
+              <td>Display app version, authorship, contributors, and repository info</td>
+              <td style="text-align: right;"><kbd>⌘</kbd> <kbd>I</kbd></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- PDF Manuals Download Hub -->
+  <section id="manuals">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-tag">Documentation Hub</div>
+        <h2 class="section-title">Comprehensive Reference Manuals</h2>
+        <p class="section-desc">Rigorous academic manuals with 16 chapters, mathematical formulations, proof steps, and practical engineering scenarios.</p>
+      </div>
+
+      <div class="manuals-grid">
+        <div class="manual-card">
+          <div>
+            <span class="manual-badge badge-en">English Edition</span>
+            <h3>Operations Research Manual</h3>
+            <p>Complete academic and engineering guide: Simplex tableaux, Branch &amp; Bound branchings, EOQ/Wagner-Whitin derivations, M/M/s queuing systems, and step-by-step verified case studies.</p>
+            <div class="manual-meta">
+              <span>16 Chapters</span>
+              <span>&bull;</span>
+              <span>512 Equations</span>
+              <span>&bull;</span>
+              <span>PDF Format</span>
+            </div>
+          </div>
+          <a href="manual-en.pdf" target="_blank" class="btn btn-primary" download>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Download Manual (English PDF)</span>
+          </a>
+        </div>
+
+        <div class="manual-card">
+          <div>
+            <span class="manual-badge badge-es">Edición en Español</span>
+            <h3>Manual de Investigación de Operaciones</h3>
+            <p>Tratado exhaustivo en español: formulaciones exactas, análisis de sensibilidad, teoría de colas, inventarios deterministas y estocásticos, cadenas de Markov y control estadístico de procesos.</p>
+            <div class="manual-meta">
+              <span>16 Capítulos</span>
+              <span>&bull;</span>
+              <span>512 Ecuaciones</span>
+              <span>&bull;</span>
+              <span>Formato PDF</span>
+            </div>
+          </div>
+          <a href="manual-es.pdf" target="_blank" class="btn btn-amber" download>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Descargar Manual (Español PDF)</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture Overview Section -->
+  <section id="architecture">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-tag">Engineering Foundation</div>
+        <h2 class="section-title">Clean-Room Architecture</h2>
+        <p class="section-desc">Designed according to strict clean-room principles to guarantee portability, stability, and longevity.</p>
+      </div>
+
+      <div class="steps-list" style="margin-bottom: 0;">
+        <div class="step-card">
+          <div class="step-number" style="background: var(--accent-cyan); color: #000;">1</div>
+          <h4>QSBCore Domain Engine</h4>
+          <p>Pure Swift package independent of SwiftUI, AppKit, or CLI arguments. Houses model schemas, normalization, parsers, and deterministic algorithms.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number" style="background: var(--accent-sky); color: #000;">2</div>
+          <h4>macOS Native App</h4>
+          <p>Thin client built purely with SwiftUI and AppKit. Strictly observes model state without duplicating solvers or validation math.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number" style="background: var(--accent-purple); color: #fff;">3</div>
+          <h4>Portable CLI (`qsb`)</h4>
+          <p>Lightweight executable handling exit codes, standard I/O streaming, batch validation, and automated continuous integration testing.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modal Drawer for Model Inspection -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-title">Model Family Details</h3>
+        <button id="modal-close" class="modal-close">&times;</button>
+      </div>
+      <div id="modal-body-content" class="modal-body">
+        <!-- Injected dynamically by app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <h4>QSB Workbench</h4>
+          <p>A clean-room, portable modernization of WinQSB-style operations research workflows. Built with Swift 6 for educators, researchers, and engineers.</p>
+        </div>
+        <div class="footer-credits">
+          <h5>Credits &amp; Authorship</h5>
+          <p>Created by <strong>Humberto A.</strong></p>
+          <p>Special thanks to all open-source contributors submitting pull requests and solutions.</p>
+          <p>Official Repository: <a href="https://github.com/kubrick06010/qsb" target="_blank" rel="noopener noreferrer" style="color: var(--accent-sky); text-decoration: none;">github.com/kubrick06010/qsb</a></p>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 Humberto A. and QSB Contributors. All rights reserved.</div>
+        <div>Clean-Room Educational Implementation &bull; GitHub Pages Documentation</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

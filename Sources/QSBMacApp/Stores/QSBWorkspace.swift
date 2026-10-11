@@ -1005,10 +1005,15 @@ final class QSBWorkspace {
         actionName: String,
         restore: @escaping @MainActor (QSBWorkspace) -> Void
     ) {
-        undoManager?.registerUndo(withTarget: self) { target in
+        let action: @MainActor () -> Void = { [weak self] in
+            guard let self else { return }
+            restore(self)
+        }
+        undoManager?.registerUndo(withTarget: self) { _ in
             // UI undo managers invoke synchronously on the main thread. Older
             // SDKs omit actor annotations; an async Task would break redo grouping.
-            MainActor.assumeIsolated { restore(target) }
+            // Capture the actor-bound action, not the SDK's non-Sendable target.
+            MainActor.assumeIsolated { action() }
         }
         undoManager?.setActionName(actionName)
     }

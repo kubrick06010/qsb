@@ -312,12 +312,28 @@ func renderCompactAndWideUILayouts() throws {
     }
 
     let matrixSize = 35
-    let denseLayoutProblem = FacilityLayoutProblem(title: "35-department flow matrix", rowCount: 1,
-        columnCount: matrixSize, objective: "MIN", departments: (0..<matrixSize).map { row in
-            FacilityLayoutDepartment(id: row + 1, name: "Area \(row + 1)", fixed: false,
-                flowUnitCosts: (0..<matrixSize).map { column in row == column ? nil : Double(row * matrixSize + column + 1) / 100 },
-                initialLayout: [.init(startRow: 1, startColumn: row + 1, endRow: 1, endColumn: row + 1)])
-        })
+    let denseLayoutDepartments: [FacilityLayoutDepartment] = (0..<matrixSize).map { row in
+        let flowUnitCosts: [Double?] = (0..<matrixSize).map { column in
+            row == column ? nil : Double(row * matrixSize + column + 1) / 100.0
+        }
+        let layout: [FacilityLayoutRect] = [
+            FacilityLayoutRect(startRow: 1, startColumn: row + 1, endRow: 1, endColumn: row + 1)
+        ]
+        return FacilityLayoutDepartment(
+            id: row + 1,
+            name: "Area \(row + 1)",
+            fixed: false,
+            flowUnitCosts: flowUnitCosts,
+            initialLayout: layout
+        )
+    }
+    let denseLayoutProblem = FacilityLayoutProblem(
+        title: "35-department flow matrix",
+        rowCount: 1,
+        columnCount: matrixSize,
+        objective: "MIN",
+        departments: denseLayoutDepartments
+    )
     let denseLayoutWorkspace = workspace(sample: .facilityLayout)
     let denseLayoutDraft = FacilityLayoutDraft(denseLayoutProblem)
     denseLayoutWorkspace.replaceFacilityLayoutDraft(denseLayoutDraft)
@@ -327,13 +343,26 @@ func renderCompactAndWideUILayouts() throws {
         view: { FacilityLayoutEditorView(workspace: $0, initialSection: .costs,
             initialMatrixRow: denseLayoutDraft.departments.last?.id, initialMatrixColumnGroup: 2) }, outputDirectory: outputDirectory)
 
-    let denseLocationProblem = FacilityLocationProblem(title: "35-facility interactions",
-        distanceMeasure: .squaredEuclidean, objective: "MIN", facilities: (0..<matrixSize).map { row in
-            FacilityLocationFacility(id: row == matrixSize - 1 ? 1 : row + 1, name: "Site \(row + 1)",
-                isNew: row == matrixSize - 1, x: row == matrixSize - 1 ? nil : Double(row),
-                y: row == matrixSize - 1 ? nil : 0,
-                interactionCosts: (0..<matrixSize).map { column in row == column ? nil : Double(row * matrixSize + column + 1) / 100 })
-        })
+    let denseLocationFacilities: [FacilityLocationFacility] = (0..<matrixSize).map { row in
+        let isLast = row == matrixSize - 1
+        let interactionCosts: [Double?] = (0..<matrixSize).map { column in
+            row == column ? nil : Double(row * matrixSize + column + 1) / 100.0
+        }
+        return FacilityLocationFacility(
+            id: isLast ? 1 : row + 1,
+            name: "Site \(row + 1)",
+            isNew: isLast,
+            x: isLast ? nil : Double(row),
+            y: isLast ? nil : 0.0,
+            interactionCosts: interactionCosts
+        )
+    }
+    let denseLocationProblem = FacilityLocationProblem(
+        title: "35-facility interactions",
+        distanceMeasure: .squaredEuclidean,
+        objective: "MIN",
+        facilities: denseLocationFacilities
+    )
     let denseLocationWorkspace = workspace(sample: .facilityLocation)
     let denseLocationDraft = FacilityLocationDraft(denseLocationProblem)
     denseLocationWorkspace.replaceFacilityLocationDraft(denseLocationDraft)
@@ -358,14 +387,23 @@ func renderCompactAndWideUILayouts() throws {
             view: { GoalProgrammingEditorView(workspace: $0, initialSection: .goals) }, outputDirectory: outputDirectory)
     }
 
-    let denseGoalModel = GoalProgram(title: "35 priorities, 40 variables",
+    let denseGoalObjectives: [GoalObjective] = (1...35).map { row in
+        let coefficients = (1...40).map { Double(row * 100 + $0) }
+        return GoalObjective(name: "Goal \(row)", sense: .maximize, coefficients: coefficients)
+    }
+    let denseGoalConstraints: [LinearConstraint] = (1...35).map { row in
+        let coefficients = (1...40).map { Double(row * 100 + $0) }
+        return LinearConstraint(name: "Capacity \(row)", coefficients: coefficients, relation: .lessThanOrEqual, rhs: 10000)
+    }
+    let denseGoalModel = GoalProgram(
+        title: "35 priorities, 40 variables",
         variableNames: (1...40).map { "x\($0)" },
-        goals: (1...35).map { row in GoalObjective(name: "Goal \(row)", sense: .maximize,
-            coefficients: (1...40).map { Double(row * 100 + $0) }) },
-        constraints: (1...35).map { row in LinearConstraint(name: "Capacity \(row)",
-            coefficients: (1...40).map { Double(row * 100 + $0) }, relation: .lessThanOrEqual, rhs: 10000) },
-        lowerBounds: Array(repeating: 0, count: 40), upperBounds: Array(repeating: 10, count: 40),
-        variableTypes: Array(repeating: .continuous, count: 40))
+        goals: denseGoalObjectives,
+        constraints: denseGoalConstraints,
+        lowerBounds: Array(repeating: 0, count: 40),
+        upperBounds: Array(repeating: 10, count: 40),
+        variableTypes: Array(repeating: .continuous, count: 40)
+    )
     let denseGoalDraft = GoalProgrammingDraft(denseGoalModel)
     let denseGoalWorkspace = workspace(sample: .goalProgramming)
     denseGoalWorkspace.replaceGoalProgrammingDraft(denseGoalDraft)

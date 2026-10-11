@@ -153,6 +153,14 @@ struct ContentView: View {
                     Label("Inspector", systemImage: "sidebar.trailing")
                 }
                 .help("Show or hide the inspector")
+
+                Button {
+                    workspace.isShowingAbout = true
+                } label: {
+                    Label("About", systemImage: "info.circle")
+                }
+                .help("About QSB & Credits")
+                .accessibilityIdentifier("workbench-about")
             }
         }
         .inspector(isPresented: $isShowingInspector) {
@@ -161,6 +169,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $workspace.isShowingNewModelPicker) {
             NewModelPickerView(workspace: workspace)
+        }
+        .sheet(isPresented: $workspace.isShowingAbout) {
+            AboutView()
         }
         .fileImporter(
             isPresented: $workspace.isImportingModel,

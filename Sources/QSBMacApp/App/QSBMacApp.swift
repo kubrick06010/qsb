@@ -13,6 +13,20 @@ struct QSBMacApp: App {
                 .frame(minWidth: 980, minHeight: 620)
         }
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About QSB") {
+                    workspace.isShowingAbout = true
+                }
+            }
+
+            CommandGroup(replacing: .help) {
+                Button("About QSB") {
+                    workspace.isShowingAbout = true
+                }
+                Divider()
+                Link("QSB on GitHub", destination: URL(string: "https://github.com/kubrick06010/qsb")!)
+            }
+
             CommandMenu("Model") {
                 Button("New Model...") {
                     workspace.startNewModelSelection()

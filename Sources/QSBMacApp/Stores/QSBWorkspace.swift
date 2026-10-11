@@ -68,6 +68,7 @@ final class QSBWorkspace {
     var isShowingNewModelPicker = false
     var isExportingModel = false
     var isExportingSolution = false
+    var isShowingAbout = false
 
     init(modelJSON: String = "") {
         self.modelJSON = modelJSON

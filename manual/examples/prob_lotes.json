@@ -1,0 +1,33 @@
+{
+  "kind": "lotSizing",
+  "model": {
+    "title": "Tres semanas",
+    "timeUnit": "week",
+    "periods": [
+      {
+        "name": "1",
+        "demand": 10,
+        "setupCost": 20,
+        "unitVariableCost": 2,
+        "unitHoldingCost": 1,
+        "unitBackorderCost": 10
+      },
+      {
+        "name": "2",
+        "demand": 10,
+        "setupCost": 20,
+        "unitVariableCost": 2,
+        "unitHoldingCost": 1,
+        "unitBackorderCost": 10
+      },
+      {
+        "name": "3",
+        "demand": 10,
+        "setupCost": 20,
+        "unitVariableCost": 2,
+        "unitHoldingCost": 1,
+        "unitBackorderCost": 10
+      }
+    ]
+  }
+}

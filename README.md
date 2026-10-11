@@ -57,6 +57,17 @@ binaries; see [docs/BACKENDS.md](docs/BACKENDS.md) for setup and scope.
 Legacy WinQSB fixtures are local-only and are not required for the portable
 core tests. When present locally, they can be used with the commands above.
 
+## Academic and Practical Manual
+
+The [Spanish QSB manual](manual/README.md) and its [English edition](manual/en/README.md)
+combine macOS and CLI workflows,
+operations research fundamentals, original reproducible examples, result
+interpretation, and solver limitations. It covers the implemented model families;
+run `python3 manual/verify_examples.py` to check its examples and `make -C manual`
+to build the Spanish PDF or `make -C manual english` for English.
+Run `python3 manual/verify_translation.py` to check technical and structural parity.
+The examples do not require proprietary legacy fixtures.
+
 ## Roadmap and Contributions
 
 QSB is an open project and welcomes developers who want to help extend it.

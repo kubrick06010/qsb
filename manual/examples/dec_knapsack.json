@@ -1,0 +1,27 @@
+{
+  "kind": "boundedKnapsack",
+  "model": {
+    "title": "Carga de demostracion",
+    "capacity": 7,
+    "items": [
+      {
+        "name": "A",
+        "available": 2,
+        "capacityRequired": 3,
+        "returnPerUnit": 5
+      },
+      {
+        "name": "B",
+        "available": 3,
+        "capacityRequired": 2,
+        "returnPerUnit": 3
+      },
+      {
+        "name": "C",
+        "available": 1,
+        "capacityRequired": 4,
+        "returnPerUnit": 7
+      }
+    ]
+  }
+}

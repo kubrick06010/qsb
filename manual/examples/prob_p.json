@@ -1,0 +1,17 @@
+{
+  "kind": "pChart",
+  "model": {
+    "sampleSizes": [
+      100,
+      100,
+      200
+    ],
+    "proportions": [
+      0.02,
+      0.04,
+      0.03
+    ],
+    "title": "Calidad didactica",
+    "characteristic": "Medicion"
+  }
+}

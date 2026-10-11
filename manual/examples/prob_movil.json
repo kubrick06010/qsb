@@ -1,0 +1,39 @@
+{
+  "method": "movingAverage",
+  "periodsAhead": 2,
+  "model": {
+    "kind": "timeSeries",
+    "model": {
+      "title": "Demanda didactica",
+      "timeUnit": "month",
+      "valueName": "Unidades",
+      "observations": [
+        {
+          "label": "1",
+          "value": 12
+        },
+        {
+          "label": "2",
+          "value": 14
+        },
+        {
+          "label": "3",
+          "value": 16
+        },
+        {
+          "label": "4",
+          "value": 18
+        },
+        {
+          "label": "5",
+          "value": 20
+        },
+        {
+          "label": "6",
+          "value": 22
+        }
+      ]
+    }
+  },
+  "windowSize": 3
+}

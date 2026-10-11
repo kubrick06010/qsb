@@ -1,0 +1,45 @@
+{
+  "title": "Constrained quadratic adjustment",
+  "sense": "minimize",
+  "variableNames": [
+    "X",
+    "Y"
+  ],
+  "linearCoefficients": [
+    -4,
+    -6
+  ],
+  "quadraticMatrix": [
+    [
+      1,
+      0
+    ],
+    [
+      0,
+      1
+    ]
+  ],
+  "constraints": [
+    {
+      "name": "Capacity",
+      "coefficients": [
+        1,
+        1
+      ],
+      "relation": "<=",
+      "rhs": 4
+    }
+  ],
+  "lowerBounds": [
+    0,
+    0
+  ],
+  "upperBounds": [
+    null,
+    null
+  ],
+  "variableTypes": [
+    "continuous",
+    "continuous"
+  ]
+}

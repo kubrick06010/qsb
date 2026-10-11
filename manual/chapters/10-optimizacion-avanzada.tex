@@ -1,0 +1,299 @@
+\chapter{Metas, programación cuadrática y no lineal}
+\label{chap:optimizacion-avanzada}
+
+Este capítulo reúne tres extensiones distintas de la programación lineal. Las
+metas ordenan varios objetivos; la programación cuadrática añade curvatura al
+objetivo manteniendo restricciones lineales; la programación no lineal admite
+expresiones generales. Elegir una familia cambia tanto la formulación como la
+garantía que puede ofrecer el solver. No basta con comparar el número que
+aparece como objetivo: hay que revisar prioridades, factibilidad y exactitud.
+
+\section{Programación por metas}
+\subsection{Prioridades y desviaciones}
+Una organización puede buscar primero el cumplimiento de una meta y después
+optimizar otra magnitud, sin sacrificar lo ya conseguido. En la programación
+lexicográfica se optimiza \(g_1(x)\), se fija su valor óptimo y se optimiza
+\(g_2(x)\) dentro de ese conjunto; se continúa así en el orden declarado.
+No se suman automáticamente objetivos con grandes pesos. El orden expresa
+una decisión de política: una mejora de una prioridad posterior nunca compensa
+un empeoramiento de una anterior.
+
+Para una meta \(a^\top x=t\), las variables de desviación satisfacen
+\[
+ a^\top x+n-p=t,\qquad n,p\geq0.
+\]
+\(n\) mide el déficit y \(p\) el exceso. Minimizar \(n+p\) penaliza ambas
+direcciones; minimizar solo \(n\) tolera el exceso. Los coeficientes y las
+unidades deben indicar la penalización deseada. QSB no crea estas ecuaciones
+por inferencia: el usuario declara variables, objetivos y restricciones.
+
+\subsection{Ejemplo: proteger un compromiso de producción}
+Hay capacidad para diez unidades entre los productos \(A\) y \(B\). Se desea
+primero aproximar \(A\) a ocho unidades y después maximizar \(B\):
+\[
+\begin{aligned}
+ &\text{Prioridad 1: }\min(n_1+p_1),\\
+ &\text{Prioridad 2: }\max B,\\
+ &A+B\leq10,\qquad A+n_1-p_1=8,\\
+ &A,B,n_1,p_1\geq0.
+\end{aligned}
+\]
+La prioridad no obliga por sí misma a satisfacer exactamente la meta si
+resulta imposible; minimiza su desviación sujeta a las restricciones duras.
+En este ejemplo sí es posible alcanzar desviación cero. Una vez fijada,
+\(A=8\), por lo que el máximo posterior es \(B=2\).
+
+El archivo \path{manual/examples/opt_goal.json} contiene todas las variables,
+las dos filas y la lista ordenada \texttt{goals}; cada prioridad tiene nombre,
+\texttt{sense} y \texttt{coefficients}. Las cotas y los tipos se declaran en
+arreglos alineados con \texttt{variableNames}. Ejecute:
+\begin{lstlisting}
+swift run qsb validate-goal-json manual/examples/opt_goal.json
+swift run qsb solve-goal-json manual/examples/opt_goal.json --backend native
+\end{lstlisting}
+El documento de salida conserva el modelo, los metadatos \texttt{backend} y
+la solución.
+
+En \texttt{goalOutcomes} se muestran prioridad, sentido y valor.
+\begin{table}[htbp]
+\centering
+\caption{Resultado lexicográfico del caso de producción}
+\begin{tabular}{lr}
+\toprule
+Magnitud & Valor \\
+\midrule
+Prioridad 1: desviación total & 0 \\
+Prioridad 2: producción de \(B\) & 2 \\
+\(A\) & 8 \\
+\(n_1\), \(p_1\) & 0, 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+La capacidad queda activa y la meta se cumple. Si se invierte el orden, el
+primer objetivo produce \(B=10\); con ese valor fijado, \(A=0\), \(n_1=8\)
+y la desviación es ocho. Este contraste permite discutir quién decide la
+precedencia y qué compromiso protege.
+
+\subsection{Flujo en macOS y carácter del solver}
+Abra el archivo normalizado en \texttt{Goal Programming}. En
+\texttt{Definition}, revise variables y cotas, la lista de prioridades y las
+restricciones lineales. Los controles de subir y bajar cambian el orden de
+una prioridad. Introduzca la ecuación de desviación como una igualdad y
+verifique el signo negativo de \(p_1\). Pulse \texttt{Validate} y
+\texttt{Run}; la vista nativa de prioridades muestra los objetivos ordenados,
+las cantidades finales y la información del backend. El JSON ofrece el
+registro exportable completo. Las tablas admiten copiar y pegar; las columnas
+de coeficientes deben coincidir con el orden actual de variables. Las tablas
+grandes usan selección de fila y grupos de coeficientes.
+
+El backend nativo resuelve una secuencia de LP o problemas enteros, añadiendo
+una igualdad para conservar cada óptimo previo. El caso continuo aparece
+como \texttt{exact}; este término caracteriza el método, sujeto a tolerancias
+de punto flotante. Las metas enteras usan un recorrido educativo de escala
+pequeña, identificado como \texttt{fixtureScale}, y dependen de las
+limitaciones de ramificación y acotación. La relajación especial de pares de
+desviación enteros solo se aplica cuando ecuaciones integrales justifican que
+los residuos serán enteros; no elimina la integridad de las decisiones.
+
+\texttt{validate} no resuelve. \texttt{external} ejecuta cada prioridad con
+HiGHS si está instalado; QSB conserva el orden y el fijado lexicográfico.
+Si falta el ejecutable, hay un error explícito. Una prioridad posterior
+infactible, un objetivo no acotado o el agotamiento de límites requieren
+revisar el diagnóstico, no interpretar resultados parciales como el plan final.
+
+\section{Programación cuadrática}
+\subsection{Convención del objetivo y supuestos}
+QSB representa el objetivo como
+\[
+ f(x)=x^\top Qx+c^\top x,
+\]
+con restricciones lineales, cotas y tipos de variables. El JSON utiliza
+\texttt{quadraticMatrix} para \(Q\) y \texttt{linearCoefficients} para \(c\).
+La convención no contiene el factor \(1/2\). Para una matriz simétrica, el
+coeficiente del producto \(x_ix_j\), \(i\ne j\), es \(2Q_{ij}\): un término
+\(4XY\) se representa con \(Q_{12}=Q_{21}=2\). No coloque 4 en ambas
+celdas, porque duplicaría el efecto.
+
+Una matriz simétrica definida positiva produce un objetivo estrictamente
+convexo; su mínimo sobre una región convexa, si existe, es único. Una matriz
+definida negativa produce el caso equivalente de máximo estrictamente
+cóncavo. Las condiciones de estacionariedad y factibilidad permiten entonces
+identificar el óptimo global. Una matriz indefinida cambia el problema y no
+queda cubierta por esa garantía.
+
+\subsection{Ejemplo: ajuste con capacidad limitada}
+Se desea aproximar dos cantidades a 2 y 3, respectivamente, con capacidad
+total cuatro. Eliminando la constante 13 de la distancia cuadrática se obtiene
+\[
+\begin{aligned}
+ \min\quad & X^2+Y^2-4X-6Y\\
+ \text{sujeto a}\quad &X+Y\leq4,\qquad X,Y\geq0.
+\end{aligned}
+\]
+La matriz es la identidad y el vector lineal es \((-4,-6)\). La eliminación
+de la constante conserva las cantidades óptimas, pero cambia el valor
+objetivo reportado: la distancia original es \(f(X,Y)+13\).
+
+El modelo está en \path{manual/examples/opt_qp.json}. Ejecute:
+\begin{lstlisting}
+swift run qsb validate-qp-json manual/examples/opt_qp.json
+swift run qsb solve-qp-json manual/examples/opt_qp.json --backend native
+\end{lstlisting}
+El óptimo es \(X=1.5\), \(Y=2.5\), \(f=-12.5\), con
+\texttt{Capacity} en \texttt{activeConstraints}. La distancia cuadrática
+original es 0.5. Un objetivo negativo es perfectamente válido: procede de la
+constante omitida y no representa una distancia negativa.
+
+La solución sin capacidad sería \((2,3)\), que no es factible. Con multiplicador
+\(\lambda\geq0\), las ecuaciones de estacionariedad son
+\[
+ 2X-4+\lambda=0,\qquad2Y-6+\lambda=0.
+\]
+La capacidad activa exige \(X+Y=4\), de donde \(\lambda=1\), \(X=1.5\) y
+\(Y=2.5\). Las cotas inferiores no son activas. La convexidad estricta y las
+condiciones anteriores certifican el mínimo global del modelo continuo.
+QSB muestra las restricciones activas, pero esta derivación del multiplicador
+es una comprobación académica independiente.
+
+\subsection{Flujo en macOS y límites}
+Abra el JSON en \texttt{Quadratic Programming}. \texttt{Definition} separa
+variables y cotas, matriz cuadrática y restricciones lineales. Introduzca
+los coeficientes lineales en las filas de variables y la identidad en la
+matriz; confirme los nombres de sus dos ejes. Añada \texttt{Capacity} con
+coeficientes \((1,1)\), relación \(\leq\) y término derecho 4. Valide y
+pulse \texttt{Run}. La solución nativa presenta objetivo, variables, cotas,
+restricciones activas y exactitud; el JSON permite revisar el documento.
+
+\texttt{Copy Table} y \texttt{Paste Table} trasladan la matriz completa.
+Reordenar variables conocidas conserva ambos ejes por nombre; los encabezados
+pegados deben coincidir con el orden vigente. Para más de doce variables,
+el editor muestra una fila y grupos de columnas, aunque el intercambio de
+la tabla sigue siendo completo. Esta capacidad del editor no implica que el
+solver nativo admita problemas grandes.
+
+El nativo continuo enumera conjuntos activos y resuelve sistemas KKT para
+mínimos estrictamente convexos o máximos estrictamente cóncavos. La etiqueta
+es \texttt{exact}, con cálculos numéricos. El recorrido rechaza más de veinte
+candidatos de desigualdad, contando las cotas que convierte a desigualdades;
+el costo de enumerar conjuntos crece rápidamente. El nativo entero admite
+solo maximización cóncava diagonal con variables no negativas, hasta cuatro
+variables, y enumera puntos en cotas finitas derivadas. Se identifica como
+\texttt{fixtureScale}; no es un solver MIQP general.
+
+El backend externo HiGHS admite la traducción de los casos continuos
+estrictamente convexos/cóncavos soportados. QSB adapta la convención mediante
+una Hessiana \(H=2Q\), porque el solver externo utiliza
+\(\tfrac12 x^\top Hx\). La adaptación también conserva sentido, cotas y
+restricciones, y verifica objetivo y factibilidad al leer la solución.
+HiGHS no resuelve MIQP en esta integración; las variables enteras cuadráticas
+requieren el alcance nativo descrito o un motor futuro. El modo
+\texttt{validate} no calcula un óptimo.
+
+\section{Programación no lineal}
+\subsection{Expresiones y dominio}
+La programación no lineal (PNL) admite un objetivo \(f(x)\) y restricciones
+\(g_i(x)\ \{\leq,=,\geq\}\ b_i\). QSB recibe expresiones textuales,
+variables ordenadas y cotas anulables. El evaluador reconoce suma, resta,
+producto, división, potencias, paréntesis, multiplicación implícita y
+\texttt{exp}, \texttt{log}, \texttt{sqrt}, \texttt{sin}, \texttt{cos}.
+Use producto explícito en documentos didácticos para facilitar la lectura.
+Los nombres se reconocen sin distinguir mayúsculas de minúsculas; conviene
+mantener una escritura uniforme.
+
+La sintaxis válida no garantiza un dominio válido para todos los puntos:
+\texttt{log(X)} requiere \(X>0\), \texttt{sqrt(X)} requiere \(X\geq0\) y una
+división requiere denominador no nulo. Las cotas deben corresponder al caso
+y proteger el dominio cuando sea posible. Los ángulos de seno y coseno se
+expresan en radianes. El JSON guarda \texttt{objectiveExpression} y, en cada
+restricción, \texttt{expression}, \texttt{relation} y \texttt{rhs}.
+
+\subsection{Ejemplo: distancia con restricción}
+El archivo \path{manual/examples/opt_nlp.json} plantea
+\[
+ \min\ (X-3)^2+(Y-2)^2,\qquad X+Y\leq4,\qquad0\leq X,Y\leq4.
+\]
+El objetivo es la distancia cuadrática al punto \((3,2)\), que viola la
+capacidad. La proyección sobre \(X+Y=4\) es \((2.5,1.5)\) y el valor
+matemático es 0.5. Aunque este caso podría formularse como QP, sirve para
+comparar una entrada por expresión y un método aproximado con una solución
+analítica conocida.
+\begin{lstlisting}
+swift run qsb validate-nlp-json manual/examples/opt_nlp.json
+swift run qsb solve-nlp-json manual/examples/opt_nlp.json --backend native
+\end{lstlisting}
+La ejecución verificada devuelve aproximadamente
+\(X=2.500000002\), \(Y=1.499999999\), objetivo 0.4999999995 y violación
+máxima \(5.0\times10^{-10}\). La evaluación de \texttt{Capacity} es
+aproximadamente 4.0000000005. El campo \texttt{iterations} registra 361 iteraciones acumuladas de la
+búsqueda seleccionada; no cuenta todas las evaluaciones de la búsqueda desde
+los otros puntos iniciales. Este valor describe esta ejecución, no un límite
+universal ni una medida comparable con iteraciones simplex.
+
+La pequeña violación no autoriza exceder físicamente una capacidad. Es un
+residuo numérico de la búsqueda; para implementación real, compruebe los
+valores con la tolerancia y las unidades del caso. La salida contiene
+\texttt{constraintEvaluations}, \texttt{maximumViolation},
+\texttt{iterations}, objetivo y valores de variables, además del modelo y
+metadatos. Reportar el objetivo sin el residuo ocultaría información relevante.
+
+\subsection{Uso en macOS y garantía aproximada}
+Abra el JSON en \texttt{Nonlinear Programming}. La definición permite editar
+el sentido, la expresión objetivo, variables con cotas y restricciones con
+expresión, relación y término derecho. Introduzca
+\texttt{(X-3)\^{}2+(Y-2)\^{}2}, límites 0 y 4, y \texttt{X+Y} con
+\(\leq4\). Use \texttt{Validate} antes de \texttt{Run}. Una expresión inválida
+se conserva para corregirla. Variables y restricciones admiten intercambio
+con hojas de cálculo; cada pegado sustituye una tabla completa cuando es válido.
+La solución presenta el candidato, límites, evaluaciones y violación máxima,
+junto con el carácter aproximado y el JSON exportable.
+
+El backend nativo usa diferenciación automática, búsqueda desde varios puntos
+y penalizaciones progresivas de restricciones. Es determinista, se limita a
+cuatro variables y se identifica como \texttt{approximate}. También contiene
+una búsqueda de baja dimensión sobre variedades de igualdad para casos
+pequeños. Estos mecanismos no prueban optimalidad global para funciones no
+convexas. Un candidato factible puede ser local, y una búsqueda fallida no
+constituye por sí sola una prueba matemática de infactibilidad.
+
+Las desigualdades estrictas procedentes de importaciones se normalizan a
+fronteras no estrictas y generan una advertencia estructurada. El campo
+\texttt{normalizedStrictInequalities} registra esa transformación; debe
+revisarse si la frontera tiene un significado físico excluido por el caso.
+\texttt{validate} diagnostica sin resolver. \texttt{external} está
+explícitamente no disponible para PNL; seleccione el nativo para los problemas
+educativos soportados.
+
+\section{Cómo comparar y revisar resultados}
+Conserve cada entrada junto con su salida y el backend utilizado. En metas,
+revise el orden y cada valor fijado. En QP, compruebe la convención de la matriz
+y la curvatura admitida. En PNL, revise dominios, cotas, evaluaciones y
+violación máxima antes de hablar de una solución aplicable. La validación del
+archivo y la convergencia de una búsqueda son evidencias distintas.
+
+Las tres familias tienen definición nativa y vista JSON; los campos pendientes
+siguen editables cuando la validación falla. En las ejecuciones nativas de
+macOS, la resolución se realiza en segundo plano y se impiden ejecuciones
+duplicadas mientras hay una en curso. Cambiar el modelo puede dejar
+obsoleto el resultado de ese cálculo. No existe actualmente un control de
+cancelación para esos trabajadores. La presencia de etiquetas accesibles en
+los controles y resultados no sustituye una auditoría completa de VoiceOver y
+navegación por teclado, que sigue pendiente para estos editores.
+
+\section{Ejercicios}
+\begin{enumerate}
+ \item Invierta las prioridades del ejemplo de metas. Compruebe \(B=10\),
+ \(A=0\) y desviación total 8. Explique qué compromiso se ha cambiado.
+ \item Reduzca la capacidad del ejemplo de metas a 6. Calcule la desviación
+ mínima de la primera prioridad y justifique por qué la segunda no puede
+ recuperar producción de \(B\) sin empeorar la primera.
+ \item En el QP aumente la capacidad a 5. Prediga \((X,Y)=(2,3)\),
+ objetivo \(-13\) y distancia original cero. Contraste con QSB.
+ \item Introduzca un término \(4XY\) en un objetivo de prueba. Escriba
+ la matriz simétrica correcta y examine su curvatura antes de elegir solver.
+ \item Reformule el objetivo PNL del ejemplo en forma QP, conservando
+ restricciones y cotas. Compare cantidades y residuos; explique la diferencia
+ entre su objetivo con constante y el objetivo cuadrático sin ella.
+ \item Proponga una función de una variable con dos mínimos locales.
+ Explique qué evidencia adicional necesitaría para atribuir optimalidad global
+ a un candidato obtenido por el nativo PNL.
+\end{enumerate}

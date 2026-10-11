@@ -1,0 +1,51 @@
+{
+  "method": "ordinaryLeastSquares",
+  "periodsAhead": 1,
+  "model": {
+    "kind": "regression",
+    "model": {
+      "title": "Consumo y actividad",
+      "dependentVariable": "Consumo",
+      "independentVariables": [
+        "Actividad"
+      ],
+      "observations": [
+        {
+          "label": "1",
+          "dependentValue": 5,
+          "independentValues": [
+            1
+          ]
+        },
+        {
+          "label": "2",
+          "dependentValue": 7,
+          "independentValues": [
+            2
+          ]
+        },
+        {
+          "label": "3",
+          "dependentValue": 9,
+          "independentValues": [
+            3
+          ]
+        },
+        {
+          "label": "4",
+          "dependentValue": 11,
+          "independentValues": [
+            4
+          ]
+        },
+        {
+          "label": "5",
+          "dependentValue": 13,
+          "independentValues": [
+            5
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "kind": "CNF",
+  "model": {
+    "title": "netflow",
+    "nodes": [
+      "O",
+      "M",
+      "D"
+    ],
+    "arcs": [
+      {
+        "from": "O",
+        "to": "M",
+        "cost": 1
+      },
+      {
+        "from": "M",
+        "to": "D",
+        "cost": 2
+      },
+      {
+        "from": "O",
+        "to": "D",
+        "cost": 5
+      }
+    ],
+    "supply": [
+      4,
+      0,
+      0
+    ],
+    "demand": [
+      0,
+      0,
+      4
+    ]
+  }
+}

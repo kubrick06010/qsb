@@ -1,0 +1,53 @@
+\chapter{Terminology reference}
+\label{chap:terminos}
+\begin{description}
+ \item[Backend] Implementation selected to validate or solve a model family.
+ The validation option does not compute a solution.
+ \item[Balance] Equality accounting for inflows, outflows, and changes in state,
+ such as ending inventory equaling initial inventory plus production minus demand.
+ \item[Capacity] Resource limit, with a defined unit and time horizon.
+ \item[Constraint] Condition limiting the admissible decisions.
+ \item[Decision variable] Controllable quantity chosen by the decision maker in the model.
+ \item[Diagnostic] Validation message with severity, code, and, when available,
+ the path of the affected field.
+ \item[Exactness] Characterization of the procedure and its guarantees for the
+ supported model, distinct from the number of decimal places displayed.
+ \item[Expected value] Probability-weighted average; it does not guarantee that
+ payoff in any particular realization.
+ \item[Feasibility] Satisfaction of the model's constraints, bounds, and
+ conditions; it does not imply optimality.
+ \item[Feasible region] Set of solutions satisfying the constraints.
+ \item[Global optimum] Feasible solution with the best objective throughout the
+ feasible region; a local optimum is compared only with nearby solutions.
+ \item[Heuristic] Procedure seeking a good solution without necessarily
+ guaranteeing a global optimum.
+ \item[Likelihood] Probability of observing evidence conditional on a state;
+ it is not the posterior probability of that state.
+ \item[Linear relaxation] Model replacing integrality requirements with
+ continuous variables; its solution may be inadmissible for the integer problem.
+ \item[Makespan] Completion time of the last job in a schedule.
+ \item[Normalized JSON] Structured representation of a model or result that
+ allows data to be exchanged, inspected, and reproduced across QSB clients.
+ \item[Objective function] Expression quantifying the criterion to maximize or minimize.
+ \item[Optimal solution] Feasible solution achieving the best objective of the
+ problem considered, within the method's guarantees and tolerances.
+ \item[Parameter] Data item treated as known by the model during a run.
+ \item[Policy] Rule or set of decisions by stage and state.
+ \item[Posterior] Probability of a state after observing evidence, calculated
+ from priors and likelihoods.
+ \item[Seed] Value initializing the pseudorandom generator; it enables a
+ simulation to be repeated with the same model, configuration, and implementation.
+ \item[Sensitivity] Analysis of how the solution changes when data or assumptions change.
+ \item[Shadow price] Marginal change in the objective when a resource varies
+ within the range and under the conditions where the dual interpretation is valid.
+ \item[Slack] Remaining capacity or margin of a constraint for a solution.
+ \item[State] Summary of sufficient information for future decisions in a
+ dynamic model; it may also refer to a random condition of the environment.
+ \item[Tolerance] Numerical threshold used to compare quantities or accept
+ approximations; it must be interpreted alongside the scale of the problem.
+ \item[Trace] Record of stages, states, and decisions helping to examine a
+ computed policy; it is not necessarily the algorithm's entire internal table.
+ \item[Utilization] Fraction of service capacity occupied on average.
+ \item[Value of information] Expected improvement from allowing decisions based
+ on evidence; EVSI refers to sample information and EVPI to perfect information.
+\end{description}

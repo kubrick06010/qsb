@@ -1,0 +1,87 @@
+\chapter{Scheduling and sequencing}
+\label{chap:calendarizacion}
+
+\section{Problem and assumptions}
+Scheduling assigns operations to machines and times. QSB minimizes the
+\emph{makespan}, the time at which the last operation finishes
+\cite{pinedo2016scheduling}. Operations cannot be interrupted, a machine
+processes one operation at a time, and each job follows its route. Durations
+are integers in the specified unit. Setup times, working calendars, and
+random failures are not included.
+Due-date and weight fields are preserved, but the native objective remains
+makespan; it does not optimize weighted tardiness.
+
+\section{Flow shop: a common route}
+In a flow shop, all jobs visit the machines in the same order.
+The native solver searches for a permutation shared by all machines. For
+a given sequence, an operation starts when both the job and machine are
+available; its finish is its start plus its duration. Initial machine
+availability times are respected when provided.
+
+In \path{manual/examples/plan_flowShop.json}, there are two jobs and two
+machines, initially available at zero:
+\begin{center}
+\begin{tabular}{lrr}\toprule
+Job & M1 & M2 \\
+\midrule J1 & 2 & 3 \\ J2 & 3 & 1 \\
+\bottomrule\end{tabular}
+\end{center}
+\begin{lstlisting}[language=bash]
+swift run qsb validate-scheduling-json manual/examples/plan_flowShop.json
+swift run qsb solve-scheduling-json manual/examples/plan_flowShop.json --backend native
+\end{lstlisting}
+The sequence J1, J2 has makespan 6. On M1, J1 occupies $[0,2]$ and J2 $[2,5]$;
+on M2, J1 occupies $[2,5]$ and J2 $[5,6]$. The alternative J2, J1 finishes at 8.
+M2's initial idle time is not a missing operation: it is waiting for J1 to
+finish. The search is exact within the permutation model, with a limit of
+eight jobs and factorial cost; it does not prove optimality over all possible
+machine-specific sequences in a general flow shop.
+
+\section{Job shop: individual routes}
+In a job shop, each job may follow a different route. The example
+\path{plan_jobShop.json} requires J1: M1(2), M2(3), and J2: M2(2), M1(1).
+Precedence constraints follow from the order of each job's operations.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-scheduling-json manual/examples/plan_jobShop.json
+swift run qsb solve-scheduling-json manual/examples/plan_jobShop.json --backend native
+\end{lstlisting}
+QSB obtains makespan 5: J1 uses M1 from 0 to 2 and M2 from 2 to 5; J2 uses
+M2 from 0 to 2 and M1 from 2 to 3. J1's total duration is 5 and provides a
+lower bound, so the schedule achieves the optimum. In this case,
+\texttt{jobSequence} reflects the operation dispatch order and may repeat
+names; it must not be interpreted as a permutation of jobs.
+Branch and bound with dominance pruning supports up to six jobs and
+36 operations. These are educational limits: search time can grow
+substantially well before they are reached. Native is deterministic and
+marks both variants \texttt{fixtureScale}; Validate does not construct
+schedules, and External is unavailable.
+
+\section{Reading the Gantt chart and using macOS}
+Import the JSON envelope, whose \texttt{kind} is \texttt{flowShop} or
+\texttt{jobShop}. To enter or change operations, use the structured
+Definition form or the model JSON. These variants do not use the CPM/PERT
+activity editor. They are different problems, and the data for one do not
+replace those for the other.
+Validate and run with QSB Native. The solution opens Timeline: each row is
+a machine, bars are operations, and gaps show idle time.
+The horizontal scale lets you examine long schedules. Operation details
+identify the job, machine, start, finish, and duration; JSON also contains
+\texttt{idleBefore} and the schedules by machine.
+
+Before accepting the result, check that no machine has overlapping bars,
+that each job retains its operation order, and that the maximum finish
+equals the makespan. A short schedule does not guarantee that due dates
+are met; compare them separately if they matter to the actual decision.
+The algorithms run in QSBCore, and the Gantt chart presents the same times
+exported by the CLI.
+
+\section{Exercises}
+\begin{enumerate}
+\item Change J2's second operation in the flow shop from 1 to 5.
+      Compare both permutations and verify the result.
+\item In the job shop, add an initial availability time of 2 for M2.
+      Draw the waiting times and check that the solver does not schedule
+      operations before that time.
+\item Set J1's due date to 4. Explain why changing this field
+      does not turn the problem into tardiness minimization.
+\end{enumerate}

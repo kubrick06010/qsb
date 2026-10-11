@@ -1,20 +1,157 @@
 \chapter{Modelos de inventarios}
+\label{ch:inventarios}
 
-\section{Decision fundamental}
-Los modelos de inventarios equilibran costos de ordenar, mantener, agotar y
-reponer existencias. El problema central es decidir cuanto pedir o producir, y
-cuando hacerlo, bajo una demanda determinista o aleatoria
-\cite{harris1913many,silver1998inventory}.
+\section{Qué decisión se modela}
+Una política de inventario combina cuánto reponer y cuándo hacerlo. El costo
+mínimo depende de las unidades de tiempo, del patrón de demanda y del costo de
+faltantes; no basta con introducir una demanda media
+\cite{harris1913many,silver1998inventory}. QSB distingue EOQ/EPQ, descuentos
+por cantidad, vendedor de periódicos, lotes por períodos y cuatro políticas de
+revisión estocástica. Todos utilizan el sobre JSON \texttt{kind}/\texttt{model}
+y el backend nativo o de validación. No hay backend externo de inventarios.
 
-\section{Modelo EOQ}
-En el modelo clasico de cantidad economica de pedido, con demanda anual \(D\),
-costo fijo por orden \(S\) y costo anual de mantener una unidad \(H\), la
-cantidad optima es
+\section{EOQ y producción gradual}
+Con demanda constante \(D\), costo fijo \(S\) por pedido y mantenimiento \(H\)
+por unidad y período, sin faltantes, el costo relevante es
 \[
-  Q^* = \sqrt{\frac{2DS}{H}}.
+ C(Q)=DS/Q+HQ/2,\qquad Q^*=\sqrt{2DS/H}.
 \]
+La adquisición \(Dc\) se suma al costo total, pero no altera el óptimo si el
+precio unitario \(c\) es constante. El plazo \(\ell\) produce el punto de
+reorden \(r=D\ell\). Tasas, plazo y mantenimiento deben usar el mismo período.
+Para producción gradual a tasa \(p>D\), el inventario medio es
+\(Q(1-D/p)/2\) y
+\[
+ Q^*_{EPQ}=\sqrt{\frac{2DS}{H(1-D/p)}}.
+\]
+El cálculo es continuo: comprar cajas o unidades enteras requiere comparar
+cantidades factibles. QSB no introduce automáticamente restricciones de embalaje.
 
-\section{Uso futuro con QSB}
-El manual debe incorporar ejemplos reproducibles para EOQ, EOQ con descuentos,
-modelo del vendedor de periodicos y dimensionamiento de lotes cuando los casos
-esten disponibles como entradas versionadas y salidas verificadas.
+\subsection{Ejemplo: reposición de cuadernos}
+El archivo \path{manual/examples/prob_eoq.json} contiene \(D=1200\)
+unidades/año, \(S=30\), \(H=2\), \(c=5\), plazo \(0.01\) años y cantidad
+actual de pedido \(100\). Desde la raíz del repositorio:
+\begin{lstlisting}
+.build/debug/qsb validate-inventory-json manual/examples/prob_eoq.json
+.build/debug/qsb solve-inventory-json manual/examples/prob_eoq.json
+\end{lstlisting}
+Se obtiene \(Q^*=189.736660\), \(6.324555\) pedidos/año, ciclo
+\(0.158114\) años y punto de reorden \(12\). Ordenar y mantener cuestan
+\(189.736660\) cada uno; el costo relevante es \(379.473319\) y el total
+\(6379.473319\). Pedir \(100\) cuesta \(6460\): el ahorro anual del modelo
+es \(80.526681\), no el valor completo de las compras. El documento de salida
+incluye la comparación en \texttt{knownQuantity} y exactitud
+\texttt{closedForm}. En \path{prob_epq.json}, \(p=2400\) eleva el lote
+óptimo a \(268.328157\), con costo relevante \(268.328157\).
+
+\section{Descuentos sobre todas las unidades}
+QSB evalúa cada tramo de precio y sus cantidades factibles, incluyendo
+adquisición, preparación y mantenimiento. El descuento se aplica a todas las
+unidades del pedido; no es una tarifa marginal por bloques. El mantenimiento
+es un costo por unidad, no un porcentaje recalculado a partir del precio.
+\path{prob_descuento.json} añade un descuento del \(10\%\) a partir de
+\(300\) unidades. Con \texttt{solve-inventory-json}, resulta elegido
+\(Q=300\), precio \(4.5\), costo de preparación \(120\), mantenimiento
+\(300\), adquisición \(5400\) y total \(5820\). El costo relevante aumenta a
+\(420\), pero el ahorro en adquisición hace preferible el tramo. La tabla de
+candidatos y \texttt{optimum} explican la decisión; la enumeración de tramos
+es exacta dentro del modelo continuo.
+
+\section{Vendedor de periódicos}
+Se decide una sola reposición para un horizonte sin recuperación posterior.
+Para precio \(v\), adquisición \(c\), salvamento \(s\) y penalización
+adicional por faltante \(b\), los costos marginales son
+\(C_u=v-c+b\) y \(C_o=c-s\). La fracción crítica es
+\[
+ F(q^*)=\frac{C_u}{C_u+C_o}.
+\]
+QSB admite demanda normal, calcula su cuantil y los valores esperados de ventas,
+sobrantes, faltantes y beneficio. La probabilidad de cubrir toda la demanda es
+el nivel de servicio del ciclo; no es la fracción esperada de demanda servida.
+En \path{prob_newsboy.json}, media \(100\), desviación \(20\),
+\(v=5,c=2,s=1,b=1\) y costo fijo cero dan fracción crítica \(0.8\), pedido
+\(116.832425\), ventas esperadas \(97.767247\), sobrantes \(19.065178\),
+faltantes \(2.232753\) y beneficio \(272.003808\). El cuantil normal utiliza
+aritmética aproximada; la etiqueta \texttt{closedForm} describe el método,
+no una cantidad decimal exacta ni una garantía para demanda no normal.
+
+\section{Dimensionamiento de lotes}
+El inventario final satisface \(I_t=I_{t-1}+q_t-d_t\). QSB minimiza
+\[
+ \sum_t\left(S_t\mathbf{1}_{q_t>0}+c_tq_t+
+ h_t\max(I_t,0)+b_t\max(-I_t,0)\right).
+\]
+La programación dinámica usa demanda y cantidades enteras, inventario inicial
+cero y final cero, permitiendo atraso con costo. No representa capacidad de
+producción ni stock inicial configurable. La exactitud se refiere al espacio
+de estados acotado de esta implementación educativa: inventarios entre
+menos y más la demanda total, y producción por período entre cero y esa demanda.
+El costo computacional crece con la demanda total y el horizonte.
+\path{prob_lotes.json} tiene tres demandas de diez unidades, preparación
+\(20\), producción unitaria \(2\), mantenimiento \(1\) y atraso \(10\).
+QSB devuelve producción \((20,0,10)\), inventario final \((10,0,0)\) y costo
+\(110\). La política \((10,20,0)\) también cuesta \(110\); un resultado
+óptimo no implica unicidad. La tabla de decisiones permite comprobar el balance
+y la imputación de costos a cada período.
+
+\section{Revisión con demanda incierta}
+Las cuatro políticas usan demanda normal por período y plazo constante.
+Con incremento independiente de demanda, el período de protección \(T\)
+tiene media \(DT\) y desviación \(\sigma\sqrt T\). El stock de seguridad
+se expresa mediante el cuantil normal y el costo esperado de faltantes usa la
+función de pérdida normal. Son aproximaciones de cantidades continuas,
+marcadas \texttt{approximate}; no resuelven una política óptima general para
+cualquier distribución o plazo aleatorio.
+
+Los cuatro ejemplos comparten demanda anual \(1200\), desviación \(100\),
+plazo \(0.02\) años, preparación \(30\), mantenimiento \(2\), costo de
+atraso \(20\) y adquisición \(5\). Todo faltante queda pendiente; el costo
+de revisión es \(5\). El archivo de revisión continua hasta un nivel utiliza
+un tamaño medio de pedido suministrado de \(200\).
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Archivo bajo \texttt{manual/examples/} & Política & Resultado principal \\
+\midrule
+\path{prob_qr.json} & Cantidad fija \((Q,r)\) & \(Q=194.866241,r=54.242691\) \\
+\path{prob_sS.json} & Continua hasta nivel & \(r=54.095104,S=254.095104\) \\
+\path{prob_periodica.json} & Intervalo fijo & \(T=0.170783,S=321.459989\) \\
+\path{prob_opcional.json} & Periódica opcional & \(T=0.064550,s=163.951339\) \\
+\bottomrule
+\end{tabular}
+\end{center}
+La revisión opcional devuelve además \(S=353.687998\). En continua fija,
+el stock de seguridad es \(30.242691\), el servicio \(0.983761\) y el
+costo relevante \(450.217864\). En periódica fija, la protección incluye
+revisión más plazo, \(0.190783\) años: confundir ambos intervalos reduce
+artificialmente el stock necesario. Las fracciones de atraso y venta perdida,
+sus costos y las distribuciones se validan en el núcleo.
+
+\section{Procedimiento en macOS y trazabilidad}
+Abra el JSON normalizado o seleccione una variante de inventarios en el creador
+de modelos. Complete demanda, costos y los parámetros específicos de la
+variante; valide antes de ejecutar. Mantenga visibles las unidades y revise las
+advertencias. En los resultados, EOQ muestra costos y comparación con el lote
+suministrado; descuentos muestra candidatos; vendedor de periódicos muestra
+servicio y resultados de demanda; lotes muestra cantidades y costos por
+período; revisión estocástica muestra niveles, stock de seguridad y costos.
+El selector de análisis/JSON conserva el documento del núcleo para exportación
+sin transcribir números de los gráficos. Las cantidades y fórmulas proceden de
+QSBCore, tanto en CLI como en macOS.
+
+Todos los archivos de este capítulo se validan con
+\texttt{validate-inventory-json} y se resuelven con
+\texttt{solve-inventory-json}; añadir \texttt{--backend validate} valida sin
+resolver. El verificador \path{manual/verify_examples.py} comprueba los
+resultados esperados de \path{manual/examples/manifest.json}; no necesita
+material de referencia propietario.
+
+\section{Ejercicios}
+\begin{enumerate}
+\item Compare pedidos enteros de 189 y 190 en EOQ y explique por qué conviene
+comparar costos en vez de redondear a ciegas.
+\item Duplique el plazo del ejemplo estocástico: compare cambios en demanda
+protegida y stock de seguridad. \textquestiondown{}Se duplican ambos?
+\item Baje el costo de atraso del ejemplo de lotes y compruebe si aparecen
+inventarios negativos. Interprete el atraso operacionalmente.
+\end{enumerate}

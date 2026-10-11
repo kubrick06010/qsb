@@ -1,0 +1,88 @@
+{
+  "title": "Plan dos meses",
+  "method": 2,
+  "periodNames": [
+    "Mes1",
+    "Mes2"
+  ],
+  "workforceUnit": "persona",
+  "capacityUnit": "unidad",
+  "initialInventory": 0,
+  "capacityIsPerWorker": false,
+  "demand": [
+    4,
+    6
+  ],
+  "regularCapacity": [
+    5,
+    5
+  ],
+  "regularCost": [
+    2,
+    2
+  ],
+  "undertimeCost": [
+    0,
+    0
+  ],
+  "overtimeCapacity": [
+    2,
+    2
+  ],
+  "overtimeCost": [
+    5,
+    5
+  ],
+  "hiringCost": [
+    0,
+    0
+  ],
+  "dismissalCost": [
+    0,
+    0
+  ],
+  "minimumWorkforce": [
+    0,
+    0
+  ],
+  "minimumInventory": [
+    0,
+    0
+  ],
+  "inventoryHoldingCost": [
+    1,
+    1
+  ],
+  "subcontractingCost": [
+    9,
+    9
+  ],
+  "backorderCost": [
+    10,
+    10
+  ],
+  "otherUnitProductionCost": [
+    0,
+    0
+  ],
+  "capacityRequirementPerUnit": [
+    1,
+    1
+  ],
+  "maximumWorkforce": [
+    null,
+    null
+  ],
+  "maximumInventory": [
+    10,
+    10
+  ],
+  "maximumSubcontracting": [
+    0,
+    0
+  ],
+  "maximumBackorder": [
+    0,
+    0
+  ]
+}

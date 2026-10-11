@@ -1,0 +1,161 @@
+\chapter{Inventory models}
+\label{ch:inventarios}
+
+\section{The decision being modeled}
+An inventory policy combines how much to replenish and when to do so. The
+minimum cost depends on time units, the demand pattern, and shortage costs;
+entering average demand alone is not sufficient
+\cite{harris1913many,silver1998inventory}. QSB distinguishes EOQ/EPQ,
+quantity discounts, the newsvendor model, period-based lot sizing, and four
+stochastic review policies. All use the \texttt{kind}/\texttt{model} JSON
+envelope and the native or validation backend. There is no external inventory
+backend.
+
+\section{EOQ and gradual production}
+With constant demand \(D\), fixed ordering cost \(S\), and holding cost
+\(H\) per unit per period, with no shortages, the relevant cost is
+\[
+ C(Q)=DS/Q+HQ/2,\qquad Q^*=\sqrt{2DS/H}.
+\]
+Purchasing cost \(Dc\) is added to total cost but does not change the optimum
+when unit price \(c\) is constant. Lead time \(\ell\) gives the reorder
+point \(r=D\ell\). Rates, lead time, and holding cost must use the same
+period. For gradual production at rate \(p>D\), average inventory is
+\(Q(1-D/p)/2\), and
+\[
+ Q^*_{EPQ}=\sqrt{\frac{2DS}{H(1-D/p)}}.
+\]
+The calculation is continuous: purchasing boxes or whole units requires
+comparing feasible quantities. QSB does not automatically impose packaging
+constraints.
+
+\subsection{Example: replenishing notebooks}
+The file \path{manual/examples/prob_eoq.json} contains \(D=1200\)
+units/year, \(S=30\), \(H=2\), \(c=5\), a lead time of \(0.01\)
+years, and a current order quantity of \(100\). From the repository root:
+\begin{lstlisting}
+.build/debug/qsb validate-inventory-json manual/examples/prob_eoq.json
+.build/debug/qsb solve-inventory-json manual/examples/prob_eoq.json
+\end{lstlisting}
+The results are \(Q^*=189.736660\), \(6.324555\) orders/year, a cycle of
+\(0.158114\) years, and a reorder point of \(12\). Ordering and holding
+each cost \(189.736660\); relevant cost is \(379.473319\), and total
+cost is \(6379.473319\). Ordering \(100\) costs \(6460\): the model's
+annual saving is \(80.526681\), rather than the entire purchasing cost.
+The output document includes the comparison in \texttt{knownQuantity} and
+\texttt{closedForm} exactness. In \path{prob_epq.json}, \(p=2400\)
+increases the optimal lot to \(268.328157\), with relevant cost
+\(268.328157\).
+
+\section{All-units quantity discounts}
+QSB evaluates each price tier and its feasible quantities, including purchasing,
+setup, and holding costs. The discount applies to every unit in the order; it
+is not a marginal block tariff. Holding cost is a cost per unit, rather than a
+percentage recalculated from the price.
+\path{prob_descuento.json} adds a \(10\%\) discount starting at \(300\)
+units. With \texttt{solve-inventory-json}, the selected quantity is
+\(Q=300\), with price \(4.5\), setup cost \(120\), holding cost \(300\),
+purchasing cost \(5400\), and total cost \(5820\). Relevant cost increases
+to \(420\), but the purchasing saving makes this tier preferable. The
+candidate table and \texttt{optimum} explain the decision; enumeration of the
+tiers is exact within the continuous model.
+
+\section{The newsvendor model}
+A single replenishment is chosen for a horizon with no later opportunity to
+replenish. For selling price \(v\), purchasing cost \(c\), salvage value
+\(s\), and additional shortage penalty \(b\), the marginal costs are
+\(C_u=v-c+b\) and \(C_o=c-s\). The critical fractile is
+\[
+ F(q^*)=\frac{C_u}{C_u+C_o}.
+\]
+QSB supports normally distributed demand, calculating its quantile and expected
+sales, leftovers, shortages, and profit. The probability of covering all demand
+is the cycle service level; it is not the expected fraction of demand fulfilled.
+In \path{prob_newsboy.json}, mean \(100\), standard deviation \(20\),
+\(v=5,c=2,s=1,b=1\), and zero fixed cost give critical fractile \(0.8\),
+order quantity \(116.832425\), expected sales \(97.767247\), leftovers
+\(19.065178\), shortages \(2.232753\), and profit \(272.003808\).
+The normal quantile uses approximate arithmetic; the \texttt{closedForm}
+label describes the method, rather than an exact decimal quantity or a guarantee
+for nonnormal demand.
+
+\section{Lot sizing}
+Ending inventory satisfies \(I_t=I_{t-1}+q_t-d_t\). QSB minimizes
+\[
+ \sum_t\left(S_t\mathbf{1}_{q_t>0}+c_tq_t+
+ h_t\max(I_t,0)+b_t\max(-I_t,0)\right).
+\]
+Dynamic programming uses integer demand and quantities, zero initial inventory,
+and zero final inventory, allowing backorders at a cost. It does not represent
+production capacity or configurable initial stock. Exactness refers to the
+bounded state space of this educational implementation: inventories between
+minus and plus total demand, and production in each period between zero and
+that demand. Computational cost grows with total demand and the horizon.
+\path{prob_lotes.json} has three demands of ten units, setup cost \(20\),
+unit production cost \(2\), holding cost \(1\), and backorder cost \(10\).
+QSB returns production \((20,0,10)\), ending inventory \((10,0,0)\), and
+cost \(110\). The policy \((10,20,0)\) also costs \(110\); an optimal
+result does not imply uniqueness. The decision table allows the balance and
+cost allocation to each period to be checked.
+
+\section{Review with uncertain demand}
+The four policies use normal demand per period and constant lead time. With
+independent demand increments, protection period \(T\) has mean \(DT\)
+and standard deviation \(\sigma\sqrt T\). Safety stock is expressed using
+the normal quantile, and expected shortage cost uses the normal loss function.
+These are continuous-quantity approximations, marked \texttt{approximate};
+they do not solve a general optimal policy for arbitrary distributions or
+random lead times.
+
+The four examples share annual demand \(1200\), standard deviation \(100\),
+lead time \(0.02\) years, setup cost \(30\), holding cost \(2\), backorder
+cost \(20\), and purchasing cost \(5\). Every shortage is backordered;
+review cost is \(5\). The continuous order-up-to review file uses a supplied
+average order size of \(200\).
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+File under \texttt{manual/examples/} & Policy & Main result \\
+\midrule
+\path{prob_qr.json} & Fixed quantity \((Q,r)\) & \(Q=194.866241,r=54.242691\) \\
+\path{prob_sS.json} & Continuous order-up-to & \(r=54.095104,S=254.095104\) \\
+\path{prob_periodica.json} & Fixed interval & \(T=0.170783,S=321.459989\) \\
+\path{prob_opcional.json} & Optional periodic & \(T=0.064550,s=163.951339\) \\
+\bottomrule
+\end{tabular}
+\end{center}
+Optional review also returns \(S=353.687998\). Under fixed-quantity continuous
+review, safety stock is \(30.242691\), service level \(0.983761\), and
+relevant cost \(450.217864\). Under fixed-interval periodic review,
+protection includes the review interval plus lead time, \(0.190783\) years:
+confusing these intervals artificially reduces the stock required. Backorder
+and lost-sales fractions, their costs, and distributions are validated in the
+core.
+
+\section{macOS workflow and traceability}
+Open the normalized JSON or select an inventory variant in the model creator.
+Enter demand, costs, and the variant-specific parameters; validate before
+running. Keep units visible and review warnings. In the results, EOQ shows
+costs and a comparison with the supplied lot; discounts show candidates; the
+newsvendor model shows service and demand outcomes; lot sizing shows quantities
+and costs by period; stochastic review shows levels, safety stock, and costs.
+The analysis/JSON selector retains the core document for export without
+transcribing numbers from charts. Quantities and formulas come from QSBCore
+in both the CLI and macOS.
+
+All files in this chapter are validated with \texttt{validate-inventory-json}
+and solved with \texttt{solve-inventory-json}; adding
+\texttt{--backend validate} validates without solving. The verifier
+\path{manual/verify_examples.py} checks the expected results in
+\path{manual/examples/manifest.json}; it requires no proprietary reference
+material.
+
+\section{Exercises}
+\begin{enumerate}
+\item Compare integer orders of 189 and 190 in EOQ and explain why comparing
+costs is preferable to rounding blindly.
+\item Double the lead time in the stochastic example: compare changes in
+protected demand and safety stock. Do both double?
+\item Lower the backorder cost in the lot-sizing example and check whether
+negative inventories appear. Interpret backorders operationally.
+\end{enumerate}

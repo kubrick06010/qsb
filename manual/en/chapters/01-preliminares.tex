@@ -1,0 +1,73 @@
+\chapter{Methodological foundations}
+\label{chap:preliminares}
+
+\section{Purpose of the manual}
+Operations research builds and analyzes quantitative models to support decisions
+under constraints. This manual combines foundations with practical use: each
+example turns a problem statement into QSB data and explains what the result
+means. The problems are original teaching examples, with normalized inputs
+available in \texttt{manual/examples/}; they do not require proprietary manuals
+or files from earlier programs.
+
+You can start with the application guide and a linear programming example, or
+go directly to the chapter for your problem family. Before running a model,
+read its assumptions: two models using the same words may represent different
+systems. Do not confuse deterministic inventory with random demand, an acyclic
+route with a general network, or a local optimum with a global one.
+
+\section{The modeling cycle}
+A rigorous study records:
+\begin{enumerate}
+ \item the real system, time horizon, and decision to be supported;
+ \item controllable variables, parameters, and units;
+ \item assumptions, uncertainty, and the scope of the data;
+ \item objective, constraints, and initial conditions;
+ \item solution method, backend, and execution options;
+ \item feasibility checks and interpretation;
+ \item sensitivity, risks, and limits of application.
+\end{enumerate}
+Write down the unit of every parameter. If demand is expressed per year and
+lead time in days, convert them to a common basis before calculating. A number
+without a unit can produce a mathematically consistent solution that is
+operationally incorrect.
+
+\section{Validity and exactness}
+Validation checks structure, dimensions, fields, and family-specific rules.
+It guarantees neither feasibility nor appropriate assumptions. A solver may
+prove optimality for a model, return a heuristic solution, or stop at a limit.
+Consult the status, algorithm, exactness, and execution notes.
+
+In the metadata, \texttt{exact} characterizes the procedure for the supported
+problem; it does not imply symbolic arithmetic or infinite precision.
+\texttt{fixtureScale} identifies an educational method intended for small cases.
+Numerical solution uses tolerances; compare results within a margin consistent
+with their scale rather than requiring decimal strings to match exactly.
+Repeatability does not prove validity either: a formulation error can be
+perfectly deterministic.
+
+\section{Computational traceability}
+To reproduce an analysis, preserve the input JSON, QSB version, command, backend,
+options, and result. Also record any transformations from a spreadsheet. For
+external data, include the source, license, date, and unit of analysis. A
+solution document does not always contain the complete model; save it separately.
+
+The commands in this manual run from the repository root. \texttt{swift run qsb}
+compiles if necessary; \texttt{.build/debug/qsb} uses the built executable. Small
+examples let you check results by hand before studying larger cases. Changing
+an input requires validation and solution again, rather than merely editing a
+presentation table.
+
+\begin{observacion}
+The computational result expresses the consequences of the encoded data and
+assumptions. The analyst must justify those assumptions, compare the solution
+with the real system, and communicate its limitations to the decision maker.
+\end{observacion}
+
+\section{Comparison and sensitivity}
+Distinguish verification (the program computes what was specified) from model
+validation (what was specified adequately represents the system). Check balances
+and constraints using the returned values. Then vary demand, costs, or
+probabilities while keeping their distributions and units consistent. A change
+in recommendation after a small perturbation may reveal a fragile decision; a
+tie may require secondary criteria outside the model. Do not extrapolate a
+conclusion beyond the range analyzed.

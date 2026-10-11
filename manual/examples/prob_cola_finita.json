@@ -1,0 +1,14 @@
+{
+  "kind": "finiteCapacity",
+  "model": {
+    "title": "Dos ventanillas",
+    "timeUnit": "hour",
+    "servers": 2,
+    "serviceDistribution": "Exponential",
+    "meanServiceTime": 0.16666666666666666,
+    "interarrivalDistribution": "Exponential",
+    "meanInterarrivalTime": 0.25,
+    "batchSize": 1,
+    "queueCapacity": 3
+  }
+}

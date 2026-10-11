@@ -1,0 +1,179 @@
+\chapter{Practical application guide}
+\label{chap:guia}
+
+\section{A reproducible first walkthrough}
+QSB provides a macOS application and a command-line tool called \texttt{qsb}.
+Both share the models, validators, and solvers in \texttt{QSBCore}. The current
+interface uses English labels; this manual retains those labels so they can be
+located on screen.
+
+To begin, open \path{manual/examples/lp_sample.json} using
+\textbf{Model > Open Model...}. The model maximizes $50X_1+60X_2$ subject to
+$2X_1+3X_2\leq180$, $3X_1+2X_2\leq150$, and nonnegative variables.
+\begin{enumerate}
+ \item In \textbf{Definition}, check names, coefficients, relations, bounds,
+ and variable types. The variables here are continuous.
+ \item Click \textbf{Validate} and review \textbf{Validation}. A valid model
+ is a consistent input; it is not yet a solution.
+ \item In \textbf{Run}, select \textbf{QSB Native} and click the \textbf{Run}
+ button; you can also use \textbf{Solve} in the toolbar or
+ \textbf{Solve > Run Current Model} in the menu.
+ \item In \textbf{Summary}, check $X_1=18$, $X_2=48$, and objective 3780.
+ Both constraints hold with equality. Also review the solution status and
+ metadata before interpreting the number as an optimum.
+ \item Export the model and solution separately. Reopen the exported model
+ to preserve a reproducible input.
+\end{enumerate}
+The \textbf{Samples} menu provides built-in examples, but these may differ from
+the manual's files. To reproduce a cited result, use the file specified in its
+chapter.
+
+\section{Creating, importing, and editing}
+\textbf{New Model...} opens the family selector and creates an initial model.
+\textbf{Open Model...} accepts normalized JSON and recognized legacy formats.
+The family determines which controls appear. Native editors let you work with
+names, tables, and typed fields; other variants use a structured form and JSON
+as an interchange surface.
+
+The \textbf{Definition} panel defines the problem; \textbf{Overview} summarizes
+its family and state. \textbf{JSON} lets you inspect its representation. When
+\textbf{Apply JSON to ... Editor} is available, explicitly apply the edited text
+to replace the native draft. Writing JSON does not mean the changes have
+already been incorporated into the table. Review the diagnostics if applying the JSON fails and preserve the text you need to repair.
+
+Some tables offer \textbf{Copy Table} and \textbf{Paste Table} to exchange ranges
+with spreadsheets. Check headers, column order, separators, units, and names
+after pasting. Malformed numeric fields are not silently converted to zeros.
+In editors that flag incomplete imported dimensions, review the cells and
+shown values before accepting \textbf{Use Displayed Dimensions}.
+
+\section{Validating, running, and interpreting states}
+The application distinguishes empty, editing, validating, invalid, and valid
+model states. Execution has separate states: \textbf{Not run},
+\textbf{Validating}, \textbf{Solving}, \textbf{Solved}, and \textbf{Failed}.
+Read a Solved status alongside the mathematical condition reported by the
+family: a method may return an approximation, local solution, or heuristic
+policy rather than a global optimum.
+
+\textbf{Validation} displays model errors and warnings. Correct errors before
+solving; a warning requires judgment even when it allows you to proceed.
+\textbf{Run Details} lets you review the backend and execution information.
+When a long run displays progress, wait for completion before repeating Run.
+There is no universal cancellation control; some editors' asynchronous paths
+prevent an old response from replacing a new draft. This does not cancel the
+background computation.
+
+\begin{description}
+ \item[QSB Native] Deterministic educational methods. Exactness and limits
+ depend on the family and are explained in the corresponding chapters.
+ \item[Validate only] Checks the input and produces diagnostics; it does not
+ compute decisions or optimal values.
+ \item[External solver] Integrations available only for certain families.
+ Availability depends on configuration and the installed solver. The presence
+ of this option does not imply universal external support.
+\end{description}
+For LP/ILP and QP, consult the HiGHS conditions in the optimization chapter.
+Other families may report that the external backend is unavailable. Switch to
+QSB Native or Validate only according to the work you want to do.
+
+\section{Saving models and results}
+The toolbar's \textbf{Export} button prepares JSON from the current draft. If a
+native field cannot be converted into the model, QSB displays validation rather
+than exporting old data. The \textbf{Model > Export Model JSON...} menu opens
+export of the model text; to ensure recent fields are synchronized, first use
+Validate or the toolbar's Export button. \textbf{Export Solution JSON...} saves
+the existing result and is enabled when solution content is present.
+
+These are distinct documents: the model describes the problem to solve, and the
+solution records what a run returned. Output formats vary by family; some
+include the model and others do not. Always preserve both, together with the
+command, backend, software version, and study assumptions. Do not use a solution
+document as a model input.
+
+\section{Keyboard controls and alternatives to charts}
+The application defines the following shortcuts:
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Action & Keys\\
+\midrule
+New Model & Cmd+N\\
+Open Model & Cmd+O\\
+Export Model JSON & Cmd+S\\
+Export Solution JSON & Cmd+Shift+S\\
+Validate Model & Cmd+Shift+V\\
+Run Current Model & Cmd+R\\
+Solve ILP & Cmd+I\\
+\bottomrule
+\end{tabular}
+\end{center}
+Buttons are enabled according to family and state. Solve ILP and Solve LP
+Relaxation are specific to linear/integer programming; the relaxation does not
+enforce integrality. Some editors use Cmd+Shift+N to add rows. Use Tab to move
+through native controls and the menus to locate actions; focus behavior depends
+on the editor.
+
+Tables and JSON let you inspect data without relying on chart colors. Native
+results include accessible labels and values in several families, but this
+alone does not establish a complete VoiceOver review. Preserve the numerical
+tables for reproducible analysis. The macOS window has a minimum size of 980 by
+620 points; use scrollable areas and close the Inspector when you need more width.
+
+\section{The terminal and normalized JSON}
+From the repository root, SwiftPM builds and runs the tool:
+\begin{lstlisting}
+swift run qsb
+swift run qsb validate manual/examples/lp_sample.json
+swift run qsb solve-json manual/examples/lp_sample.json --backend native
+\end{lstlisting}
+Without arguments, \texttt{qsb} displays the command catalog. After
+\texttt{swift build}, you can run \texttt{.build/debug/qsb} directly. To save
+output and separate errors:
+\begin{lstlisting}
+.build/debug/qsb solve-json manual/examples/lp_sample.json \
+  --backend native > /tmp/qsb-lp-solution.json 2> /tmp/qsb-lp-errors.txt
+\end{lstlisting}
+JSON uses decimal points, double-quoted strings, and \texttt{null} for optional
+fields that allow it. It does not include comments. Each family has its own
+schema: LP uses a direct object, while many other families use a wrapper with
+\texttt{kind} and \texttt{model}. Copy the structure of the family's example,
+keeping names, vectors, and matrices aligned.
+
+\texttt{solve-json} detects the family of a normalized input.
+\texttt{validate} accepts normalized or legacy inputs. \texttt{solve} targets
+legacy models; do not interchange commands indiscriminately. The chapters
+provide family-specific commands, such as \texttt{solve-dp-json} or
+\texttt{solve-decision-json}. \texttt{validate-json} is specific to LP/ILP,
+rather than a universal validator.
+
+To import your own legacy input, the general procedure is:
+\begin{lstlisting}
+qsb import-legacy-json /ruta/al/modelo > /tmp/qsb-model.json
+qsb validate /tmp/qsb-model.json
+qsb solve-json /tmp/qsb-model.json --backend native
+\end{lstlisting}
+Here \texttt{qsb} assumes that the executable is on PATH; you can replace it
+with \texttt{swift run qsb}. The original files must be locally accessible and
+used in accordance with their permissions. The manual's examples are
+independent of proprietary material.
+
+\section{Troubleshooting}
+\begin{description}
+ \item[Unreadable JSON] Check syntax, key names, and types; a decoding error
+ may occur before structured diagnostics can be generated.
+ \item[Invalid model] Consult \texttt{isValid}, severity, code, message, and
+ diagnostic path when included in the output. Correct the input and validate again.
+ \item[No feasible solution] The structure may be valid even though constraints
+ or demand cannot be satisfied. Review bounds and balances.
+ \item[Unavailable backend] Check which families support it and its
+ configuration. Validate only does not provide an alternative solver result.
+ \item[Unexpected result] Review units, objective sign, state order,
+ constraints, options, and exactness. Compare with simple calculations before
+ changing algorithms.
+\end{description}
+The CLI exits successfully when it completes a command and unsuccessfully when
+an error is thrown, including incorrect usage. Some validations return a report
+with \texttt{isValid: false} normally; the exit code alone does not prove that
+the model is valid. An automated workflow must also inspect the validation
+document and result status. The absence of syntax errors does not demonstrate
+that the model accurately represents the real system.

@@ -1,0 +1,28 @@
+{
+  "periods": 3,
+  "model": {
+    "title": "Estado de una maquina",
+    "states": [
+      "Operativa",
+      "Parada"
+    ],
+    "transitionMatrix": [
+      [
+        0.9,
+        0.1
+      ],
+      [
+        0.4,
+        0.6
+      ]
+    ],
+    "initialProbabilities": [
+      1,
+      0
+    ],
+    "stateCosts": [
+      0,
+      100
+    ]
+  }
+}

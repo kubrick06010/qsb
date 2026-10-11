@@ -1,0 +1,11 @@
+\begin{tikzpicture}
+\node[rectangle,draw,minimum size=6mm,label=above:{\small Elegir}] (R) at (0,0) {};
+\node[qsb node,label=above:{\small Invertir},label=below:{$-5$}] (I) at (4,1) {};
+\node[qsb terminal] (K) at (4,-1.5) {Conservar\\12};
+\node[qsb terminal] (E) at (8,2) {Exito\\40};
+\node[qsb terminal] (F) at (8,-0.2) {Fracaso\\$-10$};
+\draw[qsb selected] (R) -- (I);
+\draw[qsb alternative] (R) -- (K);
+\draw[qsb arc] (I) -- node[qsb label,above] {$0.6$} (E);
+\draw[qsb arc] (I) -- node[qsb label,below] {$0.4$} (F);
+\end{tikzpicture}

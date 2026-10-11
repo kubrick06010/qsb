@@ -1,0 +1,151 @@
+\chapter{Network models}
+\label{chap:redes}
+
+\section{From a situation to a graph}
+A network represents places, states, or people as nodes; arcs represent
+possible connections. The meaning of the number on an arc depends on the
+model: cost or distance in a route, capacity in a maximum-flow problem.
+Confusing these quantities changes the problem \cite{ahuja1993network}.
+The examples in this chapter are original, and their files are in
+\texttt{manual/examples/}. They all use the JSON envelope with \texttt{kind}
+and \texttt{model}; WinQSB files are not required.
+Run the commands from the repository root.
+
+\section{Shortest path and minimum spanning tree}
+SPP seeks a directed path from the source to the destination with minimum cost.
+Dijkstra requires nonnegative costs. In QSB, the first node is the source and
+the last is the destination. An absent arc is not equivalent to a zero-cost arc.
+The file \path{plan_spp.json} has nodes A, B, C, D and the following arcs:
+\begin{center}
+\begin{tabular}{lrrrrr}\toprule
+Arc & A--B & A--C & B--C & B--D & C--D \\
+Cost & 2 & 5 & 1 & 6 & 2 \\
+\bottomrule\end{tabular}
+\end{center}
+\begin{lstlisting}[language=bash]
+swift run qsb validate-network-json manual/examples/plan_spp.json
+swift run qsb solve-network-json manual/examples/plan_spp.json --backend native
+swift run qsb solve-network-json manual/examples/plan_mst.json --backend native
+\end{lstlisting}
+\begin{figure}[htbp]
+\centering
+\input{figures/shortest-path}
+\caption{Shortest-path network: labels are costs. Thick arrows trace the optimal route; dashed arrows show alternatives.}
+\label{fig:shortest-path}
+\end{figure}
+
+SPP returns A $\to$ B $\to$ C $\to$ D with cost $2+1+2=5$.
+MST connects all nodes without cycles at the lowest total cost; it does not
+seek a path between endpoints. The example uses the same connections as
+undirected edges, and Kruskal chooses B--C, A--B, C--D, with cost 5.
+QSB normalizes asymmetric MST connections to the lower cost for each pair;
+a disconnected network has no tree spanning all nodes.
+
+\section{Maximum flow}
+With capacities $u_{ij}$, flow must satisfy
+$0\leq x_{ij}\leq u_{ij}$ and conservation at intermediate nodes. The
+objective maximizes net flow leaving the source. It does not minimize cost.
+In \path{plan_maxflow.json}, S--A has capacity 3, S--B 2,
+A--B 1, A--T 2, and B--T 3. Although the JSON field is named \texttt{cost},
+it represents capacity in MFP.
+\begin{lstlisting}[language=bash]
+swift run qsb solve-network-json manual/examples/plan_maxflow.json --backend native
+\end{lstlisting}
+\begin{figure}[htbp]
+\centering
+\input{figures/maximum-flow}
+\caption{Maximum flow: each label gives flow/capacity. The dotted line separates the source from the remaining nodes and marks a saturated cut.}
+\label{fig:maximum-flow}
+\end{figure}
+
+Edmonds--Karp obtains flow 5: 3 and 2 units leave S, and 2 and 3 reach T.
+The cut separating S from the other nodes has capacity 5 and proves optimality.
+Again, the first and last nodes determine the endpoints.
+
+\section{Traveling salesperson}
+TSP seeks a directed cycle that visits every node exactly once and returns
+to the starting node. Connecting the nodes is insufficient: there must be
+a single tour. The example \path{plan_tsp.json} contains three nodes, with
+$c_{AB}=2$, $c_{BC}=3$, $c_{CA}=4$ and reverse costs 4, 5, and 6.
+\begin{lstlisting}[language=bash]
+swift run qsb solve-network-json manual/examples/plan_tsp.json --backend native
+\end{lstlisting}
+The tour A $\to$ B $\to$ C $\to$ A costs 9; the reverse tour costs 15.
+Held--Karp is exact for the accepted model but exponential; the solver
+rejects more than 20 nodes. A model with no feasible Hamiltonian cycle is
+not repaired by adding connections. The \texttt{fixtureScale} label expresses
+this scale limitation, not a guarantee of fast execution near the maximum.
+
+\section{Assignment and transportation}
+Assignment minimizes $\sum_{ij}c_{ij}x_{ij}$, assigning each worker to one
+task and using each task at most once. The Hungarian method accepts
+rectangular matrices with at least as many tasks as workers.
+In \path{plan_assignment.json}, the rows Ana and Luis have costs
+$(2,7,4)$ and $(6,1,3)$ for X, Y, and Z.
+\begin{lstlisting}[language=bash]
+swift run qsb solve-network-json manual/examples/plan_assignment.json --backend native
+swift run qsb solve-network-json manual/examples/plan_transport.json --backend native
+\end{lstlisting}
+Ana--X and Luis--Y cost 3; Z remains unassigned. The model does not include
+teams, multiple tasks per person, or additional constraints.
+
+Transportation allows continuous quantities and requires balance:
+\[
+ \min\sum_{ij}c_{ij}x_{ij},\qquad
+ \sum_jx_{ij}=s_i,\quad \sum_ix_{ij}=d_j,\quad x_{ij}\geq0.
+\]
+The example has supply $(4,6)$, demand $(5,5)$, and cost matrix
+$\left(\begin{smallmatrix}1&4\\3&2\end{smallmatrix}\right)$.
+QSB ships 4 from O1 to D1, 1 from O2 to D1, and 5 from O2 to D2;
+the cost is $4+3+10=17$. Check row and column sums separately.
+An imbalance is a validation error in TP. This family does not automatically
+create a dummy source or destination.
+
+\section{Minimum-cost flow}
+CNF combines transshipment and costs: at each node,
+$\sum_jx_{ij}-\sum_jx_{ji}=s_i-d_i$, and it minimizes
+$\sum_{ij}c_{ij}x_{ij}$ with nonnegative continuous quantities.
+The current model has no arc capacities or lower bounds.
+The validator requires finite nonnegative costs in CNF and the graph
+variants; assignment permits finite negative costs. Do not model a subsidy
+as a negative cost on a CNF arc, because it will be rejected.
+\path{plan_netflow.json} supplies 4 at O, requires 4 at D, and allows
+O--M at cost 1, M--D at cost 2, and O--D at cost 5.
+\begin{lstlisting}[language=bash]
+swift run qsb solve-network-json manual/examples/plan_netflow.json --backend native
+\end{lstlisting}
+The 4 units pass through M and cost 12; direct shipment would cost 20.
+CNF preserves original supply and demand and, when they differ, emits a
+warning and adds a zero-cost dummy adjustment during solving.
+Always review \texttt{balanceAdjustments}: a solution with an adjustment
+does not prove that original supply can meet actual demand.
+
+\section{macOS use and backend selection}
+Open the example by importing normalized JSON. In Definition,
+SPP, MST, MFP, and TSP have a node and arc editor;
+AP and TP have cost matrices, with supply and demand in TP; CNF has nodes,
+arcs, and balances. Changes are validated before Run. The endpoint order
+for SPP/MFP maps to the JSON order; visual positions are not exported.
+The solution Diagram highlights the path, tree, tour, or connections used.
+\texttt{All connections} also shows the remaining connections. In bipartite
+networks, the groups represent workers/tasks or sources/destinations.
+Use the detail panel to read exact values and JSON to audit the result;
+the thickness of a connection does not replace its numerical quantity.
+
+Native offers deterministic algorithms for all seven variants. Validate
+checks the model without solving it. External is available for TP and CNF
+through HiGHS; there is no external backend covering all network variants.
+Solutions preserve the model, algorithm, assumptions, and exactness. The
+practical size of native LPs depends on the formulation; for large
+transportation networks, consider HiGHS and check its availability.
+
+\section{Exercises}
+\begin{enumerate}
+\item Change A--C from 5 to 1 in SPP. Verify the new path and explain why
+      the minimum spanning tree may respond differently.
+\item Reduce S--A to 1 in MFP. Calculate a cut before solving.
+\item Change D2 demand to 6 in TP. Observe validation; then
+      deliberately represent one additional unit of supply.
+\item In CNF, increase demand to 5. Interpret the dummy adjustment and
+      explain which business data are missing before the plan can be accepted.
+\end{enumerate}

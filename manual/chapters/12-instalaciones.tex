@@ -1,0 +1,126 @@
+\chapter{Instalaciones y equilibrado de líneas}
+\label{chap:instalaciones}
+
+\section{Localización de una instalación}
+La localización continua minimiza distancia ponderada a puntos existentes:
+
+\[\min_{x,y}\sum_i w_i d((x,y),(x_i,y_i)).\] Los pesos representan interacciones
+por costo unitario, no probabilidades. QSB admite una instalación nueva y
+minimización; no resuelve selección discreta de almacenes, múltiples nuevas
+instalaciones ni problemas con barreras geográficas.
+
+La medida de distancia determina el algoritmo. Para rectilínea,
+$d=|x-x_i|+|y-y_i|$, se usan medianas ponderadas por coordenada. Para euclídea
+al cuadrado, $d=(x-x_i)^2+(y-y_i)^2$, se usa el centroide ponderado. Para
+euclídea ordinaria se usa iteración de Weiszfeld y el resultado es aproximado.
+No cambie la medida solo para obtener coordenadas visualmente más atractivas:
+cambia el objetivo y sus unidades.
+
+\path{manual/examples/plan_location.json} coloca F1 en $(0,0)$ con peso 1
+y F2 en $(4,0)$ con peso 3, y utiliza distancia euclídea al cuadrado.
+La matriz dirigida tiene esos valores desde las instalaciones existentes
+hacia la nueva; no hay otras interacciones. El peso efectivo suma ambos
+sentidos de interacción entre cada punto existente y el nuevo: registrar
+el mismo flujo en los dos sentidos duplica el peso.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-facilities-json manual/examples/plan_location.json
+swift run qsb solve-facilities-json manual/examples/plan_location.json --backend native
+\end{lstlisting}
+El centro es $(3,0)$ y el objetivo $1\cdot9+3\cdot1=12$.
+En macOS Definition permite editar roles, IDs, coordenadas, distancia y matriz.
+Las coordenadas nuevas pueden quedar vacías; las existentes son necesarias.
+Los IDs se interpretan dentro del rol existente/nuevo, de modo que ambos pueden
+usar el ID 1. La solución representa puntos y conexiones ponderadas y detalla
+cada contribución. Use JSON para conservar la matriz completa.
+
+\section{Equilibrado de una línea}
+Con tareas indivisibles de tiempos $t_i$, precedencias y ciclo fijo $C$, se
+minimiza el número de estaciones. Una estación no puede exceder el ciclo y la
+estación de una predecesora no puede quedar después de su sucesora; tareas
+precedentes pueden compartir estación si se ejecutan en orden.
+La cota inferior $\lceil\sum_i t_i/C\rceil$ ignora incompatibilidades y
+precedencias, por lo que no siempre es alcanzable.
+
+\path{plan_line.json} contiene A(2), B(3), C(4), con A y B precediendo a C,
+y ciclo 5 minutos.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-facilities-json manual/examples/plan_line.json
+swift run qsb solve-facilities-json manual/examples/plan_line.json --backend native
+\end{lstlisting}
+Se asignan A y B a la estación 1 y C a la 2. Hay 9 minutos de trabajo y 10
+minutos de capacidad por ciclo: eficiencia $9/(2\cdot5)=0.9$ y retraso de
+balance $1-0.9=0.1$. El ocio es 0 y 1 minuto respectivamente. La cota inferior
+es 2 y se alcanza, probando optimalidad para el modelo.
+La programación dinámica exacta con máscaras admite como máximo 24 tareas;
+una tarea mayor que el ciclo hace el problema inviable.
+El campo \texttt{isolated} se conserva por compatibilidad, pero el solver nativo
+actual no obliga a una estación separada para las tareas marcadas. No lo use
+como una restricción efectiva de seguridad o incompatibilidad.
+
+El editor macOS admite tareas, tiempos, sucesores inmediatos y flags;
+Copy/Paste Table transfiere la tabla. Borrar una tarea referenciada deja visible
+la referencia para repararla. La solución muestra carga y ocio por estación,
+asignaciones, contexto de precedencias, eficiencia y retraso. La eficiencia
+no mide tiempo total de producción de un lote ni incluye averías o cambios de
+producto.
+
+\section{Distribución en planta}
+Layout evalúa departamentos situados en una cuadrícula. Cada departamento
+ocupa la unión de uno o varios rectángulos de celdas; una celda repetida del
+mismo departamento cuenta una vez. Las coordenadas de rectángulos son
+inclusivas y empiezan en 1. El objetivo de carga--distancia usa centroides:
+\[
+ Z=\sum_{i,j}w_{ij}(|r_i-r_j|+|c_i-c_j|).
+\]
+La matriz es dirigida: introducir el mismo peso en ambos sentidos duplica
+la contribución. El centroide es una aproximación de los recorridos físicos;
+no modela puertas, pasillos obligatorios ni obstáculos.
+
+El ejemplo \path{plan_layout.json} tiene una fila y tres celdas A, B, C,
+todas de área uno y móviles. Sus únicos pesos son A--B=1, A--C=10 y B--C=1.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-facilities-json manual/examples/plan_layout.json
+swift run qsb solve-facilities-json manual/examples/plan_layout.json --backend native
+swift run qsb solve-facilities-json manual/examples/plan_layout.json \
+  --backend native --layout-strategy pairwise-swap
+\end{lstlisting}
+La evaluación Initial da $1+20+1=22$ y no modifica la disposición.
+Pairwise intercambia A y B: B, A, C cuesta $1+10+2=13$, mejora 9.
+La búsqueda solo intercambia departamentos móviles de igual área cuando mejora
+el objetivo. Termina en un óptimo local de ese vecindario; no garantiza el
+óptimo global ni construye automáticamente geometría arbitraria.
+Las áreas fijas no se intercambian. Solapamientos móviles son errores;
+solapamientos con áreas fijas pueden producir advertencias y deben revisarse.
+
+En Definition se editan cuadrícula, departamentos, flags fijos, rectángulos y
+matriz de flujos/costos. Seleccione un departamento para sus rectángulos;
+la tabla transferida incluye IDs para todos ellos. En matrices grandes se
+seleccionan fuentes y grupos de destinos, aunque Copy/Paste Table mueve la
+matriz completa. Elija Initial o Pairwise antes de Run. La vista Layout permite
+ajustar escala, cuadrícula y flujos, y revisar centroides, intercambios y
+contribuciones. Para cuadrículas grandes la vista general dibuja menos líneas;
+los rangos exactos siguen en detalle y JSON.
+
+\section{Backend, validación y decisión}
+Las tres familias admiten Native y Validate, sin backend External operativo.
+Validate informa datos inválidos sin calcular una localización, distribución
+o balance. Los documentos conservan algoritmo y exactitud: localización por
+centroide/medianas es de forma cerrada, Weiszfeld es aproximado, equilibrado
+es exacto a escala educativa y Pairwise es heurístico. Evaluar un layout inicial
+solo determina su costo, no su optimalidad.
+Los ejemplos usan el sobre facilities con \texttt{kind} igual a
+\texttt{location}, \texttt{lineBalancing} o \texttt{layout}. No confunda ese
+sobre con los JSON particulares aceptados por comandos específicos de cada
+subfamilia. Valide el mismo archivo que va a resolver y exporte el modelo y
+la solución para dejar trazabilidad de los datos aceptados.
+
+\section{Ejercicios}
+\begin{enumerate}
+\item Cambie la localización a distancia rectilínea. Explique la nueva
+      coordenada con medianas ponderadas y las nuevas unidades del objetivo.
+\item En la línea reduzca el ciclo a 4. Determine el mínimo de estaciones
+      y compruebe el impacto sobre eficiencia.
+\item Fije A en layout. Resuelva Initial y Pairwise y compare los movimientos
+      permitidos. Explique por qué una búsqueda sin mejora no demuestra
+      optimalidad entre todas las distribuciones posibles.
+\end{enumerate}

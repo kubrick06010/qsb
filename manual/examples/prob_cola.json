@@ -1,0 +1,9 @@
+{
+  "kind": "mm1",
+  "model": {
+    "title": "Ventanilla",
+    "timeUnit": "hour",
+    "arrivalRate": 4,
+    "serviceRate": 6
+  }
+}

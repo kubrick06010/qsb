@@ -1,0 +1,36 @@
+{
+  "kind": "CPM",
+  "model": {
+    "title": "Proyecto taller",
+    "timeUnit": "dia",
+    "activities": [
+      {
+        "name": "A",
+        "predecessors": [],
+        "normalTime": 3,
+        "crashTime": 2,
+        "normalCost": 10,
+        "crashCost": 15
+      },
+      {
+        "name": "B",
+        "predecessors": [],
+        "normalTime": 2,
+        "crashTime": 1,
+        "normalCost": 10,
+        "crashCost": 15
+      },
+      {
+        "name": "C",
+        "predecessors": [
+          "A",
+          "B"
+        ],
+        "normalTime": 4,
+        "crashTime": 3,
+        "normalCost": 10,
+        "crashCost": 15
+      }
+    ]
+  }
+}

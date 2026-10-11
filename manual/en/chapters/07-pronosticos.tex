@@ -1,0 +1,129 @@
+\chapter{Forecasting and regression}
+\label{ch:pronosticos}
+
+\section{A forecast is an operational hypothesis}
+Forecasts inform inventory, capacity, and planning. A straight line that fits
+the past well does not guarantee future accuracy
+\cite{hyndman2021forecasting}. QSB implements linear trend, moving average,
+simple exponential smoothing, multiplicative seasonal decomposition, and
+least-squares linear regression. The JSON is a request: it contains the model,
+method, horizon, and parameters. This preserves the chosen method alongside
+the data. Native and validation backends are available; external integration
+is a future extension.
+
+\section{Data and errors}
+Observations are processed in row order; labels do not reorder dates or fill
+missing periods. A monthly series must have consistent monthly spacing. QSB
+returns fitted values, residuals \(e_t=y_t-\hat y_t\), MAD, MSE, and MAPE:
+\[
+ \mathrm{MAD}=\frac1m\sum|e_t|,\quad
+ \mathrm{MSE}=\frac1m\sum e_t^2,\quad
+ \mathrm{MAPE}=\frac{100}{m_+}\sum_{|y_t|>10^{-12}}|e_t/y_t|.
+\]
+\(m\) counts the available fitted rows, rather than necessarily the entire
+history; \(m_+\) excludes actual values whose magnitude is no greater than
+\(10^{-12}\). If all are excluded, MAPE is unavailable. MAD retains the
+series' units; MSE has squared units; MAPE is reported as a percentage.
+Comparing methods requires considering that moving average and smoothing omit
+different initial rows.
+
+\section{Linear trend: a complete example}
+The model \(y_t=a+bt+e_t\) estimates \(a,b\) by least squares with indices
+\(t=1,\ldots,n\). \path{manual/examples/prob_pronostico.json} contains
+\((12,14,16,18,20,22)\), month as its unit, and a horizon of two. From the
+root:
+\begin{lstlisting}
+.build/debug/qsb validate-forecast-json manual/examples/prob_pronostico.json
+.build/debug/qsb solve-forecast-json manual/examples/prob_pronostico.json
+\end{lstlisting}
+QSB obtains \(a=10,b=2\), forecasts of \(24\) and \(26\), and zero for
+all three error measures. These artificial data were chosen to check the
+formula and indices: zero error is not evidence about real demand. The result
+retains the request, the \texttt{linearTrend} algorithm, and \texttt{exact}
+exactness, which describes the method's calculation rather than exact knowledge
+of the future.
+
+\section{Moving average and smoothing}
+For window \(k\), the one-step forecast is
+\[
+ \hat y_{t+1}=\frac1k\sum_{j=0}^{k-1}y_{t-j}.
+\]
+QSB extends horizons by using earlier forecasts within the window when actual
+values run out. The file \path{prob_movil.json} selects a window of three
+for the same series. The results are \(20\) and \(20.666667\): the second
+average uses \((20,22,20)\). MAD is \(4\), MSE \(16\), and MAPE
+\(20.134680\%\), calculated over the final three rows. This lag is expected
+when the series has a trend.
+
+Simple smoothing applies
+\[
+ F_{t+1}=\alpha y_t+(1-\alpha)F_t,\qquad 0<\alpha\le1.
+\]
+The initial forecast is set to the first observation. In
+\path{prob_suavizado.json}, \(\alpha=0.3\) produces \(18.117660\) in
+both future periods. The method has no trend component; it does not
+automatically extrapolate growth. Its MAD is \(4.078440\), MSE
+\(18.233818\), and MAPE \(22.081810\%\). A large alpha reacts quickly
+and may follow more noise; a small one smooths and may lag.
+Both examples run with \texttt{solve-forecast-json} and are validated with
+\texttt{validate-forecast-json}.
+
+\section{Multiplicative seasonality}
+The method combines the estimated trend with seasonal factors:
+\(\hat y_t=(a+bt)s_j\). QSB calculates actual/trend ratios, averages them
+by seasonal position, and normalizes the factors to have a mean of one.
+This is an educational decomposition, rather than Holt--Winters or an ARIMA
+model. Seasonal length and observation order must correspond to the phenomenon;
+at least two complete cycles and values/trend compatible with multiplicative
+division are required.
+\path{prob_estacional.json} uses length two for the previous linear series.
+Both factors are one; the forecast is again \(24,26\). The case checks that
+specifying a season does not invent oscillations when data coincide with the
+line. To study actual seasonality, replace the series with several oscillating
+cycles and review residuals before interpreting the factors.
+
+\section{Explanatory regression}
+The model is \(y_i=\beta_0+\sum_j\beta_jx_{ij}+e_i\), with an intercept.
+Predictors must have linearly independent columns; a constant column duplicates
+the intercept. The core detects rank deficiency.
+\path{prob_regresion.json} contains activity \(1,2,3,4,5\) and consumption
+\(5,7,9,11,13\). With \texttt{solve-forecast-json}, QSB returns intercept
+\(3\), activity coefficient \(2\), zero SSE, and \(R^2=1\).
+The request contract's horizon must also be positive for regression, although
+its output fits the supplied observations and does not generate future predictor
+rows. For a new activity level, the estimated equation allows a prediction to
+be calculated, without QSB reporting an interval for it.
+
+A coefficient is a conditional association, rather than causality. \(R^2\)
+measures within-sample fit; it does not identify overfitting or guarantee
+extrapolation. This workflow does not report coefficient standard errors,
+hypothesis tests, or prediction intervals. Small original datasets allow the
+contract to be checked, but do not assess generalization ability.
+
+\section{Working in macOS and evaluation}
+In the forecasting editor, select the method, parameters, and horizon; enter
+historical rows in temporal order. Values can be pasted into one column, or
+labels and tab-separated values into two columns. Paste validation is atomic:
+a malformed row does not partially replace the history. Regression uses
+variable names and explanatory rows. Validate, solve, and review actual,
+fitted, and future curves; these curves and the residual chart share observation
+order. Visibility and horizontal-scale controls help with long series. The
+summary shows parameters and metrics; the JSON selector preserves the request
+and result. Applying JSON updates the draft only when decoding succeeds.
+
+To evaluate an operational forecast, reserve the final periods, fit using the
+earlier history, and compare against the held-out data. The errors QSB reports
+are the fits from the executed calculation; they do not automatically constitute
+an out-of-sample test. Do not select parameters by repeatedly examining the
+same held-out set. Document units, window, alpha, season, and horizon when
+delivering the analysis.
+
+\section{Exercises}
+\begin{enumerate}
+\item Compare windows of two and four for the growing series. Explain the lag
+and check which rows contribute to MAD.
+\item Replace one observation with zero and check the definition of MAPE.
+Compare its suitability with MAD.
+\item Enter a second predictor equal to twice the first and observe the rank
+diagnostic. Explain why more columns do not always add information.
+\end{enumerate}

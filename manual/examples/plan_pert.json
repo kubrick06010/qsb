@@ -1,0 +1,33 @@
+{
+  "kind": "PERT",
+  "model": {
+    "title": "Proyecto incierto",
+    "timeUnit": "dia",
+    "activities": [
+      {
+        "name": "A",
+        "predecessors": [],
+        "optimisticTime": 2,
+        "mostLikelyTime": 3,
+        "pessimisticTime": 4
+      },
+      {
+        "name": "B",
+        "predecessors": [],
+        "optimisticTime": 1,
+        "mostLikelyTime": 2,
+        "pessimisticTime": 3
+      },
+      {
+        "name": "C",
+        "predecessors": [
+          "A",
+          "B"
+        ],
+        "optimisticTime": 3,
+        "mostLikelyTime": 4,
+        "pessimisticTime": 5
+      }
+    ]
+  }
+}

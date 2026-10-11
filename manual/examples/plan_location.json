@@ -1,0 +1,44 @@
+{
+  "kind": "location",
+  "model": {
+    "title": "Centro ponderado",
+    "distanceMeasure": "squaredEuclidean",
+    "objective": "MIN",
+    "facilities": [
+      {
+        "id": 1,
+        "name": "F1",
+        "isNew": false,
+        "x": 0,
+        "y": 0,
+        "interactionCosts": [
+          null,
+          null,
+          1
+        ]
+      },
+      {
+        "id": 2,
+        "name": "F2",
+        "isNew": false,
+        "x": 4,
+        "y": 0,
+        "interactionCosts": [
+          null,
+          null,
+          3
+        ]
+      },
+      {
+        "id": 1,
+        "name": "N",
+        "isNew": true,
+        "interactionCosts": [
+          null,
+          null,
+          null
+        ]
+      }
+    ]
+  }
+}

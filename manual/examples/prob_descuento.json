@@ -1,0 +1,17 @@
+{
+  "kind": "quantityDiscountEOQ",
+  "model": {
+    "title": "Reposicion de cuadernos",
+    "timeUnit": "year",
+    "demand": 1200,
+    "setupCost": 30,
+    "holdingCost": 2,
+    "acquisitionCost": 5,
+    "discountBreaks": [
+      {
+        "minimumQuantity": 300,
+        "discountPercent": 10
+      }
+    ]
+  }
+}

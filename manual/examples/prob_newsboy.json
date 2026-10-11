@@ -1,0 +1,15 @@
+{
+  "kind": "newsboy",
+  "model": {
+    "title": "Pan diario",
+    "timeUnit": "day",
+    "demandDistribution": "Normal",
+    "meanDemand": 100,
+    "standardDeviation": 20,
+    "setupCost": 0,
+    "acquisitionCost": 2,
+    "sellingPrice": 5,
+    "shortageCost": 1,
+    "salvageValue": 1
+  }
+}

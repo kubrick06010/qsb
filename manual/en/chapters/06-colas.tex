@@ -1,0 +1,121 @@
+\chapter{Queuing models}
+\label{ch:colas}
+
+\section{From flow to waiting}
+Queuing theory relates variability, capacity, and congestion
+\cite{gross2008fundamentals}. In Kendall notation, M denotes Poisson arrivals
+or exponential times, depending on its position. Service rate \(\mu\) is
+per server; mean service time is \(1/\mu\). All rates share a time unit.
+QSB implements M/M/1 and a finite queue with multiple servers using a
+birth-and-death model.
+
+\section{M/M/1 in steady state}
+The assumptions are independent arrivals, exponential service, one server,
+and unlimited population and waiting space. Stability requires
+\(\lambda<\mu\). With \(\rho=\lambda/\mu\):
+\[
+ P_0=1-\rho,\quad L=\frac{\rho}{1-\rho},\quad
+ L_q=\frac{\rho^2}{1-\rho},\quad
+ W=\frac1{\mu-\lambda},\quad W_q=\frac{\lambda}{\mu(\mu-\lambda)}.
+\]
+\(L\) includes customers being served; \(L_q\) includes only those waiting.
+Little's law gives \(L=\lambda W\) and \(L_q=\lambda W_q\).
+The backend reports \texttt{mm1ClosedForm}/\texttt{closedForm}. It does not
+calculate the distribution or percentiles of an individual waiting time.
+
+\subsection{Example: a service counter}
+\path{manual/examples/prob_cola.json} specifies four arrivals/hour and six
+services/hour. Run from the root:
+\begin{lstlisting}
+.build/debug/qsb validate-queuing-json manual/examples/prob_cola.json
+.build/debug/qsb solve-queuing-json manual/examples/prob_cola.json
+\end{lstlisting}
+Utilization is \(2/3\), \(P_0=1/3\), \(L=2\), \(L_q=4/3\),
+\(W=0.5\) hours, and \(W_q=1/3\) hours: thirty minutes in the system,
+twenty waiting, and ten receiving service. Being busy two thirds of the time
+does not mean that two thirds of customers wait exactly twenty minutes.
+If arrivals reach six/hour, the model no longer has these steady-state means,
+and QSB returns a stability diagnostic.
+
+\section{Multiple servers and finite capacity}
+With \(c\) servers and \(b\) waiting places, system capacity is \(K=c+b\).
+State \(n\) has arrival rate \(\lambda\) when \(n<K\), and zero when
+full; its departure rate is \(\min(n,c)\mu\).
+The probabilities are normalized after being obtained from
+\[
+ p_n=p_0\prod_{i=1}^n\frac{\lambda}{\min(i,c)\mu}.
+\]
+Blocking probability is \(p_K\), the effective arrival rate
+is \(\lambda_e=\lambda(1-p_K)\), and Little's law uses \(\lambda_e\),
+rather than the offered rate. Because it is finite, this model can have a
+stationary distribution even when offered demand exceeds its service capacity;
+this produces blocking, rather than extra capacity.
+
+QSB requires exponential arrivals in batches of one and an infinite customer population.
+It uses mean service time to obtain the rate per server; nonexponential labels
+produce warnings because their variability is not modeled. The document always
+retains \texttt{approximate} for this route. A case with normal service times
+must not be presented as an exact M/G/c/K solution.
+
+\subsection{Example: two counters and three waiting places}
+\path{prob_cola_finita.json} retains four arrivals/hour and a mean service
+time of ten minutes, with two servers and three waiting places. Validate and
+solve using the same commands with the file changed. The results are:
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Metric & Value \\
+\midrule
+Total capacity & 5 \\
+Blocking probability & 0.004124 \\
+Effective arrivals per hour & 3.983505 \\
+Average utilization per server & 0.331959 \\
+Mean number in the system & 0.738144 \\
+Mean number waiting & 0.074227 \\
+Time in the system (hours) & 0.185300 \\
+Waiting time (hours) & 0.018634 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Mean waiting time is approximately \(1.118012\) minutes among admitted
+customers. The total utilization of both servers corresponds to \(0.663918\)
+busy servers, rather than the individual utilization percentage.
+
+\section{Costs, interface, and limitations}
+Optional costs distinguish busy and idle servers, waiting customers, and
+customers in service; the finite queue adds rejection and waiting places.
+State costs are weighted by expected occupancy; rejection cost is multiplied
+by the rate of blocked customers. The total is a cost per time unit, rather
+than per customer.
+
+In macOS, the creator offers both variants. Enter rates for M/M/1, or mean
+times, servers, and waiting space for a finite queue; validate and solve. The
+metrics panel shows utilization, effective flow, blocking, numbers, and times.
+The finite variant also shows state probabilities, highlighting the full state;
+optional costs are itemized. Check the time unit and assumptions alongside the
+results. Normalized JSON is the alternative for inspection and export.
+
+Use \path{solve-queuing-json} to accept normalized input.
+
+The historical commands \path{solve-mm1-json} and
+\path{solve-finite-queue-json} accept a legacy file despite their suffix:
+the suffix indicates JSON output. Always use the generic route to exchange
+normalized inputs. Native and validation backends are available; no external
+solver is installed for this family.
+
+Priorities, customer abandonment due to impatience, finite customer populations,
+general batch arrivals, and rate changes by time of day are not modeled.
+The simulation in the Markov and simulation chapter allows a different class
+of assumptions to be explored, but its estimates do not replace these
+steady-state formulas.
+
+\section{Exercises}
+\begin{enumerate}
+\item Change \(\lambda\) to 5.5 in M/M/1 and compare utilization and waiting.
+Explain why the growth in waiting time is nonlinear.
+\item Remove the waiting places from the finite queue. Check that blocking
+occurs without a positive queue length, and use \(\lambda_e\) to verify
+Little's law.
+\item Compare adding a server with adding five waiting places: which changes
+service capacity, and which changes the space for customers?
+\end{enumerate}

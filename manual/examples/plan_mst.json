@@ -1,0 +1,39 @@
+{
+  "kind": "MST",
+  "model": {
+    "title": "mst",
+    "nodes": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "edges": [
+      {
+        "from": "A",
+        "to": "B",
+        "cost": 2
+      },
+      {
+        "from": "A",
+        "to": "C",
+        "cost": 5
+      },
+      {
+        "from": "B",
+        "to": "C",
+        "cost": 1
+      },
+      {
+        "from": "B",
+        "to": "D",
+        "cost": 6
+      },
+      {
+        "from": "C",
+        "to": "D",
+        "cost": 2
+      }
+    ]
+  }
+}

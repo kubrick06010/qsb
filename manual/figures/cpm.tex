@@ -1,0 +1,7 @@
+\begin{tikzpicture}
+\node[qsb activity,line width=1.4pt] (A) at (0,1) {A\\3};
+\node[qsb activity] (B) at (0,-1) {B\\2};
+\node[qsb activity,line width=1.4pt] (C) at (4,0) {C\\4};
+\draw[qsb selected] (A) -- (C);
+\draw[qsb alternative] (B) -- (C);
+\end{tikzpicture}

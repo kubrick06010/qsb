@@ -1,0 +1,26 @@
+{
+  "title": "Nonlinear constrained distance",
+  "sense": "minimize",
+  "objectiveExpression": "(X-3)^2+(Y-2)^2",
+  "variableNames": [
+    "X",
+    "Y"
+  ],
+  "lowerBounds": [
+    0,
+    0
+  ],
+  "upperBounds": [
+    4,
+    4
+  ],
+  "constraints": [
+    {
+      "name": "Capacity",
+      "expression": "X+Y",
+      "relation": "<=",
+      "rhs": 4
+    }
+  ],
+  "normalizedStrictInequalities": false
+}

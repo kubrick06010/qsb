@@ -1,0 +1,137 @@
+\chapter{Integer and mixed-integer programming}
+\label{chap:entera}
+
+\section{Indivisible decisions}
+Integer programming requires some decisions to take discrete values:
+selected projects, shifts, batches, or open facilities. A mixed-integer linear
+model retains a linear objective and linear constraints but combines
+continuous and integer variables \cite{nemhauser1988integer} and \cite{wolsey1998integer}.
+Integrality is part of the model, not a presentation operation on the result.
+Rounding a continuous optimum can violate constraints or lose optimality.
+
+An integer variable represents indivisible quantities; a binary variable
+represents a yes/no decision. In QSB the normalized types are \texttt{continuous},
+\texttt{integer}, and \texttt{binary}. All share the coefficients, relations, and
+bounds of the linear model. In a selection model, a binary \(y_j\) can activate
+a continuous quantity \(x_j\) through \(0\leq x_j\leq M_jy_j\).
+The constant \(M_j\) must be a justifiable bound: an excessively large number
+weakens the relaxation and can impair numerical stability.
+
+\section{Example: minimum coverage with integer activities}
+Two activities provide coverage for two requirements. Each unit of the
+first costs 2.5 monetary units, and each unit of the second costs 2.
+Their contributions are \((6,3)\) and \((3,5)\); at least 200 units of the
+first requirement and 180 of the second are needed. Activities can only be
+purchased in whole units:
+\[
+\begin{aligned}
+ \min\quad &2.5X_1+2X_2\\
+ \text{subject to}\quad &6X_1+3X_2\geq200,\\
+ &3X_1+5X_2\geq180,\\
+ &X_1,X_2\in\Z_+.
+\end{aligned}
+\]
+Cost is additive and contributions remain constant: discounts and changes in
+productivity have not been modeled. The complete case is in
+\path{manual/examples/ilp_sample.json}; both variables have
+\texttt{variableTypes} set to \texttt{integer} and a lower bound of zero.
+
+\subsection{CLI and macOS execution}
+From the repository root:
+\begin{lstlisting}
+swift run qsb solve-json-ilp manual/examples/ilp_sample.json --backend native
+\end{lstlisting}
+Use the specific ILP command to respect the integer domains; solving only
+the relaxation does not answer the indivisible decision problem.
+
+On macOS, use the same \texttt{Linear / Integer Programming} editor as in
+Chapter~\ref{chap:pl}. Open the JSON or enter the two variables with
+\texttt{Minimize}, coefficients 2.5 and 2, type \texttt{Integer}, a lower bound
+of zero, and no explicit upper bound. Enter the two constraints with
+relation \(\geq\), validate, and press \texttt{Run ILP}. The button label changes
+according to the variable types. The solution displays quantities and
+constraint evaluations; retain the exported JSON to review the original
+domains.
+
+\subsection{Optimum and verification}
+QSB returns \(X_1=22\), \(X_2=23\), and cost 101. Feasibility is verified by
+\[
+ 6(22)+3(23)=201\geq200,\qquad3(22)+5(23)=181\geq180.
+\]
+Coverage surpluses are one unit for each requirement. The cost is
+\(2.5(22)+2(23)=101\), and both quantities are integers.
+
+To understand the difference from the relaxation, temporarily allow
+continuous variables. The intersection of the two boundaries is
+\[
+ X_1=\frac{460}{21}\approx21.904762,\qquad
+ X_2=\frac{160}{7}\approx22.857143,
+\]
+with cost \(2110/21\approx100.476190\). In minimization, relaxing integrality
+can only reduce the optimal cost or leave it unchanged; it provides a lower
+bound for the integer problem. The absolute difference is
+\(11/21\approx0.523810\). Rounding up happens to produce the optimal integer
+solution here, but this is a coincidence of the case, not a general rule.
+
+There is also a short verification of the integer cost. For any feasible
+solution, the cost is at least \(2110/21\) and lies on the grid of multiples
+of 0.5. Ruling out cost 100.5 is therefore sufficient to prove that 101 is the
+minimum. If the cost were 100.5, then \(5X_1+4X_2=201\). Substitution into
+the two coverage requirements simultaneously yields
+\(X_1\geq197/9\) and \(X_1\leq285/13\); the narrow interval
+\([21.888889,21.923077]\) contains no integer. Thus, cost 100.5 is
+unattainable, and QSB's solution certifies the next possible value, 101.
+
+\section{Branch and bound}
+The native algorithm solves an LP relaxation at each node. If the solution
+is integral, it becomes a candidate. If a variable takes a fractional value \(v\),
+two problems are created, \(x_j\leq\lfloor v\rfloor\) and
+\(x_j\geq\lceil v\rceil\), covering its integer possibilities. An infeasible
+branch is discarded; a branch whose bound cannot improve the best known
+solution is also discarded. Exploring all relevant branches establishes
+optimality within numerical tolerances.
+
+QSB uses a deterministic search and a default limit of 10000 nodes.
+If this is exceeded, it reports a model unsupported by that search; this
+must not be interpreted as an optimal solution or proof of infeasibility.
+The educational backend lacks the cutting-plane and preprocessing techniques
+of an industrial MILP engine. Running time can grow rapidly even for a small
+file; providing valid physical bounds can improve the formulation but must
+never exclude feasible decisions.
+
+\texttt{validate} checks the model without solving it.
+\texttt{external} uses the HiGHS executable discovered on the computer for LP/MIP
+and requires an independent installation. The selected backend does not change
+the meaning of the variables; if unavailable, the request fails.
+The \texttt{export-mps} command accepts this JSON and expresses its integer
+domains, bounds, and linear rows. This MILP capability does not imply that
+HiGHS supports mixed-integer quadratic programming; these are different classes.
+
+\section{Interpretation and common mistakes}
+Compare costs only between feasible solutions of the same model. The
+relaxation bound measures the idealized cost when fractions are allowed,
+but does not represent an implementable alternative. In binary models, check
+that each value represents the intended action; in mixed models, distinguish
+continuous quantities from activation decisions. A fractional solution obtained
+by changing the types to continuous answers a different problem.
+
+Do not multiply a binary variable by a continuous variable within an LP row:
+that is a nonlinear expression. Activation rules require auxiliary linear
+constraints. Likewise, do not convert a continuous variable to integer simply
+to make the screen display round numbers: the domain reflects the decision
+unit.
+
+\section{Exercises}
+\begin{enumerate}
+ \item Duplicate the example JSON and change both types to
+ \texttt{continuous}. Solve with \texttt{solve-json} and contrast the lower
+ bound calculated above with the integer result.
+ \item Impose \(X_1\leq21\). Calculate the minimum \(X_2\) satisfying both
+ coverage requirements, and check the new cost with QSB.
+ \item Formulate a selection problem with three projects, costs 4, 6, and 7,
+ benefits 5, 8, and 10, budget 10, and binary variables. Determine the optimal
+ combination by enumeration, then verify it.
+ \item Explain why rounding down both quantities in the example relaxation
+ violates the requirements. What would change if the constraints were maximum
+ capacities?
+\end{enumerate}

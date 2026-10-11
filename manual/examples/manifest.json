@@ -1,0 +1,887 @@
+{
+  "edition": "2026-10-11",
+  "examples": [
+    {
+      "file": "lp_sample.json",
+      "checks": [
+        {
+          "path": "/objectiveValue",
+          "value": 3780
+        },
+        {
+          "path": "/variableValues/X1",
+          "value": 18
+        },
+        {
+          "path": "/variableValues/X2",
+          "value": 48
+        }
+      ]
+    },
+    {
+      "file": "ilp_sample.json",
+      "checks": [
+        {
+          "path": "/objectiveValue",
+          "value": 101
+        },
+        {
+          "path": "/variableValues/X1",
+          "value": 22
+        },
+        {
+          "path": "/variableValues/X2",
+          "value": 23
+        }
+      ]
+    },
+    {
+      "file": "opt_goal.json",
+      "checks": [
+        {
+          "path": "/solution/variableValues/A",
+          "value": 8
+        },
+        {
+          "path": "/solution/variableValues/B",
+          "value": 2
+        },
+        {
+          "path": "/solution/goalOutcomes/0/value",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "file": "opt_qp.json",
+      "checks": [
+        {
+          "path": "/solution/objectiveValue",
+          "value": -12.5
+        },
+        {
+          "path": "/solution/variableValues/X",
+          "value": 1.5
+        },
+        {
+          "path": "/solution/variableValues/Y",
+          "value": 2.5
+        }
+      ]
+    },
+    {
+      "file": "opt_nlp.json",
+      "checks": [
+        {
+          "path": "/solution/objectiveValue",
+          "value": 0.5,
+          "absoluteTolerance": 1e-06
+        },
+        {
+          "path": "/solution/variableValues/X",
+          "value": 2.5,
+          "absoluteTolerance": 1e-06
+        },
+        {
+          "path": "/solution/variableValues/Y",
+          "value": 1.5,
+          "absoluteTolerance": 1e-06
+        }
+      ]
+    },
+    {
+      "file": "dec_bayes.json",
+      "checks": [
+        {
+          "path": "/solution/solution/outcomes/0/probability",
+          "value": 0.44
+        },
+        {
+          "path": "/solution/solution/outcomes/0/posteriorProbabilities/0",
+          "value": 0.7272727272727273
+        }
+      ]
+    },
+    {
+      "file": "dec_payoff.json",
+      "checks": [
+        {
+          "path": "/solution/solution/bestPriorDecision",
+          "value": "Lanzar"
+        },
+        {
+          "path": "/solution/solution/bestPriorExpectedValue",
+          "value": 16
+        },
+        {
+          "path": "/solution/solution/expectedValueOfPerfectInformation",
+          "value": 30
+        },
+        {
+          "path": "/solution/solution/expectedValueOfSampleInformation",
+          "value": 17.6
+        }
+      ]
+    },
+    {
+      "file": "dec_tree.json",
+      "checks": [
+        {
+          "path": "/solution/solution/expectedValue",
+          "value": 15
+        },
+        {
+          "path": "/solution/solution/nodeValues/0/selectedChildName",
+          "value": "Invertir"
+        }
+      ]
+    },
+    {
+      "file": "dec_game.json",
+      "checks": [
+        {
+          "path": "/solution/solution/value",
+          "value": 0
+        },
+        {
+          "path": "/solution/solution/rowStrategy/0/probability",
+          "value": 0.5
+        },
+        {
+          "path": "/solution/solution/columnStrategy/0/probability",
+          "value": 0.5
+        }
+      ]
+    },
+    {
+      "file": "dec_knapsack.json",
+      "checks": [
+        {
+          "path": "/solution/result/totalReturn",
+          "value": 12
+        },
+        {
+          "path": "/solution/result/capacityUsed",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "file": "dec_route.json",
+      "checks": [
+        {
+          "path": "/solution/result/totalCost",
+          "value": 7
+        },
+        {
+          "path": "/solution/result/path",
+          "value": [
+            "Origen",
+            "Norte",
+            "Destino"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "dec_production.json",
+      "checks": [
+        {
+          "path": "/solution/result/totalCost",
+          "value": 23
+        },
+        {
+          "path": "/solution/result/decisions/0/productionQuantity",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "file": "prob_eoq.json",
+      "family": "inventory",
+      "checks": [
+        {
+          "path": "/solution/economicOrderQuantity",
+          "value": 189.7366596101
+        },
+        {
+          "path": "/solution/reorderPoint",
+          "value": 12
+        },
+        {
+          "path": "/solution/optimum/totalCost",
+          "value": 6379.4733192202
+        }
+      ]
+    },
+    {
+      "file": "prob_cola.json",
+      "family": "queuing",
+      "checks": [
+        {
+          "path": "/metrics/averageTimeInSystem",
+          "value": 0.5
+        },
+        {
+          "path": "/metrics/averageTimeInQueue",
+          "value": 0.3333333333333333
+        },
+        {
+          "path": "/metrics/averageNumberInSystem",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "file": "prob_markov.json",
+      "family": "markov",
+      "checks": [
+        {
+          "path": "/solution/stationaryProbabilities/0",
+          "value": 0.8
+        },
+        {
+          "path": "/solution/stationaryExpectedCost",
+          "value": 20
+        },
+        {
+          "path": "/solution/transientResults/3/expectedCost",
+          "value": 17.5
+        }
+      ]
+    },
+    {
+      "file": "prob_pronostico.json",
+      "family": "forecast",
+      "checks": [
+        {
+          "path": "/solution/result/intercept",
+          "value": 10
+        },
+        {
+          "path": "/solution/result/slope",
+          "value": 2
+        },
+        {
+          "path": "/solution/result/forecasts/0/value",
+          "value": 24
+        },
+        {
+          "path": "/solution/result/forecasts/1/value",
+          "value": 26
+        }
+      ]
+    },
+    {
+      "file": "prob_calidad.json",
+      "family": "quality",
+      "checks": [
+        {
+          "path": "/solution/solution/points/0/centerLine",
+          "value": 3
+        },
+        {
+          "path": "/solution/solution/points/0/upperControlLimit",
+          "value": 8.1961524227
+        },
+        {
+          "path": "/solution/solution/outsideLimitIndexes",
+          "value": []
+        }
+      ]
+    },
+    {
+      "file": "prob_muestreo.json",
+      "family": "acceptance",
+      "checks": [
+        {
+          "path": "/solution/producerRiskAtAQL",
+          "value": 0.0168593376357
+        },
+        {
+          "path": "/solution/consumerRiskAtRQL",
+          "value": 0.175557876089
+        },
+        {
+          "path": "/solution/atAQL/averageTotalInspection",
+          "value": 28.0924820651
+        }
+      ]
+    },
+    {
+      "file": "prob_simulacion.json",
+      "family": "simulation",
+      "checks": [
+        {
+          "path": "/solution/generatedEntities",
+          "value": 4005
+        },
+        {
+          "path": "/solution/completedEntities",
+          "value": 4004
+        },
+        {
+          "path": "/solution/queueMetrics/0/averageLength",
+          "value": 1.20223826183
+        },
+        {
+          "path": "/solution/serverMetrics/0/utilization",
+          "value": 0.664469545477
+        }
+      ],
+      "repeat": true
+    },
+    {
+      "file": "plan_spp.json",
+      "checks": [
+        {
+          "path": "/solution/solution/totalCost",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "file": "plan_mst.json",
+      "checks": [
+        {
+          "path": "/solution/solution/totalCost",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "file": "plan_maxflow.json",
+      "checks": [
+        {
+          "path": "/solution/solution/maxFlow",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "file": "plan_tsp.json",
+      "checks": [
+        {
+          "path": "/solution/solution/totalCost",
+          "value": 9
+        }
+      ]
+    },
+    {
+      "file": "plan_assignment.json",
+      "checks": [
+        {
+          "path": "/solution/solution/totalCost",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "file": "plan_transport.json",
+      "checks": [
+        {
+          "path": "/solution/solution/totalCost",
+          "value": 17
+        }
+      ]
+    },
+    {
+      "file": "plan_netflow.json",
+      "checks": [
+        {
+          "path": "/solution/solution/totalCost",
+          "value": 12
+        }
+      ]
+    },
+    {
+      "file": "plan_flowShop.json",
+      "checks": [
+        {
+          "path": "/makespan",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "file": "plan_jobShop.json",
+      "checks": [
+        {
+          "path": "/makespan",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "file": "plan_cpm.json",
+      "checks": [
+        {
+          "path": "/solution/projectDuration",
+          "value": 7
+        }
+      ]
+    },
+    {
+      "file": "plan_pert.json",
+      "checks": [
+        {
+          "path": "/solution/projectVariance",
+          "value": 0.2222222222222222
+        }
+      ]
+    },
+    {
+      "file": "plan_aggregate.json",
+      "checks": [
+        {
+          "path": "/solution/totalCost",
+          "value": 21
+        }
+      ]
+    },
+    {
+      "file": "plan_mrp.json",
+      "checks": [
+        {
+          "path": "/solution/schedules/1/plannedOrderReleases",
+          "value": [
+            0,
+            10,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "file": "plan_line.json",
+      "checks": [
+        {
+          "path": "/solution/stationCount",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "file": "plan_location.json",
+      "checks": [
+        {
+          "path": "/solution/objectiveValue",
+          "value": 12
+        }
+      ]
+    },
+    {
+      "file": "plan_layout.json",
+      "checks": [
+        {
+          "path": "/solution/objectiveValue",
+          "value": 22
+        }
+      ]
+    },
+    {
+      "file": "prob_epq.json",
+      "family": "inventory",
+      "checks": [
+        {
+          "path": "/solution/economicOrderQuantity",
+          "value": 268.3281573
+        },
+        {
+          "path": "/solution/optimum/totalRelevantCost",
+          "value": 268.3281573
+        }
+      ]
+    },
+    {
+      "file": "prob_descuento.json",
+      "family": "inventory",
+      "checks": [
+        {
+          "path": "/solution/optimum/cost/orderQuantity",
+          "value": 300
+        },
+        {
+          "path": "/solution/optimum/cost/totalCost",
+          "value": 5820
+        }
+      ]
+    },
+    {
+      "file": "prob_newsboy.json",
+      "family": "inventory",
+      "checks": [
+        {
+          "path": "/solution/criticalRatio",
+          "value": 0.8
+        },
+        {
+          "path": "/solution/optimum/orderQuantity",
+          "value": 116.83242465
+        },
+        {
+          "path": "/solution/optimum/expectedProfit",
+          "value": 272.003807959
+        }
+      ]
+    },
+    {
+      "file": "prob_lotes.json",
+      "family": "inventory",
+      "checks": [
+        {
+          "path": "/solution/totalCost",
+          "value": 110
+        },
+        {
+          "path": "/solution/decisions/0/productionQuantity",
+          "value": 20
+        },
+        {
+          "path": "/solution/decisions/1/productionQuantity",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "file": "prob_qr.json",
+      "family": "inventory",
+      "checks": [
+        {
+          "path": "/solution/reorderPoint",
+          "value": 54.2426914014
+        },
+        {
+          "path": "/solution/orderQuantity",
+          "value": 194.866240738
+        }
+      ]
+    },
+    {
+      "file": "prob_sS.json",
+      "family": "inventory",
+      "checks": [
+        {
+          "path": "/solution/orderUpToLevel",
+          "value": 254.095104282
+        },
+        {
+          "path": "/solution/orderQuantity",
+          "value": 200
+        }
+      ]
+    },
+    {
+      "file": "prob_periodica.json",
+      "family": "inventory",
+      "checks": [
+        {
+          "path": "/solution/reviewInterval",
+          "value": 0.170782512766
+        },
+        {
+          "path": "/solution/orderUpToLevel",
+          "value": 321.459989064
+        }
+      ]
+    },
+    {
+      "file": "prob_opcional.json",
+      "family": "inventory",
+      "checks": [
+        {
+          "path": "/solution/reorderPoint",
+          "value": 163.95133888
+        },
+        {
+          "path": "/solution/orderUpToLevel",
+          "value": 353.68799849
+        }
+      ]
+    },
+    {
+      "file": "prob_movil.json",
+      "family": "forecast",
+      "checks": [
+        {
+          "path": "/solution/result/forecasts/0/value",
+          "value": 20
+        },
+        {
+          "path": "/solution/result/forecasts/1/value",
+          "value": 20.6666666667
+        },
+        {
+          "path": "/solution/result/meanSquaredError",
+          "value": 16
+        }
+      ]
+    },
+    {
+      "file": "prob_suavizado.json",
+      "family": "forecast",
+      "checks": [
+        {
+          "path": "/solution/result/forecasts/0/value",
+          "value": 18.11766
+        },
+        {
+          "path": "/solution/result/meanAbsoluteDeviation",
+          "value": 4.07844
+        }
+      ]
+    },
+    {
+      "file": "prob_estacional.json",
+      "family": "forecast",
+      "checks": [
+        {
+          "path": "/solution/result/seasonalFactors/0/factor",
+          "value": 1
+        },
+        {
+          "path": "/solution/result/forecasts/0/value",
+          "value": 24
+        }
+      ]
+    },
+    {
+      "file": "prob_regresion.json",
+      "family": "forecast",
+      "checks": [
+        {
+          "path": "/solution/result/intercept",
+          "value": 3
+        },
+        {
+          "path": "/solution/result/coefficients/Actividad",
+          "value": 2
+        },
+        {
+          "path": "/solution/result/rSquared",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "file": "prob_p.json",
+      "family": "quality",
+      "checks": [
+        {
+          "path": "/solution/solution/points/0/centerLine",
+          "value": 0.03
+        },
+        {
+          "path": "/solution/solution/points/2/upperControlLimit",
+          "value": 0.0661870142454
+        }
+      ]
+    },
+    {
+      "file": "prob_xr.json",
+      "family": "quality",
+      "checks": [
+        {
+          "path": "/solution/solution/grandMean",
+          "value": 10
+        },
+        {
+          "path": "/solution/solution/averageRange",
+          "value": 2
+        },
+        {
+          "path": "/solution/solution/meanChart/points/0/upperControlLimit",
+          "value": 12.046
+        }
+      ]
+    },
+    {
+      "file": "prob_pareto.json",
+      "family": "quality",
+      "checks": [
+        {
+          "path": "/solution/solution/totalCount",
+          "value": 10
+        },
+        {
+          "path": "/solution/solution/categories/0/name",
+          "value": "Rayas"
+        },
+        {
+          "path": "/solution/solution/categories/1/cumulativePercentage",
+          "value": 0.9
+        }
+      ]
+    },
+    {
+      "file": "prob_normal.json",
+      "family": "quality",
+      "checks": [
+        {
+          "path": "/solution/solution/mean",
+          "value": 10
+        },
+        {
+          "path": "/solution/solution/sampleStandardDeviation",
+          "value": 1.58113883008
+        },
+        {
+          "path": "/solution/solution/correlation",
+          "value": 0.997901557682
+        }
+      ]
+    },
+    {
+      "file": "prob_cola_finita.json",
+      "family": "queuing",
+      "checks": [
+        {
+          "path": "/metrics/systemCapacity",
+          "value": 5
+        },
+        {
+          "path": "/metrics/blockingProbability",
+          "value": 0.00412371134
+        },
+        {
+          "path": "/metrics/effectiveArrivalRate",
+          "value": 3.98350515464
+        }
+      ]
+    },
+    {
+      "file": "prob_doble.json",
+      "family": "acceptance",
+      "checks": [
+        {
+          "path": "/solution/producerRiskAtAQL",
+          "value": 0.0130010626076
+        },
+        {
+          "path": "/solution/consumerRiskAtRQL",
+          "value": 0.265273576843
+        },
+        {
+          "path": "/solution/atAQL/averageSampleNumber",
+          "value": 10.9550407587
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "CPM crash six days",
+      "file": "plan_cpm.json",
+      "command": [
+        "solve-cpm-crash-json"
+      ],
+      "options": [
+        "6",
+        "--backend",
+        "native"
+      ],
+      "checks": [
+        {
+          "path": "/plannedCost",
+          "value": 35
+        },
+        {
+          "path": "/plannedProjectDuration",
+          "value": 6
+        },
+        {
+          "path": "/incrementalCost",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "name": "Layout pairwise improvement",
+      "file": "plan_layout.json",
+      "command": [
+        "solve-facilities-json"
+      ],
+      "options": [
+        "--layout-strategy",
+        "pairwise-swap"
+      ],
+      "checks": [
+        {
+          "path": "/solution/objectiveValue",
+          "value": 13
+        },
+        {
+          "path": "/solution/search/improvement",
+          "value": 9
+        },
+        {
+          "path": "/backend/exactness",
+          "value": "heuristic"
+        }
+      ]
+    },
+    {
+      "name": "Simulation three replications",
+      "file": "prob_simulacion.json",
+      "command": [
+        "solve-simulation-json"
+      ],
+      "options": [
+        "--replications",
+        "3"
+      ],
+      "repeat": true,
+      "checks": [
+        {
+          "path": "/solution/replications",
+          "value": 3
+        },
+        {
+          "path": "/solution/queueMetrics/0/averageLength",
+          "value": 1.2292403685715287
+        },
+        {
+          "path": "/solution/queueLengthConfidenceIntervals/Espera/lower",
+          "value": 1.1466678542274527
+        },
+        {
+          "path": "/solution/queueLengthConfidenceIntervals/Espera/upper",
+          "value": 1.3118128829156048
+        }
+      ]
+    },
+    {
+      "name": "Design binomial acceptance plan",
+      "file": "prob_muestreo.json",
+      "command": [
+        "design-acceptance"
+      ],
+      "arguments": [
+        "500",
+        "0.01",
+        "0.15",
+        "0.05",
+        "0.10"
+      ],
+      "checks": [
+        {
+          "path": "/sampleSize",
+          "value": 25
+        },
+        {
+          "path": "/acceptanceNumber",
+          "value": 1
+        },
+        {
+          "path": "/producerRisk",
+          "value": 0.025759105399048687
+        },
+        {
+          "path": "/consumerRisk",
+          "value": 0.09307050037665449
+        }
+      ]
+    }
+  ]
+}

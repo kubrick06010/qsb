@@ -1,0 +1,265 @@
+\chapter{Decisions, games, and dynamic programming}
+\label{chap:decisiones}
+
+\section{Choosing under uncertainty}
+A decision combines controllable alternatives with states of the environment
+that the analyst does not control. A payoff table organizes the payoff $a_{ij}$
+from alternative $i$ in state $j$. When prior probabilities $p_j$ are known,
+the expected-value criterion selects
+\[
+ i^*\in\arg\max_i\sum_j p_j a_{ij}.
+\]
+This criterion assumes comparable payoffs and risk neutrality. A solution
+maximizing average profit may involve substantial losses in a particular state.
+QSB does not automatically transform money into utility or incorporate the
+decision maker's risk aversion.
+
+\subsection{Payoff tables and information}
+The file \path{dec_payoff.json} considers a launch with demand Alta (High,
+probability $0.4$) or Baja (Low, $0.6$). The input's Spanish identifiers are
+retained here so that they match the files and output: Lanzar means Launch,
+Esperar means Wait, Positivo means Positive, and Negativo means Negative.
+The payoffs are:
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Decision & Alta & Baja\\
+\midrule
+Lanzar & 100 & $-40$\\
+Esperar & 20 & 10\\
+\bottomrule
+\end{tabular}
+\end{center}
+Without a market study, Lanzar yields $0.4(100)+0.6(-40)=16$, compared with
+14 for Esperar. With perfect information, Lanzar would be chosen in Alta and
+Esperar in Baja: $0.4(100)+0.6(10)=46$. The expected value of perfect
+information (EVPI) is $46-16=30$, an upper bound on the price of information
+under this model.
+
+The study produces a Positivo or Negativo indicator. The
+\texttt{indicatorLikelihoods} matrix uses indicator rows and state columns:
+$P(+\mid Alta)=0.8$ and $P(+\mid Baja)=0.2$. Each column represents a
+distribution over possible indicators. These are not posterior probabilities.
+The policy with the study is Lanzar if the result is Positivo and Esperar if
+it is Negativo. Its expected value is $33.6$; hence EVSI (expected value of
+sample information) is $33.6-16=17.6$. This amount does not deduct the cost
+of the study. If the study cost 20, purchasing it would not be worthwhile
+under the expected-value criterion.
+
+\begin{lstlisting}
+swift run qsb validate-decision-json manual/examples/dec_payoff.json
+swift run qsb solve-decision-json manual/examples/dec_payoff.json --backend native
+\end{lstlisting}
+The output contains \texttt{priorExpectedValues}, \texttt{indicatorAnalyses},
+\texttt{bestPriorDecision}, EVSI, and EVPI. Keys retain their English names.
+The solver requires a probability greater than $10^{-12}$ for every indicator;
+otherwise, solution fails rather than inventing a posterior.
+
+\subsection{Bayesian updating}
+Bayes' rule converts prior probability and likelihood into posterior probability:
+\[
+ P(s_j\mid e_k)=\frac{P(e_k\mid s_j)p_j}{\sum_\ell P(e_k\mid s_\ell)p_\ell}.
+\]
+The file \path{dec_bayes.json} separates this operation from any payoff table.
+It uses the same states and study. QSB obtains $P(+)=0.44$, $P(-)=0.56$,
+and the following posteriors:
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Evidence & Alta & Baja\\
+\midrule
+Positivo & $0.727273$ & $0.272727$\\
+Negativo & $0.142857$ & $0.857143$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{lstlisting}
+swift run qsb validate-decision-json manual/examples/dec_bayes.json
+swift run qsb solve-decision-json manual/examples/dec_bayes.json
+\end{lstlisting}
+\texttt{likelihoods} again uses outcome rows and state columns. Changing the
+order of names requires changing the corresponding rows or columns as well.
+Probabilities must be finite, nonnegative, and consistent with the distributions
+represented. Bayes updates beliefs; by itself it does not say which action to take.
+
+\subsection{Trees and backward induction}
+A tree makes the temporal order of decisions and observations explicit.
+\texttt{rootID} identifies the root, each node has a unique \texttt{id}, and
+its \texttt{childIDs} identify successors. The types are \texttt{decision},
+\texttt{chance}, and \texttt{terminal}. Chance-branch probabilities are stored
+in the child nodes, rather than in a list on the parent.
+
+Backward induction assigns a terminal its payoff. A decision node adds its
+local payoff to the maximum value of its children; a chance node adds its
+local payoff to the expected value of its children. Local payoffs accumulate
+along the path: do not repeat a cost in the leaves if it was already entered
+in an ancestor.
+
+In \path{dec_tree.json}, Invertir (Invest) costs 5 and yields 40 with
+probability $0.6$ or $-10$ with probability $0.4$. Its value is
+$-5+0.6(40)+0.4(-10)=15$; Conservar (Retain) yields 12. The root value is
+15, and the policy selects Invertir.
+\begin{lstlisting}
+swift run qsb validate-decision-json manual/examples/dec_tree.json
+swift run qsb solve-decision-json manual/examples/dec_tree.json
+\end{lstlisting}
+\begin{figure}[H]
+\centering
+\input{figures/decision-tree}
+\caption{Decision tree: the square represents a choice and the circle represents chance. The thick branch is the selected policy. Leaves show payoffs; the local investment cost is added once. Names retain the JSON identifiers.}
+\label{fig:decision-tree}
+\end{figure}
+
+Review \texttt{nodeValues} for each node and \texttt{policy} for the decisions.
+The method maximizes payoffs: to minimize costs, you can use their negatives,
+explaining the convention. QSB warns about and normalizes chance-child
+probabilities whose positive sum differs from one, for compatibility with
+rounded inputs. This repair does not replace a review of the data. Avoid cycles,
+nonexistent identifiers, and inconsistent probabilities.
+
+\section{Zero-sum games}
+In a zero-sum game, the row player's payoff is the column player's loss. The
+first maximizes and the second minimizes. Mixed strategies are probability
+distributions over actions; they do not represent fractional quantities of an
+action in a single play.
+
+For a matrix $A$, QSB solves equivalent linear programs. The row player seeks
+$\max v$ subject to $A^Tp\geq v\mathbf{1}$, $\sum_i p_i=1$, and $p_i\geq0$.
+The column player solves the dual minimization problem. This assumes simultaneous
+choices and known payoffs. \path{dec_game.json} uses
+\[
+ A=\begin{pmatrix}1&-1\\-1&1\end{pmatrix}.
+\]
+Both players assign probability $0.5$ to A and B, and the game's value is
+zero. The numerical output may show $4.44\times10^{-16}$ because of rounding.
+\begin{lstlisting}
+swift run qsb validate-decision-json manual/examples/dec_game.json
+swift run qsb solve-decision-json manual/examples/dec_game.json
+\end{lstlisting}
+Read \texttt{rowStrategy}, \texttt{columnStrategy}, and \texttt{value}. The
+native method uses the shared linear solver. It does not interpret this solution
+as an equilibrium of a general non-zero-sum game or a sequential game.
+
+\section{Dynamic programming: state, stage, and action}
+Dynamic programming divides a problem into stages. The state summarizes the
+information needed to evaluate future decisions; an action changes that state
+and produces a local cost or return. The principle of optimality allows an
+optimal policy to be built from subproblems. A state omitting relevant
+information breaks that principle.
+
+QSB implements three discrete, deterministic models: bounded knapsack,
+stage-by-stage acyclic routing, and production with inventory. Inputs use
+\texttt{kind} and \texttt{model}. Outputs include a typed result,
+\texttt{assumptions}, and \texttt{trace}. Each trace row describes a stage,
+state, action, next state, and \emph{local} value; this value is not necessarily
+the subproblem's optimal value function.
+
+\subsection{Bounded knapsack}
+Each item $i$ consumes $w_i$ units of capacity and contributes $r_i$ per unit;
+at most $b_i$ units are available. The formulation is
+\[
+ \max\sum_i r_i x_i,\qquad \sum_i w_i x_i\leq C,
+ \qquad x_i\in\{0,\ldots,b_i\}.
+\]
+A recurrence with remaining capacity $c$ is
+$F_i(c)=\max_q\{q r_i+F_{i+1}(c-qw_i)\}$, over available quantities that fit.
+Capacity and consumption are integers; returns may be finite real numbers.
+Do not convert continuous physical measurements to integers without justifying
+the discretization unit.
+
+In \path{dec_knapsack.json}, $C=7$ and the items $(b_i,w_i,r_i)$ are
+A $(2,3,5)$, B $(3,2,3)$, and C $(1,4,7)$. QSB selects one A and one C:
+capacity 7 and return 12. The alternative of one A and two B also uses 7 but
+returns 11. The selection encodes quantities; the trace also includes the
+decision to take zero units of B.
+\begin{lstlisting}
+swift run qsb validate-dp-json manual/examples/dec_knapsack.json
+swift run qsb solve-dp-json manual/examples/dec_knapsack.json
+\end{lstlisting}
+In macOS, Bounded Knapsack lets you edit capacity, availability, consumption,
+and returns, and copy or paste the table. Summary provides metrics, bars, and
+a selection table; the trace helps explain the policy.
+
+\subsection{Stage-by-stage routing (Stagecoach)}
+The \texttt{nodes} list declares a topological order: the first node is the
+origin and the last the destination. Every arc must advance in that order and
+have a finite, nonnegative cost. The method applies
+\[
+ V(i)=\min_{(i,j)}\{c_{ij}+V(j)\},\qquad V(\text{destination})=0.
+\]
+\path{dec_route.json} contains Origen--Norte (4), Origen--Sur (2),
+Norte--Destino (3), and Sur--Destino (6). The identifiers mean Origin, North,
+South, and Destination, respectively. The result is Origen--Norte--Destino,
+with cost 7; choosing the cheapest initial arc would yield 8.
+\begin{lstlisting}
+swift run qsb validate-dp-json manual/examples/dec_route.json
+swift run qsb solve-dp-json manual/examples/dec_route.json
+\end{lstlisting}
+A structurally valid graph may have no route to the destination; this is
+detected during solution. This model does not accept cycles or backward arcs:
+for other graphs, consult the networks chapter.
+
+\subsection{Production and inventory}
+The state at the beginning of a period is inventory $I_{t-1}$; the action is
+integer production $P_t$. Deterministic demand $d_t$ is met with
+$I_t=I_{t-1}+P_t-d_t\geq0$. Capacities bound $P_t$ and $I_t$. QSB assumes
+zero initial and final inventory, with no backorders. It minimizes
+\[
+ \sum_t\left[K_t\mathbf{1}_{P_t>0}+c_tP_t+h_tI_t\right].
+\]
+Holding cost applies to the period's ending inventory, rather than its initial
+inventory. The recurrence evaluates feasible production quantities and adds
+the optimal future cost.
+
+\path{dec_production.json} has demands of 2 and 3, production capacity 5,
+storage capacity 3, setup cost 10, unit cost 2, and holding cost 1 in both
+periods. QSB produces 5 initially, carries 3, and produces nothing in the
+second period. The cost is $10+2(5)+1(3)=23$, compared with 30 if production
+is set up and carried out in each period. The decisions detail initial
+inventory, production, demand, ending inventory, and local cost.
+\begin{lstlisting}
+swift run qsb validate-dp-json manual/examples/dec_production.json
+swift run qsb solve-dp-json manual/examples/dec_production.json
+\end{lstlisting}
+Field validation does not prove the existence of a feasible plan. Insufficient
+capacities may cause solution failure. This model does not represent multiple
+products, configurable initial inventory, shortages, or random demand.
+
+\section{Use, metadata, and shared limits}
+All four decision variants have native macOS editors. The tree editor allows
+nodes and links to be edited; removing leaves or adding terminals maintains a
+structure that is easier to review. Stagecoach and production/inventory can be
+edited through the structured form or JSON; their results have native route or
+per-period series views. Use Validation before Run and consult JSON when you
+need to preserve every field.
+
+The native decision backend declares \texttt{exact}: it computes the specified
+criterion using numerical arithmetic within the model and its educational scale.
+The three dynamic variants declare \texttt{fixtureScale}; their policies are
+those obtained by the implemented recurrences, with discretization and memory
+consumption growing with capacity, inventory, and the number of stages. There
+is no promise of industrial-scale performance. \texttt{--backend validate}
+returns validation rather than a solution; the external backend is unavailable
+for these families. Save the model alongside the dynamic programming output:
+its solution document preserves the title and assumptions, but not the complete
+model.
+
+\section{Exercises and checks}
+\begin{enumerate}
+ \item Change $P(Alta)$ from $0.4$ to $0.3$, adjusting Baja as well. First
+ calculate the best decision without information, then solve again. Why can
+ EVSI change even when the quality of the study remains unchanged?
+ \item Calculate the maximum price of the example's study and compare it
+ with EVPI. Explain which assumptions would prevent using that price in a
+ real decision.
+ \item In the tree, increase the cost of Invertir to 9. This branch's value
+ becomes 11, and the root decision changes to Conservar, with value 12.
+ \item In the knapsack, change capacity to 6. Verify a return of 10 with two
+ units of A, and explain why the return/consumption ratio is insufficient to
+ ensure optimality.
+ \item In the route, make Sur--Destino cost 4. The route through Sur will
+ cost 6. Then add a backward arc and examine the validation diagnostic.
+ \item Reduce the production setup cost to 1 in both periods. Producing 2
+ and 3 separately costs 12, compared with 14 when inventory is carried.
+ Compare each inventory balance and the trace.
+\end{enumerate}

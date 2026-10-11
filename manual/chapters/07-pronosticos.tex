@@ -1,17 +1,130 @@
-\chapter{Pronosticos}
+\chapter{Pronósticos y regresión}
+\label{ch:pronosticos}
 
-\section{Rol en investigacion de operaciones}
-Los pronosticos alimentan modelos de inventarios, capacidad, programacion y
-planeacion agregada. Una prediccion debe evaluarse por su utilidad operacional,
-no solo por ajuste historico \cite{hyndman2021forecasting}.
+\section{Una previsión es una hipótesis operativa}
+Los pronósticos alimentan inventarios, capacidad y planificación. Una recta que
+ajusta bien el pasado no garantiza precisión futura
+\cite{hyndman2021forecasting}. QSB implementa tendencia lineal, media móvil,
+suavizamiento exponencial simple, descomposición estacional multiplicativa y
+regresión lineal por mínimos cuadrados. El JSON es una solicitud: contiene
+modelo, método, horizonte y parámetros. Así se conserva la elección del método
+junto con los datos. Los backends nativo y de validación están disponibles;
+la integración externa es una extensión futura.
 
-\section{Metodos iniciales}
-El manual cubrira, de forma progresiva, promedio movil, suavizamiento
-exponencial, estacionalidad y regresion. Para cada metodo se debe reportar:
-serie original, transformaciones, horizonte, parametros, errores y criterio de
-seleccion.
+\section{Datos y errores}
+Las observaciones se procesan en el orden de sus filas; las etiquetas no
+reordenan fechas ni completan períodos ausentes. Una serie mensual debe tener
+espaciado mensual coherente. QSB devuelve valores ajustados, residuos
+\(e_t=y_t-\hat y_t\), MAD, MSE y MAPE:
+\[
+ \mathrm{MAD}=\frac1m\sum|e_t|,\quad
+ \mathrm{MSE}=\frac1m\sum e_t^2,\quad
+ \mathrm{MAPE}=\frac{100}{m_+}\sum_{|y_t|>10^{-12}}|e_t/y_t|.
+\]
+\(m\) cuenta las filas ajustadas disponibles, no necesariamente toda la
+historia; \(m_+\) excluye valores reales con magnitud no mayor que \(10^{-12}\).
+Si todos quedan excluidos, MAPE no
+está disponible. MAD conserva unidades de la serie; MSE tiene unidades al
+cuadrado; MAPE se publica en porcentaje. Comparar métodos exige considerar
+que media móvil y suavizamiento omiten filas iniciales diferentes.
 
-\section{Conexion con QSB}
-Los comandos de \qsb{} para series de tiempo permiten fijar ventanas,
-coeficientes de suavizamiento y horizontes. Cada ejemplo publicado debera
-conservar el archivo de datos y el comando exacto usado.
+\section{Tendencia lineal: ejemplo completo}
+El modelo \(y_t=a+bt+e_t\) estima \(a,b\) por mínimos cuadrados con índices
+\(t=1,\ldots,n\). \path{manual/examples/prob_pronostico.json} contiene
+\((12,14,16,18,20,22)\), unidad mes y horizonte dos. Desde la raíz:
+\begin{lstlisting}
+.build/debug/qsb validate-forecast-json manual/examples/prob_pronostico.json
+.build/debug/qsb solve-forecast-json manual/examples/prob_pronostico.json
+\end{lstlisting}
+QSB obtiene \(a=10,b=2\), pronósticos \(24\) y \(26\), y los tres errores
+cero. Son datos artificiales elegidos para comprobar fórmula e índices: el
+error nulo no constituye evidencia sobre demanda real. El resultado conserva
+la solicitud, el algoritmo \texttt{linearTrend} y exactitud
+\texttt{exact}, que describe el cálculo del método, no el conocimiento exacto
+del futuro.
+
+\section{Media móvil y suavizamiento}
+Para ventana \(k\), la previsión de un paso es
+\[
+ \hat y_{t+1}=\frac1k\sum_{j=0}^{k-1}y_{t-j}.
+\]
+QSB extiende horizontes usando previsiones anteriores dentro de la ventana
+cuando se agotan valores reales. El archivo \path{prob_movil.json}
+selecciona ventana tres sobre la misma serie. Resultan \(20\) y
+\(20.666667\): la segunda media utiliza \((20,22,20)\). MAD es \(4\), MSE
+\(16\) y MAPE \(20.134680\%\), calculados sobre las últimas tres filas.
+Esta demora es previsible cuando la serie tiene tendencia.
+
+El suavizamiento simple aplica
+\[
+ F_{t+1}=\alpha y_t+(1-\alpha)F_t,\qquad 0<\alpha\le1.
+\]
+El pronóstico inicial se fija al primer dato. En
+\path{prob_suavizado.json}, \(\alpha=0.3\) produce \(18.117660\) en
+ambos períodos futuros. El método no tiene componente de tendencia; no
+extrapola automáticamente el crecimiento. Su MAD es \(4.078440\), MSE
+\(18.233818\) y MAPE \(22.081810\%\). Un alfa grande reacciona rápido y
+puede seguir más ruido; uno pequeño suaviza y puede retrasarse.
+Ambos ejemplos se ejecutan con \texttt{solve-forecast-json} y se validan con
+\texttt{validate-forecast-json}.
+
+\section{Estacionalidad multiplicativa}
+El método combina la tendencia estimada con factores de estación:
+\(\hat y_t=(a+bt)s_j\). QSB calcula cocientes real/tendencia, promedia por
+posición estacional y normaliza los factores para que su media sea uno.
+Es una descomposición educativa, no Holt--Winters ni un modelo ARIMA. La
+longitud estacional y el orden de observaciones deben corresponder al fenómeno;
+se necesitan al menos dos ciclos completos y valores/tendencia compatibles con
+la división multiplicativa.
+\path{prob_estacional.json} usa longitud dos sobre la serie lineal anterior.
+Los dos factores son uno; la previsión vuelve a ser \(24,26\). El caso
+comprueba que especificar una estación no inventa oscilaciones cuando los datos
+coinciden con la recta. Para estudiar estacionalidad real, cambie la serie por
+varios ciclos con oscilación y revise residuos antes de interpretar los factores.
+
+\section{Regresión explicativa}
+Se modela \(y_i=\beta_0+\sum_j\beta_jx_{ij}+e_i\) con intercepto.
+Los predictores deben tener columnas linealmente independientes; una columna
+constante duplica el intercepto. El núcleo detecta deficiencia de rango.
+\path{prob_regresion.json} contiene actividad \(1,2,3,4,5\) y consumo
+\(5,7,9,11,13\). Con \texttt{solve-forecast-json}, QSB devuelve intercepto
+\(3\), coeficiente de actividad \(2\), SSE cero y \(R^2=1\).
+El horizonte del contrato de solicitud debe ser positivo también para
+regresión, aunque su salida ajusta las observaciones suministradas y no genera
+filas futuras de predictores. Para una nueva actividad, la ecuación estimada
+permite calcular una predicción, sin que QSB publique un intervalo para ella.
+
+Un coeficiente es una asociación condicional, no causalidad. \(R^2\) mide
+ajuste dentro de la muestra; no identifica sobreajuste ni garantiza
+extrapolación. No se publican errores estándar de coeficientes, pruebas de
+hipótesis ni intervalos predictivos en este flujo. Datos originales pequeños
+permiten comprobar el contrato, pero no evaluar capacidad de generalización.
+
+\section{Trabajo en macOS y evaluación}
+En el editor de pronósticos seleccione método, parámetros y horizonte; introduzca
+filas históricas en el orden temporal. Se pueden pegar valores en una columna,
+o etiquetas y valores separados por tabuladores en dos columnas. El pegado se
+valida de forma atómica: una fila mal formada no reemplaza parcialmente la
+historia. La regresión utiliza nombres de variables y filas explicativas.
+Valide, resuelva y revise las curvas reales, ajustadas y futuras; las curvas y
+el gráfico de residuos comparten el orden de observaciones. Controles de
+visibilidad y escala horizontal ayudan con series extensas. El resumen muestra
+los parámetros y métricas; el selector JSON conserva solicitud y resultado.
+Aplicar JSON solo actualiza el borrador cuando su decodificación funciona.
+
+Para evaluar un pronóstico operacional, reserve períodos finales, ajuste con
+la historia anterior y compare con datos reservados. Los errores publicados por
+QSB son los ajustes del cálculo ejecutado; no constituyen automáticamente una
+prueba fuera de muestra. No seleccione parámetros mirando reiteradamente el
+mismo conjunto reservado. Documente unidades, ventana, alfa, estación y horizonte
+al entregar el análisis.
+
+\section{Ejercicios}
+\begin{enumerate}
+\item Compare ventanas dos y cuatro sobre la serie creciente. Explique el
+retraso y compruebe qué filas participan en MAD.
+\item Sustituya un dato por cero y compruebe la definición de MAPE. Compare
+su conveniencia con MAD.
+\item Introduzca un segundo predictor igual al doble del primero y observe el
+diagnóstico de rango. Explique por qué más columnas no siempre aportan información.
+\end{enumerate}

@@ -1,0 +1,39 @@
+{
+  "kind": "MFP",
+  "model": {
+    "title": "maxflow",
+    "nodes": [
+      "S",
+      "A",
+      "B",
+      "T"
+    ],
+    "arcs": [
+      {
+        "from": "S",
+        "to": "A",
+        "cost": 3
+      },
+      {
+        "from": "S",
+        "to": "B",
+        "cost": 2
+      },
+      {
+        "from": "A",
+        "to": "B",
+        "cost": 1
+      },
+      {
+        "from": "A",
+        "to": "T",
+        "cost": 2
+      },
+      {
+        "from": "B",
+        "to": "T",
+        "cost": 3
+      }
+    ]
+  }
+}

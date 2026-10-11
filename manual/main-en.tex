@@ -1,0 +1,143 @@
+\documentclass[11pt,openany]{book}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{microtype}
+\usepackage{url}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+\input{figures/styles}
+
+\geometry{a4paper,margin=2.7cm}
+\setlength{\emergencystretch}{2em}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue,
+  pdftitle={Operations Research with QSB: An Academic and Practical Manual},
+  pdfauthor={QSB Project}
+}
+
+
+\theoremstyle{definition}
+\newtheorem{definicion}{Definition}[chapter]
+\newtheorem{ejemplo}{Example}[chapter]
+\newtheorem{observacion}{Remark}[chapter]
+
+\newcommand{\qsb}{\textnormal{\textsc{QSB}}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+
+\lstdefinestyle{qsbjson}{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  showstringspaces=false,
+  keepspaces=true
+}
+\lstset{style=qsbjson}
+
+\begin{document}
+
+\frontmatter
+
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\Huge\bfseries Operations Research with \qsb\par}
+  \vspace{0.5cm}
+  {\Large\bfseries An Academic and Practical Manual\par}
+  \vspace{1.5cm}
+  {\Large Using the application, modeling problems, and interpreting results\par}
+  \vspace{2cm}
+  {\large QSB Project\par}
+  \vspace{0.4cm}
+  {\large Editors: the QSB academic and development community\par}
+  \vfill
+  {\large Verified working edition\par}
+  {\large October 11, 2026\par}
+\end{titlepage}
+
+\chapter*{Editorial note}
+\addcontentsline{toc}{chapter}{Editorial note}
+This manual accompanies the QSB macOS application and command-line tool. It
+presents operations research fundamentals, original reproducible examples, and
+instructions for formulating, validating, solving, and interpreting models.
+Its coverage matches the project's documented state on October 11, 2026. The
+roadmap remains the public source of truth for software status.
+
+The examples in \path{manual/examples/} were created for this project. They do
+not require WinQSB files or reproduce its manual. The compatibility sections
+explain how to import your own files without redistributing proprietary material.
+
+\section*{How to read this manual}
+Start with the application guide and the linear programming example. Then turn
+to the chapter for the model family you need. Each chapter separates model
+assumptions, the procedure in QSB, results, and method limitations. A numerical
+solution does not by itself certify that the formulation accurately represents
+the real problem.
+
+Run commands from the repository root. JSON numbers use a decimal point; this
+English edition also uses decimal points in mathematical text. Results are
+rounded for readability. Verification compares numbers using tolerances rather
+than textual equality of floating-point values.
+
+\section*{Reproducibility}
+Input files are part of the manual's sources. The verifier runs the associated
+commands and checks the expected results. The manual distinguishes native
+educational solvers from optional external engines, and does not attribute
+guarantees of optimality to heuristics or local methods.
+
+Both language editions share the same JSON examples and bibliography. Names
+stored in those examples may be Spanish, such as \texttt{Lanzar} or
+\texttt{Operativa}. They are retained as exact identifiers in this edition;
+English explanations do not rename the underlying data. Application labels,
+commands, JSON keys, units, numerical values, and solver guarantees retain the
+same meaning in both editions.
+
+\tableofcontents
+\listoftables
+
+\mainmatter
+
+\part{Using QSB and modeling fundamentals}
+\include{en/chapters/00-guia-aplicacion}
+\include{en/chapters/01-preliminares}
+
+\part{Optimization and decision making}
+\include{en/chapters/02-programacion-lineal}
+\include{en/chapters/03-programacion-entera}
+\include{en/chapters/10-optimizacion-avanzada}
+\include{en/chapters/04-modelos-de-redes}
+\include{en/chapters/15-decisiones-dinamica}
+
+\part{Operations planning}
+\include{en/chapters/05-inventarios}
+\include{en/chapters/08-calendarizacion}
+\include{en/chapters/11-planificacion-produccion}
+\include{en/chapters/12-instalaciones}
+
+\part{Uncertainty and quality}
+\include{en/chapters/06-colas}
+\include{en/chapters/07-pronosticos}
+\include{en/chapters/13-markov-simulacion}
+\include{en/chapters/14-calidad-muestreo}
+
+\appendix
+\include{en/chapters/09-referencia-terminos}
+
+\backmatter
+\bibliographystyle{apalike}
+\bibliography{references}
+
+\end{document}

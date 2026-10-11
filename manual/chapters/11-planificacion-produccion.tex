@@ -1,0 +1,177 @@
+\chapter{Proyectos y planificación de producción}
+\label{chap:planificacion}
+
+\section{CPM: precedencias y camino crítico}
+CPM trabaja sobre una red acíclica de actividades: una actividad solo empieza
+cuando han terminado todas sus predecesoras. No asigna recursos limitados.
+El recorrido hacia delante calcula inicios y fines tempranos; el recorrido
+hacia atrás calcula los tardíos. La holgura total es inicio tardío menos
+inicio temprano. Una actividad crítica tiene holgura cero.
+
+En \path{manual/examples/plan_cpm.json}, A dura 3 días, B dura 2 y ambas
+preceden a C, que dura 4. Cada actividad tiene costo normal 10, tiempo de
+crash una unidad menor y costo de crash 15.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-project-json manual/examples/plan_cpm.json
+swift run qsb solve-project-json manual/examples/plan_cpm.json --backend native
+swift run qsb solve-cpm-crash-json manual/examples/plan_cpm.json 6 --backend native
+\end{lstlisting}
+\begin{figure}[htbp]
+\centering
+\input{figures/cpm}
+\caption{Red CPM de actividades: el número bajo cada nombre es su duración en días. El trazo grueso identifica actividades y precedencias críticas; el discontinuo muestra la otra precedencia.}
+\label{fig:cpm}
+\end{figure}
+
+El proyecto normal termina en 7 días. A y C son críticas; B tiene holgura 1.
+El costo normal total es 30. Crash para plazo 6 reduce C de 4 a 3, con costo
+incremental 5 y costo total 35. Reducir A también podría alcanzar el mismo
+costo; no suponga unicidad del plan.
+
+La optimización de crash supone costos lineales entre tiempos normal y mínimo,
+con pendiente $(C_{crash}-C_{normal})/(t_{normal}-t_{crash})$ cuando hay reducción
+posible. Usa tiempos continuos y un LP educativo que considera caminos;
+el número de caminos puede crecer con rapidez. No es una política de
+contratación de recursos ni incluye costo indirecto del proyecto.
+Los plazos inferiores a lo alcanzable deben tratarse como infactibles, nunca
+como instrucciones para violar precedencias.
+
+\section{PERT: duración esperada e incertidumbre}
+PERT utiliza estimaciones optimista $a$, más probable $m$ y pesimista $b$,
+ordenadas $a\leq m\leq b$. La aproximación clásica calcula
+\[
+ E[T]=(a+4m+b)/6,\qquad \operatorname{Var}(T)=((b-a)/6)^2.
+\]
+En \path{plan_pert.json} las ternas son A(2,3,4), B(1,2,3) y C(3,4,5),
+con las mismas precedencias del ejemplo CPM.
+\begin{lstlisting}[language=bash]
+swift run qsb solve-project-json manual/examples/plan_pert.json --backend native
+\end{lstlisting}
+\begin{figure}[htbp]
+\centering
+\input{figures/pert}
+\caption{Red PERT: cada actividad muestra la terna optimista, más probable y pesimista, y su duración esperada en días. El trazo grueso identifica el camino crítico calculado con esas medias.}
+\label{fig:pert}
+\end{figure}
+
+La programación de tiempos esperados vuelve a durar 7, con A y C críticas.
+La varianza reportada es $2/9$ y la desviación estándar $0.471405$ días.
+En este ejemplo hay un único camino crítico y la suma de sus varianzas
+presupone independencia. La implementación suma las varianzas de todas las
+actividades marcadas críticas; si hay varios caminos críticos, ese total no
+es la varianza de un único camino ni la del máximo entre ellos. El camino crítico
+puede cambiar entre realizaciones; sustituir duraciones aleatorias por sus
+medias no calcula exactamente la esperanza del máximo. La etiqueta
+\texttt{exact} describe el cálculo sobre esos tiempos esperados, no una
+predicción probabilística exacta de la fecha final. QSB no devuelve una
+probabilidad de cumplimiento ni simula esa incertidumbre en este módulo.
+
+\subsection{CPM y PERT en macOS}
+Importe el sobre de proyecto o cree una definición CPM/PERT. El editor de
+actividades recoge nombres, predecesoras y tiempos; CPM añade costos y PERT
+las tres estimaciones. Predecesoras inexistentes y ciclos aparecen en
+Validation. Cambiar de método conserva los datos de ambos métodos después
+de su inicialización: compruebe las estimaciones al volver a PERT.
+Copy Table/Paste Table permite trasladar actividades desde una hoja de cálculo.
+Run produce duración, actividades críticas, barras tempranas/tardías, holguras
+y tabla temporal. Revise JSON para la varianza y los valores exactos.
+La operación CLI de crash es un flujo separado; la vista normal no implica
+que se haya optimizado un plazo. Native y Validate están disponibles;
+External no resuelve proyectos actualmente.
+
+\section{Planificación agregada}
+La planificación agregada equilibra demanda por períodos mediante producción
+regular, horas extra, subcontratación, inventario y pedidos pendientes.
+Cuando la capacidad depende de plantilla, añade contratación y despido.
+Un balance básico es
+\[
+ I_t-B_t=I_{t-1}-B_{t-1}+R_t+O_t+S_t-D_t.
+\]
+El objetivo suma costos de producción, capacidad ociosa, personal, inventario
+y atraso según los datos. QSB normaliza los métodos históricos simple,
+transporte y LP a una misma formulación LP continua; el campo \texttt{method}
+conserva su identidad de entrada, no selecciona tres algoritmos nativos distintos.
+
+El ejemplo \path{plan_aggregate.json} tiene dos meses, demanda 4 y 6,
+capacidad regular 5 cada mes, costo regular 2 por unidad, horas extra hasta 2
+con costo 5, inventario con costo 1 y sin atraso ni subcontratación.
+No depende de plantilla y empieza sin inventario.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-aggregate-json manual/examples/plan_aggregate.json
+swift run qsb solve-aggregate-json manual/examples/plan_aggregate.json --backend native
+\end{lstlisting}
+El plan fabrica 5 en cada mes; conserva 1 al final del primero y cero al final
+del segundo. Cuesta $10\cdot2+1=21$. Fabricar exactamente la demanda del primer
+mes y usar una unidad extra en el segundo costaría $9\cdot2+5=23$.
+Las unidades deben ser consistentes: capacidad por trabajador no es capacidad
+total y \texttt{capacityRequirementPerUnit} convierte producción a capacidad.
+Los vectores deben tener el mismo número de períodos; \texttt{null} en máximos
+opcionales representa ausencia de cota. La plantilla y las cantidades son
+continuas, incluso si el negocio necesita personas enteras. No redondee una
+solución sin comprobar de nuevo balances y capacidad.
+
+En macOS el editor de períodos separa demanda, costos, inventario/fuentes y
+plantilla. Copy Table transfiere las 20 columnas de períodos; Paste Table valida
+el rango antes de sustituirlo. Run muestra producción apilada y demanda,
+inventario, atrasos y tabla del plan. Un atraso aparece bajo cero en el gráfico,
+pero su cantidad del modelo es no negativa. Native resuelve el LP educativo;
+External usa HiGHS para la misma formulación si está instalado. Validate no
+produce un plan. El objetivo óptimo corresponde a los costos y cotas introducidos,
+no a criterios ausentes como estabilidad social de la plantilla.
+
+\section{MRP: explosión de necesidades}
+MRP parte de un programa maestro de producción (MPS), una lista de materiales
+(BOM), inventario, recepciones programadas y plazos. Recorre padres antes que
+componentes: la liberación de una orden del padre genera necesidades brutas
+para sus componentes, multiplicadas por el uso unitario \cite{silver1998inventory}.
+Para un artículo con stock de seguridad $SS$, necesidad bruta $G_t$ y
+recepción programada $SR_t$, la necesidad neta es
+$\max(0,G_t+SS-I_{t-1}-SR_t)$. Una recepción planificada cubre esa necesidad,
+y su liberación se desplaza hacia atrás por el plazo.
+
+\path{plan_mrp.json} tiene semanas S0--S3. Cinco unidades de P deben
+recibirse en S3; P utiliza dos C por unidad. Ambos tienen plazo de una semana,
+stock inicial y seguridad cero, regla LFL y capacidad ilimitada.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-mrp-json manual/examples/plan_mrp.json
+swift run qsb solve-mrp-json manual/examples/plan_mrp.json --backend native
+\end{lstlisting}
+P recibe 5 en S3 y libera 5 en S2. C necesita 10 en S2, recibe 10 entonces y
+libera 10 en S1. Los inventarios proyectados quedan en cero. Las necesidades
+de C provienen de la liberación de P, no de la fecha de demanda final.
+La BOM debe ser acíclica y todos sus identificadores deben existir.
+
+Las reglas disponibles son LFL, EOQ, LUC, LTC y PPB. LFL recibe la necesidad
+neta; EOQ parte de $\sqrt{2DS/H}$ y recibe al menos la necesidad actual.
+En EOQ, \texttt{lotSizingLookahead} se interpreta como múltiplo de lote
+\(m=\max(1,\text{valor configurado})\), no como número de períodos:
+la cantidad es \(\max(\text{necesidad},m\lceil EOQ/m\rceil)\).
+Si el costo de posesión anual es cero, recibe la necesidad neta.
+LUC compara costo unitario; LTC y PPB usan actualmente el mismo selector,
+que minimiza la diferencia absoluta entre costo de posesión y costo de pedido
+dentro del horizonte configurado. Son reglas hacia delante, no una
+optimización global de costos multinivel. QSB marca el documento MRP como
+\texttt{heuristic}, incluso cuando el caso particular usa LFL.
+La capacidad finita genera \texttt{capacityExcess}; no nivela ni reprograma
+órdenes. Si la liberación cae antes del horizonte, QSB la acumula en el primer
+bucket mediante $\max(0,t-L)$; ese registro requiere revisión operativa y no
+prueba que el plazo pueda cumplirse.
+
+En macOS Item Master recoge parámetros, Schedules cantidades por período y
+Bill of Materials relaciones padre/componente. Seleccione el artículo para
+editar o leer su calendario; los horizontes largos se agrupan para navegar.
+Copy/Paste Table siempre intercambia el rango completo de su sección.
+La solución muestra necesidades, inventario, recepciones, liberaciones y excesos
+de capacidad por artículo, con JSON como auditoría. Native y Validate están
+disponibles; External no está implementado para MRP.
+
+\section{Ejercicios}
+\begin{enumerate}
+\item En CPM aumente B de 2 a 4. Recalcule camino crítico y holguras.
+\item En PERT aumente solo el pesimista de A. Compare duración y varianza;
+      explique qué supuestos limitan una interpretación probabilística.
+\item Eleve el costo de inventario agregado de 1 a 4. Compare producir
+      anticipadamente con usar horas extra.
+\item Añada inventario inicial 4 de C en MRP y compruebe su necesidad neta.
+      Después limite la capacidad de C en S2 a 5 y explique el exceso.
+\end{enumerate}

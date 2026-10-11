@@ -1,0 +1,43 @@
+{
+  "kind": "TSP",
+  "model": {
+    "title": "tsp",
+    "nodes": [
+      "A",
+      "B",
+      "C"
+    ],
+    "arcs": [
+      {
+        "from": "A",
+        "to": "B",
+        "cost": 2
+      },
+      {
+        "from": "B",
+        "to": "C",
+        "cost": 3
+      },
+      {
+        "from": "C",
+        "to": "A",
+        "cost": 4
+      },
+      {
+        "from": "A",
+        "to": "C",
+        "cost": 6
+      },
+      {
+        "from": "C",
+        "to": "B",
+        "cost": 5
+      },
+      {
+        "from": "B",
+        "to": "A",
+        "cost": 4
+      }
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "kind": "pareto",
+  "model": {
+    "categoryNames": [
+      "Rayas",
+      "Manchas",
+      "Roturas"
+    ],
+    "subgroupCounts": [
+      [
+        4,
+        2,
+        1
+      ],
+      [
+        2,
+        1,
+        0
+      ]
+    ],
+    "title": "Calidad didactica"
+  }
+}

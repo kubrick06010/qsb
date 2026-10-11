@@ -1,0 +1,132 @@
+\chapter{Facilities and line balancing}
+\label{chap:instalaciones}
+
+\section{Locating a facility}
+Continuous location minimizes weighted distance to existing points:
+
+\[\min_{x,y}\sum_i w_i d((x,y),(x_i,y_i)).\] Weights represent interactions
+multiplied by unit cost, not probabilities. QSB supports one new facility
+and minimization; it does not solve discrete warehouse selection, multiple
+new facilities, or problems with geographic barriers.
+
+The distance measure determines the algorithm. For rectilinear distance,
+$d=|x-x_i|+|y-y_i|$, weighted medians are used coordinate by coordinate.
+For squared Euclidean distance, $d=(x-x_i)^2+(y-y_i)^2$, the weighted
+centroid is used. For ordinary Euclidean distance, Weiszfeld iteration is
+used and the result is approximate. Do not change the measure merely to
+obtain visually more attractive coordinates: it changes the objective and
+its units.
+
+\path{manual/examples/plan_location.json} places F1 at $(0,0)$ with weight
+1 and F2 at $(4,0)$ with weight 3, and uses squared Euclidean distance.
+The directed matrix contains these values from the existing facilities
+to the new one; there are no other interactions. The effective weight
+sums both interaction directions between each existing point and the new
+one: recording the same flow in both directions doubles the weight.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-facilities-json manual/examples/plan_location.json
+swift run qsb solve-facilities-json manual/examples/plan_location.json --backend native
+\end{lstlisting}
+The center is $(3,0)$ and the objective is $1\cdot9+3\cdot1=12$.
+In macOS, Definition lets you edit roles, IDs, coordinates, distance, and
+the matrix. New coordinates may be left blank; existing coordinates are
+required. IDs are interpreted within the existing/new role, so both can
+use ID 1. The solution displays points and weighted connections and
+details each contribution. Use JSON to preserve the complete matrix.
+
+\section{Balancing a line}
+With indivisible tasks of duration $t_i$, precedence constraints, and fixed
+cycle time $C$, the objective minimizes the number of stations. A station
+cannot exceed the cycle time, and a predecessor's station cannot follow
+its successor's station; predecessor and successor tasks may share a
+station if performed in order. The lower bound
+$\lceil\sum_i t_i/C\rceil$ ignores incompatibilities and precedence, so it
+is not always attainable.
+
+\path{plan_line.json} contains A(2), B(3), C(4), with A and B preceding C,
+and a cycle time of 5 minutes.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-facilities-json manual/examples/plan_line.json
+swift run qsb solve-facilities-json manual/examples/plan_line.json --backend native
+\end{lstlisting}
+A and B are assigned to station 1 and C to station 2. There are 9 minutes
+of work and 10 minutes of capacity per cycle: efficiency is
+$9/(2\cdot5)=0.9$ and balance delay is $1-0.9=0.1$. Idle time is 0 and
+1 minute, respectively. The lower bound is 2 and is attained, proving
+optimality for the model.
+Exact bitmask dynamic programming supports at most 24 tasks; a task
+longer than the cycle time makes the problem infeasible.
+The \texttt{isolated} field is preserved for compatibility, but the current
+native solver does not require a separate station for marked tasks. Do
+not use it as an effective safety or incompatibility constraint.
+
+The macOS editor supports tasks, durations, immediate successors, and
+flags; Copy/Paste Table transfers the table. Deleting a referenced task
+leaves the reference visible so that it can be repaired. The solution
+shows station workload and idle time, assignments, precedence context,
+efficiency, and balance delay. Efficiency does not measure total batch
+production time or include breakdowns or product changeovers.
+
+\section{Facility layout}
+Layout evaluates departments positioned on a grid. Each department
+occupies the union of one or more cell rectangles; a repeated cell within
+the same department is counted once. Rectangle coordinates are inclusive
+and start at 1. The load--distance objective uses centroids:
+\[
+ Z=\sum_{i,j}w_{ij}(|r_i-r_j|+|c_i-c_j|).
+\]
+The matrix is directed: entering the same weight in both directions
+doubles the contribution. The centroid approximates physical travel;
+it does not model doors, mandatory aisles, or obstacles.
+
+The example \path{plan_layout.json} has one row and three cells A, B, C,
+all with area one and movable. Its only weights are A--B=1, A--C=10,
+and B--C=1.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-facilities-json manual/examples/plan_layout.json
+swift run qsb solve-facilities-json manual/examples/plan_layout.json --backend native
+swift run qsb solve-facilities-json manual/examples/plan_layout.json \
+  --backend native --layout-strategy pairwise-swap
+\end{lstlisting}
+Initial evaluation gives $1+20+1=22$ and does not change the arrangement.
+Pairwise swaps A and B: B, A, C costs $1+10+2=13$, an improvement of 9.
+The search swaps only movable departments of equal area when doing so
+improves the objective. It terminates at a local optimum in that
+neighborhood; it does not guarantee a global optimum or automatically
+construct arbitrary geometry. Fixed areas are not swapped. Overlaps
+between movable areas are errors; overlaps involving fixed areas may
+produce warnings and must be reviewed.
+
+In Definition, you edit the grid, departments, fixed flags, rectangles,
+and flow/cost matrix. Select a department to access its rectangles;
+the transferred table includes IDs for all of them. In large matrices,
+sources and destination groups are selected, although Copy/Paste Table
+transfers the complete matrix. Choose Initial or Pairwise before Run.
+The Layout view lets you adjust scale, grid, and flows, and examine
+centroids, swaps, and contributions. For large grids, the overview draws
+fewer lines; exact ranges remain available in details and JSON.
+
+\section{Backend, validation, and decision}
+All three families support Native and Validate, with no operational
+External backend. Validate reports invalid data without calculating a
+location, layout, or line balance. Documents preserve algorithm and
+exactness: centroid/median location is closed-form, Weiszfeld is
+approximate, line balancing is exact at educational scale, and Pairwise
+is heuristic. Evaluating an initial layout determines only its cost,
+not its optimality.
+The examples use the facilities envelope with \texttt{kind} equal to
+\texttt{location}, \texttt{lineBalancing}, or \texttt{layout}. Do not confuse
+that envelope with the individual JSON formats accepted by commands
+specific to each subfamily. Validate the same file you will solve and
+export the model and solution to retain a traceable record of accepted data.
+
+\section{Exercises}
+\begin{enumerate}
+\item Change location to rectilinear distance. Explain the new coordinate
+      using weighted medians and the new units of the objective.
+\item Reduce the line's cycle time to 4. Determine the minimum number of
+      stations and check the impact on efficiency.
+\item Fix A in the layout. Solve with Initial and Pairwise and compare
+      permitted moves. Explain why a search with no improvement does not
+      prove optimality over all possible layouts.
+\end{enumerate}

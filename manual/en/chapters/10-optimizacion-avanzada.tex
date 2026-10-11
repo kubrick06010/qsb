@@ -1,0 +1,297 @@
+\chapter{Goal, quadratic, and nonlinear programming}
+\label{chap:optimizacion-avanzada}
+
+This chapter brings together three distinct extensions of linear programming.
+Goals order multiple objectives; quadratic programming adds curvature to the
+objective while retaining linear constraints; nonlinear programming allows
+general expressions. Choosing a family changes both the formulation and the
+guarantee the solver can offer. Comparing the number displayed as the objective
+is insufficient: priorities, feasibility, and exactness must also be reviewed.
+
+\section{Goal programming}
+\subsection{Priorities and deviations}
+An organization may first seek to meet a goal and then optimize another
+quantity without sacrificing what has already been achieved. In lexicographic
+programming, \(g_1(x)\) is optimized, its optimal value is fixed, and
+\(g_2(x)\) is optimized within that set; the process continues in the declared
+order. Objectives are not automatically added with large weights. The order
+expresses a policy decision: an improvement in a later priority never
+compensates for deterioration in an earlier one.
+
+For a goal \(a^\top x=t\), the deviation variables satisfy
+\[
+ a^\top x+n-p=t,\qquad n,p\geq0.
+\]
+\(n\) measures shortfall and \(p\) surplus. Minimizing \(n+p\) penalizes both
+directions; minimizing only \(n\) tolerates surplus. Coefficients and units
+must express the intended penalty. QSB does not infer these equations:
+the user declares variables, objectives, and constraints.
+
+\subsection{Example: protecting a production commitment}
+There is capacity for ten units shared between products \(A\) and \(B\).
+The first aim is to bring \(A\) close to eight units, followed by maximizing \(B\):
+\[
+\begin{aligned}
+ &\text{Priority 1: }\min(n_1+p_1),\\
+ &\text{Priority 2: }\max B,\\
+ &A+B\leq10,\qquad A+n_1-p_1=8,\\
+ &A,B,n_1,p_1\geq0.
+\end{aligned}
+\]
+The priority does not itself require exact fulfillment if the goal is
+impossible; it minimizes deviation subject to the hard constraints.
+In this example, zero deviation is attainable. Once it is fixed,
+\(A=8\), so the subsequent maximum is \(B=2\).
+
+The file \path{manual/examples/opt_goal.json} contains all variables,
+the two rows, and the ordered \texttt{goals} list; each priority has a name,
+\texttt{sense}, and \texttt{coefficients}. Bounds and types are declared in
+arrays aligned with \texttt{variableNames}. Run:
+\begin{lstlisting}
+swift run qsb validate-goal-json manual/examples/opt_goal.json
+swift run qsb solve-goal-json manual/examples/opt_goal.json --backend native
+\end{lstlisting}
+The output document retains the model, \texttt{backend} metadata, and
+solution.
+
+\texttt{goalOutcomes} displays priority, sense, and value.
+\begin{table}[htbp]
+\centering
+\caption{Lexicographic result for the production case}
+\begin{tabular}{lr}
+\toprule
+Quantity & Value \\
+\midrule
+Priority 1: total deviation & 0 \\
+Priority 2: production of \(B\) & 2 \\
+\(A\) & 8 \\
+\(n_1\), \(p_1\) & 0, 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+Capacity is active and the goal is met. Reversing the order makes the first
+objective yield \(B=10\); with that value fixed, \(A=0\), \(n_1=8\), and
+deviation is eight. This contrast invites discussion of who determines
+precedence and which commitment it protects.
+
+\subsection{macOS workflow and solver character}
+Open the normalized file in \texttt{Goal Programming}. In
+\texttt{Definition}, review variables and bounds, the priority list, and
+linear constraints. The move-up and move-down controls change a priority's
+position. Enter the deviation equation as an equality and verify the
+negative sign of \(p_1\). Press \texttt{Validate} and \texttt{Run}; the native
+priority view shows the ordered objectives, final quantities, and backend
+information. JSON provides the complete exportable record. Tables support
+copying and pasting; coefficient columns must match the current variable
+order. Large tables use row selection and coefficient groups.
+
+The native backend solves a sequence of LP or integer problems, adding an
+equality to preserve each previous optimum. The continuous case is labeled
+\texttt{exact}; this term characterizes the method, subject to floating-point
+tolerances. Integer goals use an educational search for small problems,
+identified as \texttt{fixtureScale}, and depend on branch-and-bound limitations.
+The special relaxation of integer deviation pairs applies only when integral
+equations justify integral residuals; it does not remove integrality from
+the decisions.
+
+\texttt{validate} does not solve. \texttt{external} executes each priority
+with HiGHS if installed; QSB preserves the lexicographic order and fixing.
+A missing executable causes an explicit error. An infeasible later priority,
+an unbounded objective, or exhausted limits require reviewing the diagnostic
+rather than interpreting partial results as the final plan.
+
+\section{Quadratic programming}
+\subsection{Objective convention and assumptions}
+QSB represents the objective as
+\[
+ f(x)=x^\top Qx+c^\top x,
+\]
+with linear constraints, bounds, and variable types. JSON uses
+\texttt{quadraticMatrix} for \(Q\) and \texttt{linearCoefficients} for \(c\).
+This convention has no factor of \(1/2\). For a symmetric matrix, the
+coefficient of the product \(x_ix_j\), \(i\ne j\), is \(2Q_{ij}\): a term
+\(4XY\) is represented by \(Q_{12}=Q_{21}=2\). Do not place 4 in both
+cells, since that would double the effect.
+
+A symmetric positive-definite matrix produces a strictly convex objective;
+its minimum over a convex region, if it exists, is unique. A negative-definite
+matrix produces the equivalent strictly concave maximization case.
+Stationarity and feasibility conditions then identify the global optimum.
+An indefinite matrix changes the problem and is not covered by that guarantee.
+
+\subsection{Example: adjustment with limited capacity}
+Two quantities should be brought close to 2 and 3, respectively, with total
+capacity four. Removing the constant 13 from the squared distance gives
+\[
+\begin{aligned}
+ \min\quad & X^2+Y^2-4X-6Y\\
+ \text{subject to}\quad &X+Y\leq4,\qquad X,Y\geq0.
+\end{aligned}
+\]
+The matrix is the identity and the linear vector is \((-4,-6)\). Removing
+the constant preserves optimal quantities but changes the reported objective
+value: the original squared distance is \(f(X,Y)+13\).
+
+The model is in \path{manual/examples/opt_qp.json}. Run:
+\begin{lstlisting}
+swift run qsb validate-qp-json manual/examples/opt_qp.json
+swift run qsb solve-qp-json manual/examples/opt_qp.json --backend native
+\end{lstlisting}
+The optimum is \(X=1.5\), \(Y=2.5\), \(f=-12.5\), with
+\texttt{Capacity} in \texttt{activeConstraints}. The original squared distance
+is 0.5. A negative objective is perfectly valid: it results from the omitted
+constant and does not represent a negative distance.
+
+Without the capacity constraint the solution would be \((2,3)\), which is
+infeasible. With multiplier \(\lambda\geq0\), the stationarity equations are
+\[
+ 2X-4+\lambda=0,\qquad2Y-6+\lambda=0.
+\]
+The active capacity requires \(X+Y=4\), giving \(\lambda=1\), \(X=1.5\), and
+\(Y=2.5\). The lower bounds are inactive. Strict convexity and the conditions
+above certify the global minimum of the continuous model.
+QSB displays active constraints, but this multiplier derivation is an
+independent academic check.
+
+\subsection{macOS workflow and limitations}
+Open the JSON in \texttt{Quadratic Programming}. \texttt{Definition} separates
+variables and bounds, the quadratic matrix, and linear constraints. Enter
+the linear coefficients in the variable rows and the identity in the matrix;
+confirm the names on both axes. Add \texttt{Capacity} with coefficients
+\((1,1)\), relation \(\leq\), and right-hand side 4. Validate and press
+\texttt{Run}. The native solution displays the objective, variables, bounds,
+active constraints, and exactness; JSON allows inspection of the document.
+
+\texttt{Copy Table} and \texttt{Paste Table} transfer the complete matrix.
+Reordering known variables preserves both axes by name; pasted headers must
+match the current order. For more than twelve variables, the editor displays
+one row and groups of columns, although table exchange remains complete.
+This editor capability does not imply support for large problems in the
+native solver.
+
+The continuous native solver enumerates active sets and solves KKT systems
+for strictly convex minimization or strictly concave maximization. Its label
+is \texttt{exact}, with numerical calculations. The search rejects more than
+twenty candidate inequalities, counting bounds that it converts into
+inequalities; the cost of set enumeration grows rapidly. The integer native
+solver supports only diagonal concave maximization with nonnegative variables,
+up to four variables, and enumerates points within derived finite bounds.
+It is identified as \texttt{fixtureScale}; it is not a general MIQP solver.
+
+The external HiGHS backend supports translation of the supported strictly
+convex/concave continuous cases. QSB adapts the convention using a Hessian
+\(H=2Q\), because the external solver uses \(\tfrac12 x^\top Hx\).
+The adaptation also preserves sense, bounds, and constraints, and verifies
+the objective and feasibility when reading the solution.
+HiGHS does not solve MIQP in this integration; quadratic integer variables
+require the native scope described above or a future engine. The
+\texttt{validate} mode does not compute an optimum.
+
+\section{Nonlinear programming}
+\subsection{Expressions and domain}
+Nonlinear programming (NLP) allows an objective \(f(x)\) and constraints
+\(g_i(x)\ \{\leq,=,\geq\}\ b_i\). QSB accepts textual expressions,
+ordered variables, and nullable bounds. The evaluator recognizes addition,
+subtraction, multiplication, division, powers, parentheses, implicit
+multiplication, and \texttt{exp}, \texttt{log}, \texttt{sqrt}, \texttt{sin},
+\texttt{cos}. Use explicit multiplication in teaching materials to aid reading.
+Names are recognized without case sensitivity; consistent spelling is advisable.
+
+Valid syntax does not guarantee a valid domain at every point:
+\texttt{log(X)} requires \(X>0\), \texttt{sqrt(X)} requires \(X\geq0\), and
+division requires a nonzero denominator. Bounds must correspond to the case
+and protect the domain where possible. Sine and cosine angles are expressed
+in radians. JSON stores \texttt{objectiveExpression} and, for each constraint,
+\texttt{expression}, \texttt{relation}, and \texttt{rhs}.
+
+\subsection{Example: constrained distance}
+The file \path{manual/examples/opt_nlp.json} specifies
+\[
+ \min\ (X-3)^2+(Y-2)^2,\qquad X+Y\leq4,\qquad0\leq X,Y\leq4.
+\]
+The objective is the squared distance to point \((3,2)\), which violates
+capacity. Its projection onto \(X+Y=4\) is \((2.5,1.5)\), and the mathematical
+value is 0.5. Although this case could be formulated as QP, it serves to
+compare expression input and an approximate method with a known analytical
+solution.
+\begin{lstlisting}
+swift run qsb validate-nlp-json manual/examples/opt_nlp.json
+swift run qsb solve-nlp-json manual/examples/opt_nlp.json --backend native
+\end{lstlisting}
+The verified execution returns approximately
+\(X=2.500000002\), \(Y=1.499999999\), objective 0.4999999995, and maximum
+violation \(5.0\times10^{-10}\). The evaluation of \texttt{Capacity} is
+approximately 4.0000000005. The \texttt{iterations} field records 361 cumulative
+iterations of the selected search; it does not count all evaluations of
+searches from the other initial points. This value describes this execution,
+not a universal limit or a measure comparable with simplex iterations.
+
+The small violation does not authorize physically exceeding capacity. It is
+a numerical search residual; for real implementation, check the values
+against the tolerance and units of the case. The output contains
+\texttt{constraintEvaluations}, \texttt{maximumViolation},
+\texttt{iterations}, the objective, and variable values, as well as the model
+and metadata. Reporting the objective without the residual would hide
+relevant information.
+
+\subsection{macOS use and approximate guarantee}
+Open the JSON in \texttt{Nonlinear Programming}. The definition allows editing
+the sense, objective expression, bounded variables, and constraints with an
+expression, relation, and right-hand side. Enter
+\texttt{(X-3)\^{}2+(Y-2)\^{}2}, bounds 0 and 4, and \texttt{X+Y} with
+\(\leq4\). Use \texttt{Validate} before \texttt{Run}. An invalid expression is
+retained for correction. Variables and constraints support spreadsheet
+exchange; each valid paste replaces a complete table.
+The solution displays the candidate, bounds, evaluations, and maximum
+violation, together with its approximate character and exportable JSON.
+
+The native backend uses automatic differentiation, searches from multiple
+points, and progressive constraint penalties. It is deterministic, is limited
+to four variables, and is identified as \texttt{approximate}. It also includes
+a low-dimensional search on equality manifolds for small cases.
+These mechanisms do not prove global optimality for nonconvex functions.
+A feasible candidate may be local, and a failed search does not in itself
+constitute a mathematical proof of infeasibility.
+
+Strict inequalities from imports are normalized to non-strict boundaries
+and generate a structured warning. The
+\texttt{normalizedStrictInequalities} field records that transformation;
+it must be reviewed if the boundary has a physical meaning excluded by the
+case. \texttt{validate} diagnoses without solving. \texttt{external} is
+explicitly unavailable for NLP; select the native backend for supported
+educational problems.
+
+\section{How to compare and review results}
+Retain each input together with its output and the backend used. For goals,
+review the order and each fixed value. For QP, check the matrix convention
+and supported curvature. For NLP, review domains, bounds, evaluations, and
+maximum violation before describing a solution as implementable. File
+validation and search convergence provide different kinds of evidence.
+
+All three families have a native definition view and a JSON view; unfinished
+fields remain editable when validation fails. In native macOS runs, solving
+takes place in the background and duplicate runs are prevented while one is
+in progress. Changing the model can make that calculation's result stale.
+There is currently no cancellation control for these workers. Accessible
+labels on controls and results do not replace a complete VoiceOver and
+keyboard navigation audit, which remains pending for these editors.
+
+\section{Exercises}
+\begin{enumerate}
+ \item Reverse the priorities in the goal example. Verify \(B=10\),
+ \(A=0\), and total deviation 8. Explain which commitment has changed.
+ \item Reduce the capacity in the goal example to 6. Calculate the minimum
+ deviation of the first priority and justify why the second cannot recover
+ production of \(B\) without worsening the first.
+ \item In the QP, increase capacity to 5. Predict \((X,Y)=(2,3)\),
+ objective \(-13\), and zero original distance. Check against QSB.
+ \item Introduce a term \(4XY\) in a test objective. Write the correct
+ symmetric matrix and examine its curvature before choosing a solver.
+ \item Reformulate the example NLP objective in QP form, retaining
+ constraints and bounds. Compare quantities and residuals; explain the
+ difference between its objective with a constant and the quadratic
+ objective without it.
+ \item Propose a one-variable function with two local minima. Explain what
+ additional evidence you would need to attribute global optimality to a
+ candidate obtained by the native NLP solver.
+\end{enumerate}

@@ -1,0 +1,51 @@
+{
+  "kind": "decisionTree",
+  "model": {
+    "title": "Invertir o conservar",
+    "rootID": 1,
+    "nodes": [
+      {
+        "id": 1,
+        "name": "Elegir",
+        "kind": "decision",
+        "childIDs": [
+          2,
+          3
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Invertir",
+        "kind": "chance",
+        "childIDs": [
+          4,
+          5
+        ],
+        "payoff": -5
+      },
+      {
+        "id": 3,
+        "name": "Conservar",
+        "kind": "terminal",
+        "childIDs": [],
+        "payoff": 12
+      },
+      {
+        "id": 4,
+        "name": "Exito",
+        "kind": "terminal",
+        "childIDs": [],
+        "payoff": 40,
+        "probability": 0.6
+      },
+      {
+        "id": 5,
+        "name": "Fracaso",
+        "kind": "terminal",
+        "childIDs": [],
+        "payoff": -10,
+        "probability": 0.4
+      }
+    ]
+  }
+}

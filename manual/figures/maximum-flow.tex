@@ -1,0 +1,12 @@
+\begin{tikzpicture}
+\node[qsb node] (S) at (0,0) {S};
+\node[qsb node] (A) at (3,1.2) {A};
+\node[qsb node] (B) at (3,-1.2) {B};
+\node[qsb node] (T) at (6,0) {T};
+\draw[qsb arc] (S) -- node[qsb label,above] {3/3} (A);
+\draw[qsb arc] (S) -- node[qsb label,below] {2/2} (B);
+\draw[qsb arc] (A) -- node[qsb label,right] {1/1} (B);
+\draw[qsb arc] (A) -- node[qsb label,above] {2/2} (T);
+\draw[qsb arc] (B) -- node[qsb label,below] {3/3} (T);
+\draw[densely dotted,line width=1pt] (0.75,-1.7) -- (0.75,1.7);
+\end{tikzpicture}

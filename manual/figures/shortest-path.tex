@@ -1,0 +1,11 @@
+\begin{tikzpicture}
+\node[qsb node] (A) at (0,0) {A};
+\node[qsb node] (B) at (3,1.2) {B};
+\node[qsb node] (C) at (3,-1.2) {C};
+\node[qsb node] (D) at (6,0) {D};
+\draw[qsb selected] (A) -- node[qsb label,above] {2} (B);
+\draw[qsb alternative] (A) -- node[qsb label,below] {5} (C);
+\draw[qsb selected] (B) -- node[qsb label,right] {1} (C);
+\draw[qsb alternative] (B) -- node[qsb label,above] {6} (D);
+\draw[qsb selected] (C) -- node[qsb label,below] {2} (D);
+\end{tikzpicture}

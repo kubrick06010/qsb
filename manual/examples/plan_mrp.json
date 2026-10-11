@@ -1,0 +1,88 @@
+{
+  "title": "Producto y componente",
+  "timeUnit": "semana",
+  "periodsPerYear": 52,
+  "bucketNames": [
+    "S0",
+    "S1",
+    "S2",
+    "S3"
+  ],
+  "items": [
+    {
+      "identifier": "P",
+      "levelCode": "0",
+      "sourceCode": "M",
+      "materialType": "item",
+      "unit": "unidad",
+      "leadTime": 1,
+      "lotSizingRule": "LFL",
+      "annualDemand": 100,
+      "unitCost": 1,
+      "orderingCost": 10,
+      "annualHoldingCost": 2,
+      "description": "P",
+      "safetyStock": 0,
+      "initialOnHand": 0,
+      "scheduledReceipts": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "capacity": [
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "identifier": "C",
+      "levelCode": "1",
+      "sourceCode": "M",
+      "materialType": "item",
+      "unit": "unidad",
+      "leadTime": 1,
+      "lotSizingRule": "LFL",
+      "annualDemand": 100,
+      "unitCost": 1,
+      "orderingCost": 10,
+      "annualHoldingCost": 2,
+      "description": "C",
+      "safetyStock": 0,
+      "initialOnHand": 0,
+      "scheduledReceipts": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "capacity": [
+        null,
+        null,
+        null,
+        null
+      ]
+    }
+  ],
+  "billsOfMaterial": [
+    {
+      "parentIdentifier": "P",
+      "components": [
+        {
+          "itemIdentifier": "C",
+          "quantityPerParent": 2
+        }
+      ]
+    }
+  ],
+  "masterProductionSchedule": {
+    "P": [
+      0,
+      0,
+      0,
+      5
+    ]
+  }
+}

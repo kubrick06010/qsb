@@ -1,28 +1,151 @@
 \chapter{Modelos de redes}
+\label{chap:redes}
 
-\section{Estructura comun}
-Un modelo de redes representa entidades como nodos y relaciones como arcos. Esta
-abstraccion cubre rutas mas cortas, arboles de expansion minima, flujo maximo,
-transporte, asignacion y vendedor viajero \cite{ahuja1993network}.
+\section{De una situación a un grafo}
+Una red representa lugares, estados o personas mediante nodos; los arcos
+representan conexiones posibles. El significado del número de un arco depende
+del modelo: costo o distancia en una ruta, capacidad en flujo máximo. Confundir
+ambas magnitudes cambia el problema \cite{ahuja1993network}.
+Los ejemplos de este capítulo son originales y sus archivos están en
+\texttt{manual/examples/}. Todos usan el sobre JSON con \texttt{kind} y
+\texttt{model}; no se necesita disponer de archivos de WinQSB.
+Los comandos se ejecutan desde la raíz del repositorio.
 
-\section{Familias contempladas en QSB}
-El formato normalizado de \qsb{} usa un sobre JSON con un campo
-\texttt{kind} y un objeto \texttt{model}. Las familias documentadas actualmente
-incluyen:
-\begin{longtable}{ll}
-\toprule
-Codigo & Familia \\
-\midrule
-SPP & Ruta mas corta \\
-MST & Arbol de expansion minima \\
-MFP & Flujo maximo \\
-TSP & Vendedor viajero \\
-AP & Asignacion \\
-TP & Transporte \\
-\bottomrule
-\end{longtable}
+\section{Ruta más corta y árbol de expansión mínima}
+Para SPP se busca una ruta dirigida del origen al destino de costo mínimo.
+Dijkstra exige costos no negativos. En QSB el primer nodo es el origen y el
+último es el destino. Un arco ausente no equivale a un arco de costo cero.
+El archivo \path{plan_spp.json} tiene nodos A, B, C, D y arcos:
+\begin{center}
+\begin{tabular}{lrrrrr}\toprule
+Arco & A--B & A--C & B--C & B--D & C--D \\
+Costo & 2 & 5 & 1 & 6 & 2 \\
+\bottomrule\end{tabular}
+\end{center}
+\begin{lstlisting}[language=bash]
+swift run qsb validate-network-json manual/examples/plan_spp.json
+swift run qsb solve-network-json manual/examples/plan_spp.json --backend native
+swift run qsb solve-network-json manual/examples/plan_mst.json --backend native
+\end{lstlisting}
+\begin{figure}[htbp]
+\centering
+\input{figures/shortest-path}
+\caption{Red de ruta más corta: las etiquetas son costos. Las flechas gruesas trazan la ruta óptima; las discontinuas muestran alternativas.}
+\label{fig:shortest-path}
+\end{figure}
 
-\section{Criterio editorial para nuevos casos}
-Cada caso de red debera incluir diagrama, matriz o lista de arcos, formulacion
-matematica, archivo JSON de entrada, comando de solucion y verificacion manual
-del costo, flujo o asignacion resultante.
+SPP devuelve A $\to$ B $\to$ C $\to$ D y costo $2+1+2=5$.
+MST conecta todos los nodos sin ciclos, con el menor costo total; no busca
+una ruta entre extremos. El ejemplo usa las mismas conexiones como aristas
+no dirigidas y Kruskal elige B--C, A--B, C--D, con costo 5.
+QSB normaliza conexiones asimétricas de MST al menor costo por pareja;
+una red desconectada no admite árbol que cubra todos los nodos.
+
+\section{Flujo máximo}
+Con capacidades $u_{ij}$, el flujo debe satisfacer
+$0\leq x_{ij}\leq u_{ij}$ y conservación en nodos intermedios. Se maximiza
+el flujo neto que sale del origen. No se minimiza costo.
+En \path{plan_maxflow.json}, S--A tiene capacidad 3, S--B 2,
+A--B 1, A--T 2 y B--T 3. Aunque el campo JSON se llama \texttt{cost},
+en MFP representa capacidad.
+\begin{lstlisting}[language=bash]
+swift run qsb solve-network-json manual/examples/plan_maxflow.json --backend native
+\end{lstlisting}
+\begin{figure}[htbp]
+\centering
+\input{figures/maximum-flow}
+\caption{Flujo máximo: cada etiqueta indica flujo/capacidad. La línea punteada separa el origen del resto y marca un corte saturado.}
+\label{fig:maximum-flow}
+\end{figure}
+
+Edmonds--Karp obtiene flujo 5: salen 3 y 2 unidades de S y llegan 2 y 3 a T.
+El corte que separa S del resto tiene capacidad 5 y prueba optimalidad.
+El primer y último nodo vuelven a determinar los extremos.
+
+\section{Vendedor viajero}
+TSP busca un ciclo dirigido que visite cada nodo exactamente una vez y vuelva
+al inicial. No basta con conectar los nodos: hay que respetar una única gira.
+El ejemplo \path{plan_tsp.json} contiene tres nodos, con
+$c_{AB}=2$, $c_{BC}=3$, $c_{CA}=4$ y costos inversos 4, 5 y 6.
+\begin{lstlisting}[language=bash]
+swift run qsb solve-network-json manual/examples/plan_tsp.json --backend native
+\end{lstlisting}
+La gira A $\to$ B $\to$ C $\to$ A cuesta 9; la inversa cuesta 15.
+Held--Karp es exacto para el modelo aceptado, pero exponencial; el solver
+rechaza más de 20 nodos. Un modelo sin ciclo hamiltoniano factible no se
+repara añadiendo conexiones. La etiqueta \texttt{fixtureScale} expresa esta
+limitación de escala, no una garantía de rapidez cerca del máximo.
+
+\section{Asignación y transporte}
+Asignación minimiza $\sum_{ij}c_{ij}x_{ij}$, con cada trabajador asignado a
+una tarea y cada tarea utilizada a lo sumo una vez. El método húngaro acepta
+matrices rectangulares con al menos tantas tareas como trabajadores.
+En \path{plan_assignment.json}, las filas Ana y Luis tienen costos
+$(2,7,4)$ y $(6,1,3)$ para X, Y y Z.
+\begin{lstlisting}[language=bash]
+swift run qsb solve-network-json manual/examples/plan_assignment.json --backend native
+swift run qsb solve-network-json manual/examples/plan_transport.json --backend native
+\end{lstlisting}
+Ana--X y Luis--Y cuestan 3; Z queda libre. No se modelan equipos,
+varias tareas por persona ni restricciones adicionales.
+
+Transporte permite cantidades continuas y exige balance:
+\[
+ \min\sum_{ij}c_{ij}x_{ij},\qquad
+ \sum_jx_{ij}=s_i,\quad \sum_ix_{ij}=d_j,\quad x_{ij}\geq0.
+\]
+El ejemplo tiene oferta $(4,6)$, demanda $(5,5)$ y matriz de costos
+$\left(\begin{smallmatrix}1&4\\3&2\end{smallmatrix}\right)$.
+QSB envía 4 de O1 a D1, 1 de O2 a D1 y 5 de O2 a D2;
+el costo es $4+3+10=17$. Compruebe por separado las sumas de filas y columnas.
+Un desequilibrio es un error de validación en TP. No se crea automáticamente
+un origen o destino ficticio en esta familia.
+
+\section{Flujo de costo mínimo}
+CNF combina transbordo y costos: en cada nodo,
+$\sum_jx_{ij}-\sum_jx_{ji}=s_i-d_i$, y minimiza
+$\sum_{ij}c_{ij}x_{ij}$ con cantidades continuas no negativas.
+El modelo actual no tiene capacidades ni cotas inferiores por arco.
+El validador exige costos finitos no negativos en CNF y en las variantes de
+grafo; asignación admite costos negativos finitos. No modele una subvención
+como costo negativo en un arco CNF, pues será rechazada.
+\path{plan_netflow.json} ofrece 4 en O, exige 4 en D y permite
+O--M a costo 1, M--D a costo 2 y O--D a costo 5.
+\begin{lstlisting}[language=bash]
+swift run qsb solve-network-json manual/examples/plan_netflow.json --backend native
+\end{lstlisting}
+Las 4 unidades pasan por M y cuestan 12; el envío directo costaría 20.
+CNF conserva oferta y demanda originales y, cuando no coinciden, emite una
+advertencia y añade un ajuste ficticio de costo cero al resolver.
+Revise siempre \texttt{balanceAdjustments}: una solución con ajuste no
+prueba que la demanda real pueda servirse con la oferta original.
+
+\section{Uso en macOS y elección del backend}
+Abra el ejemplo mediante la importación de JSON normalizado. En Definition,
+SPP, MST, MFP y TSP disponen de editor de nodos y arcos;
+AP y TP de matrices de costos, con oferta y demanda en TP; CNF de nodos,
+arcos y balances. Los cambios se validan antes de Run. El orden de extremos
+de SPP/MFP se traduce al orden del JSON; las posiciones visuales no se exportan.
+La solución Diagram resalta la ruta, árbol, gira o conexiones utilizadas.
+\texttt{All connections} muestra también las conexiones restantes. En redes
+bipartitas, los grupos corresponden a trabajadores/tareas u orígenes/destinos.
+Use el panel de detalle para leer valores exactos y JSON para auditar el resultado;
+el grosor de una conexión no sustituye la cantidad numérica.
+
+Native ofrece algoritmos deterministas para las siete variantes. Validate
+comprueba el modelo sin resolver. External está disponible para TP y CNF
+mediante HiGHS; no existe un backend externo de todas las redes.
+Las soluciones conservan modelo, algoritmo, supuestos y exactitud. El tamaño
+factible de los LP nativos depende de la formulación; para redes de transporte
+grandes conviene evaluar HiGHS y verificar su disponibilidad.
+
+\section{Ejercicios}
+\begin{enumerate}
+\item Cambie A--C de 5 a 1 en SPP. Verifique la nueva ruta y explique por qué
+      el árbol mínimo puede responder de otra manera.
+\item Reduzca S--A a 1 en MFP. Calcule un corte antes de resolver.
+\item Cambie la demanda de D2 a 6 en TP. Observe la validación; después
+      represente deliberadamente una unidad adicional de oferta.
+\item En CNF aumente la demanda a 5. Interprete el ajuste ficticio y explique
+      qué dato de negocio falta para aceptar el plan.
+\end{enumerate}

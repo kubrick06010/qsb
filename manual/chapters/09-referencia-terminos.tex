@@ -1,21 +1,53 @@
-\chapter{Referencia de terminos}
-
+\chapter{Referencia de términos}
+\label{chap:terminos}
 \begin{description}
-  \item[Funcion objetivo] Expresion matematica que cuantifica el criterio que
-  se desea maximizar o minimizar.
-  \item[Variable de decision] Magnitud controlable por el analista o por el
-  decisor dentro del modelo.
-  \item[Parametro] Dato exogeno que el modelo toma como conocido durante la
-  solucion.
-  \item[Restriccion] Condicion que limita los valores admisibles de las
-  variables de decision.
-  \item[Region factible] Conjunto de soluciones que satisfacen todas las
-  restricciones.
-  \item[Solucion optima] Solucion factible que alcanza el mejor valor de la
-  funcion objetivo.
-  \item[Relajacion lineal] Modelo obtenido al reemplazar restricciones de
-  integralidad por variables continuas.
-  \item[Utilizacion] Fraccion de la capacidad de servicio empleada en promedio.
-  \item[Makespan] Tiempo de finalizacion del ultimo trabajo en un programa de
-  produccion o servicio.
+ \item[Backend] Implementación seleccionada para validar o resolver una familia.
+ La opción de validación no calcula una solución.
+ \item[Balance] Igualdad que contabiliza entradas, salidas y cambios de estado,
+ como inventario final igual a inicial más producción menos demanda.
+ \item[Capacidad] Límite de un recurso, con unidad y horizonte definidos.
+ \item[Diagnóstico] Mensaje de validación con gravedad, código y, cuando está
+ disponible, ruta del campo afectado.
+ \item[Estado] Resumen de información suficiente para decisiones futuras en un
+ modelo dinámico; también puede referirse a una condición aleatoria del entorno.
+ \item[Exactitud] Caracterización del procedimiento y sus garantías para el
+ modelo admitido, distinta de la cantidad de decimales mostrados.
+ \item[Factibilidad] Cumplimiento de restricciones, límites y condiciones del
+ modelo; no equivale a optimalidad.
+ \item[Función objetivo] Expresión que cuantifica el criterio a maximizar o minimizar.
+ \item[Heurística] Procedimiento que busca una buena solución sin garantizar
+ necesariamente un óptimo global.
+ \item[Holgura] Capacidad o margen restante de una restricción para una solución.
+ \item[JSON normalizado] Representación estructurada de un modelo o resultado
+ que permite intercambiar, inspeccionar y reproducir datos entre clientes de QSB.
+ \item[Makespan] Tiempo de finalización del último trabajo de un programa.
+ \item[Óptimo global] Solución factible con el mejor objetivo en toda la región
+ factible; un óptimo local sólo se compara con soluciones próximas.
+ \item[Parámetro] Dato que el modelo toma como conocido durante una ejecución.
+ \item[Política] Regla o conjunto de decisiones por etapa y estado.
+ \item[Posterior] Probabilidad de un estado después de observar evidencia,
+ calculada a partir de previas y verosimilitudes.
+ \item[Precio sombra] Cambio marginal del objetivo al variar un recurso en el
+ intervalo y bajo las condiciones en que la interpretación dual es válida.
+ \item[Región factible] Conjunto de soluciones que satisfacen las restricciones.
+ \item[Relajación lineal] Modelo que sustituye restricciones de integralidad
+ por variables continuas; su solución puede no ser admisible para el problema entero.
+ \item[Restricción] Condición que limita las decisiones admisibles.
+ \item[Semilla] Valor que inicializa el generador pseudoaleatorio; permite
+ repetir una simulación bajo el mismo modelo, configuración e implementación.
+ \item[Sensibilidad] Análisis de cómo cambia la solución al modificar datos o supuestos.
+ \item[Solución óptima] Solución factible que alcanza el mejor objetivo del
+ problema considerado, dentro de las garantías y tolerancias del método.
+ \item[Tolerancia] Umbral numérico usado para comparar cantidades o aceptar
+ aproximaciones; debe interpretarse junto a la escala del problema.
+ \item[Traza] Registro de etapas, estados y decisiones que facilita examinar
+ una política calculada; no es necesariamente toda la tabla interna del algoritmo.
+ \item[Utilización] Fracción de capacidad de servicio ocupada en promedio.
+ \item[Valor esperado] Promedio ponderado por probabilidades; no garantiza ese
+ pago en una realización particular.
+ \item[Valor de información] Mejora esperada al permitir decisiones basadas en
+ evidencia; EVSI corresponde a información muestral y EVPI a información perfecta.
+ \item[Variable de decisión] Magnitud controlable que el decisor elige en el modelo.
+ \item[Verosimilitud] Probabilidad de observar una evidencia condicionada a un
+ estado; no es la probabilidad posterior del estado.
 \end{description}

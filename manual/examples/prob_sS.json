@@ -1,0 +1,21 @@
+{
+  "kind": "stochasticReview",
+  "model": {
+    "title": "Reposicion incierta",
+    "timeUnit": "year",
+    "policy": "continuousOrderUpTo",
+    "demandDistribution": "Normal",
+    "meanDemand": 1200,
+    "demandStandardDeviation": 100,
+    "setupCost": 30,
+    "acquisitionCost": 5,
+    "holdingCost": 2,
+    "backorderFraction": 1,
+    "backorderCost": 20,
+    "lostSalesFraction": 0,
+    "leadTimeDistribution": "Constant",
+    "leadTime": 0.02,
+    "averageOrderSize": 200,
+    "reviewCost": 5
+  }
+}

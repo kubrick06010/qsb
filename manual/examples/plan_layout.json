@@ -1,0 +1,65 @@
+{
+  "kind": "layout",
+  "model": {
+    "title": "Tres departamentos",
+    "rowCount": 1,
+    "columnCount": 3,
+    "objective": "MIN",
+    "departments": [
+      {
+        "id": 1,
+        "name": "A",
+        "fixed": false,
+        "flowUnitCosts": [
+          null,
+          1,
+          10
+        ],
+        "initialLayout": [
+          {
+            "startRow": 1,
+            "endRow": 1,
+            "startColumn": 1,
+            "endColumn": 1
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "B",
+        "fixed": false,
+        "flowUnitCosts": [
+          null,
+          null,
+          1
+        ],
+        "initialLayout": [
+          {
+            "startRow": 1,
+            "endRow": 1,
+            "startColumn": 2,
+            "endColumn": 2
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "name": "C",
+        "fixed": false,
+        "flowUnitCosts": [
+          null,
+          null,
+          null
+        ],
+        "initialLayout": [
+          {
+            "startRow": 1,
+            "endRow": 1,
+            "startColumn": 3,
+            "endColumn": 3
+          }
+        ]
+      }
+    ]
+  }
+}

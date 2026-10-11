@@ -1,0 +1,26 @@
+{
+  "kind": "productionInventory",
+  "model": {
+    "title": "Dos periodos",
+    "periods": [
+      {
+        "name": "P1",
+        "demand": 2,
+        "productionCapacity": 5,
+        "storageCapacity": 3,
+        "setupCost": 10,
+        "productionUnitCost": 2,
+        "holdingUnitCost": 1
+      },
+      {
+        "name": "P2",
+        "demand": 3,
+        "productionCapacity": 5,
+        "storageCapacity": 3,
+        "setupCost": 10,
+        "productionUnitCost": 2,
+        "holdingUnitCost": 1
+      }
+    ]
+  }
+}

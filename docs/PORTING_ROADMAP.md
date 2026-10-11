@@ -1728,6 +1728,66 @@ Each family doc should include:
 - known unsupported variants;
 - next planned work.
 
+## Spanish Academic and Practical Manual
+
+Checkpoint: first integrated application-and-theory edition, 2026-10-11.
+
+- `manual/main.tex` assembles 16 chapters, including a practical macOS/CLI guide,
+  modeling conventions, the implemented model families, and a reference glossary.
+- Family chapters distinguish model assumptions, normalized JSON input,
+  reproducible commands, result interpretation, native solver character, and
+  optional external backend scope. Exercises support independent checking.
+- 53 independently authored JSON inputs require no local WinQSB payload. The
+  manifest and `manual/verify_examples.py` validate them and check 130 numerical
+  or structural expectations across 57 runs, including CPM crash, layout swaps,
+  repeated seeded simulation, and acceptance-plan design.
+- `make -C manual` supports TeX Live/latexmk or Tectonic and writes the PDF and
+  intermediates into ignored `manual/build/`. The integrated A4 PDF compiles
+  without unresolved citations/references or text overflow and receives a visual
+  layout review before delivery.
+
+This manual is original project documentation, not a translation or derivative
+of the local proprietary WinQSB manuals. The roadmap remains the public source
+of truth for software status; the manual records the documented edition.
+
+## English Academic and Practical Manual
+
+Checkpoint: complete English counterpart of the Spanish edition, 2026-10-11.
+
+- `manual/main-en.tex` assembles all 16 translated chapters into a 67-page A4
+  volume, sharing the original examples and academic bibliography.
+- Four agents translate separate chapter groups and independently review other
+  groups against the Spanish source; review findings and corrections are recorded
+  in `manual/en/REVIEW.md`.
+- `manual/verify_translation.py` checks chapter order, section/environment
+  structure, labels, references, citations, paths, numerical literals, 512
+  mathematical expressions, and 38 command blocks. Semantic review remains
+  necessary alongside these checks.
+- All 53 example inputs pass 130 expectations across 57 scenarios. Model
+  identifiers remain unchanged between editions, with English glosses where
+  needed to reproduce the shared JSON results.
+- `make -C manual english` generates `manual/build/main-en.pdf`; `make -C manual
+  both` builds both editions. The English PDF compiles without text overflow or
+  unresolved citations/references and receives a visual review of all 67 pages.
+
+## Bilingual Manual Verification and Vector Diagrams
+
+Checkpoint: continuous manual verification and five shared educational diagrams,
+2026-10-11.
+
+- `make -C manual verify` checks bilingual structural/technical parity before
+  executing the reproducible examples. The Swift CI workflow runs that target
+  in its existing macOS and Linux matrix; LaTeX and proprietary fixtures are
+  unnecessary for verification.
+- `manual/figures/` shares TikZ geometry and data for shortest path, maximum
+  flow, CPM, PERT, and the decision tree. Captions in each edition explain
+  units, costs/capacities, precedence, node types, and highlighted results.
+  Chapter text and tables preserve a nonvisual description of the same cases.
+- The parity checker verifies matching figure inputs and their existence.
+  Independent agent review checks the five diagrams against their source JSON.
+- Both 67-page A4 editions compile with the diagrams; the Spanish p-chart
+  paragraph no longer generates its previous underfull-line warning.
+
 ## Current Verified Commands and Expected Results
 
 As of 2026-10-11 on macOS:

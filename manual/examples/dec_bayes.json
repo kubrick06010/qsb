@@ -1,0 +1,28 @@
+{
+  "kind": "bayesian",
+  "model": {
+    "title": "Posterior del estudio",
+    "states": [
+      "Alta",
+      "Baja"
+    ],
+    "priorProbabilities": [
+      0.4,
+      0.6
+    ],
+    "outcomes": [
+      "Positivo",
+      "Negativo"
+    ],
+    "likelihoods": [
+      [
+        0.8,
+        0.2
+      ],
+      [
+        0.2,
+        0.8
+      ]
+    ]
+  }
+}

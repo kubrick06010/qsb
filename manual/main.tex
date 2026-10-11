@@ -9,28 +9,31 @@
 \usepackage{hyperref}
 \usepackage{listings}
 \usepackage{longtable}
-\usepackage{makeidx}
 \usepackage{microtype}
 \usepackage{url}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+\input{figures/styles}
 
-\geometry{letterpaper,margin=2.7cm}
+\geometry{a4paper,margin=2.7cm}
+\setlength{\emergencystretch}{2em}
 \hypersetup{
   colorlinks=true,
   linkcolor=black,
   citecolor=black,
   urlcolor=blue,
-  pdftitle={Manual academico de investigacion de operaciones con QSB},
+  pdftitle={Manual académico y práctico de investigación de operaciones con QSB},
   pdfauthor={Proyecto QSB}
 }
 
-\makeindex
 
 \theoremstyle{definition}
-\newtheorem{definicion}{Definicion}[chapter]
+\newtheorem{definicion}{Definición}[chapter]
 \newtheorem{ejemplo}{Ejemplo}[chapter]
-\newtheorem{observacion}{Observacion}[chapter]
+\newtheorem{observacion}{Observación}[chapter]
 
-\newcommand{\qsb}{\textsc{QSB}}
+\newcommand{\qsb}{\textnormal{\textsc{QSB}}}
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\Z}{\mathbb{Z}}
 
@@ -39,7 +42,8 @@
   breaklines=true,
   columns=fullflexible,
   frame=single,
-  showstringspaces=false
+  showstringspaces=false,
+  keepspaces=true
 }
 \lstset{style=qsbjson}
 
@@ -50,65 +54,83 @@
 \begin{titlepage}
   \centering
   \vspace*{2cm}
-  {\Huge\bfseries Manual academico de investigacion de operaciones con \qsb\par}
+  {\Huge\bfseries Manual académico y práctico de investigación de operaciones con \qsb\par}
   \vspace{1.5cm}
-  {\Large Guia de estudio, modelacion y experimentacion computacional\par}
+  {\Large Guía de uso, modelación e interpretación de resultados\par}
   \vspace{2cm}
   {\large Proyecto QSB\par}
   \vspace{0.4cm}
-  {\large Editores: comunidad academica y de desarrollo de QSB\par}
+  {\large Editores: comunidad académica y de desarrollo de QSB\par}
   \vfill
-  {\large Version viva de trabajo\par}
-  {\large \today\par}
+  {\large Edición de trabajo verificada\par}
+  {\large 11 de octubre de 2026\par}
 \end{titlepage}
 
 \chapter*{Nota editorial}
 \addcontentsline{toc}{chapter}{Nota editorial}
-Este manual esta concebido como una publicacion academica progresiva: debe
-combinar teoria establecida de investigacion de operaciones con modelos
-reproducibles en \qsb. Cada capitulo debera distinguir con claridad entre
-definiciones, supuestos, formulacion matematica, interpretacion gerencial,
-procedimiento computacional, resultados y limitaciones.
+Este manual acompaña la aplicación macOS y la herramienta de línea de comandos
+ de \qsb{}. Presenta fundamentos de investigación de operaciones, ejemplos
+ originales reproducibles e instrucciones para formular, validar, resolver e
+ interpretar modelos. La cobertura corresponde al estado documentado del proyecto
+ el 11 de octubre de 2026; la hoja de ruta sigue siendo la referencia pública
+ para el estado del software.
 
-La version inicial fija la arquitectura editorial, los estandares de citacion y
-dos ejemplos basicos de programacion lineal y entera obtenidos mediante \qsb.
-Las ampliaciones futuras deberian incorporar nuevos casos reales, datos de
-entrada versionados, salidas verificadas y notas sobre la trazabilidad de cada
-resultado.
+Los ejemplos de \texttt{manual/examples/} fueron creados para este proyecto.
+ No necesitan archivos de WinQSB ni reproducen su manual. Las secciones de
+ compatibilidad explican cómo importar archivos propios sin redistribuir
+ materiales propietarios.
 
-\chapter*{Autores y contribuciones}
-\addcontentsline{toc}{chapter}{Autores y contribuciones}
-\begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
-\toprule
-Rol & Responsabilidad editorial \\
-\midrule
-Proyecto QSB & Desarrollo del software, formatos normalizados y ejemplos
-computacionales reproducibles. \\
-Autores academicos & Curaduria teorica, demostraciones, ejercicios,
-terminologia y referencias. \\
-Revisores & Verificacion matematica, reproducibilidad y consistencia
-pedagogica. \\
-\bottomrule
-\end{longtable}
+\section*{Cómo leer el manual}
+Empiece por la guía de la aplicación y el caso de programación lineal. Después
+ consulte el capítulo de la familia que necesite. Cada capítulo distingue los
+ supuestos del modelo, el procedimiento en QSB, los resultados y las limitaciones
+ del método. Una solución numérica no certifica por sí sola que la formulación
+ represente correctamente el problema real.
+
+Los comandos se ejecutan desde la raíz del repositorio. Los números de JSON usan
+ punto decimal; el texto matemático puede usar coma decimal. Los resultados se
+ redondean para facilitar la lectura; las comparaciones de verificación usan
+ tolerancias, no igualdad textual de números de coma flotante.
+
+\section*{Reproducibilidad}
+Los archivos de entrada forman parte de las fuentes del manual. El verificador
+ ejecuta los comandos asociados y comprueba los resultados esperados. La edición
+ separa los solvers educativos nativos de los motores externos opcionales, y no
+ atribuye garantías de optimalidad a heurísticas o métodos locales.
 
 \tableofcontents
 \listoftables
 
 \mainmatter
 
+\part{Uso de QSB y fundamentos}
+\include{chapters/00-guia-aplicacion}
 \include{chapters/01-preliminares}
+
+\part{Optimización y decisiones}
 \include{chapters/02-programacion-lineal}
 \include{chapters/03-programacion-entera}
+\include{chapters/10-optimizacion-avanzada}
 \include{chapters/04-modelos-de-redes}
+\include{chapters/15-decisiones-dinamica}
+
+\part{Planificación de operaciones}
 \include{chapters/05-inventarios}
+\include{chapters/08-calendarizacion}
+\include{chapters/11-planificacion-produccion}
+\include{chapters/12-instalaciones}
+
+\part{Incertidumbre y calidad}
 \include{chapters/06-colas}
 \include{chapters/07-pronosticos}
-\include{chapters/08-calendarizacion}
+\include{chapters/13-markov-simulacion}
+\include{chapters/14-calidad-muestreo}
+
+\appendix
 \include{chapters/09-referencia-terminos}
 
 \backmatter
 \bibliographystyle{apalike}
 \bibliography{references}
-\printindex
 
 \end{document}

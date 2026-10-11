@@ -1,22 +1,119 @@
 \chapter{Modelos de colas}
+\label{ch:colas}
 
-\section{Proposito}
-La teoria de colas estudia sistemas donde clientes, trabajos o unidades esperan
-servicio ante capacidad limitada. Sus metricas centrales incluyen utilizacion,
-longitud esperada de cola, tiempo esperado en el sistema y probabilidad de
-bloqueo \cite{gross2008fundamentals}.
+\section{Del flujo a la espera}
+La teoría de colas relaciona variabilidad, capacidad y congestión
+\cite{gross2008fundamentals}. En la notación Kendall, M denota llegadas
+Poisson o tiempos exponenciales, según su posición. La tasa de servicio
+\(\mu\) es por servidor; el tiempo medio es \(1/\mu\). Todas las tasas
+comparten una unidad temporal. QSB implementa M/M/1 y una cola finita con
+varios servidores mediante un modelo de nacimiento y muerte.
 
-\section{Modelo M/M/1}
-Para llegadas Poisson con tasa \(\lambda\), tiempos de servicio exponenciales
-con tasa \(\mu\) y un servidor, si \(\rho=\lambda/\mu<1\), entonces
+\section{M/M/1 en régimen estacionario}
+Se suponen llegadas independientes, servicio exponencial, un servidor,
+población y espera sin límite. La estabilidad exige \(\lambda<\mu\).
+Con \(\rho=\lambda/\mu\):
 \[
-  L = \frac{\rho}{1-\rho}, \qquad
-  L_q = \frac{\rho^2}{1-\rho}, \qquad
-  W = \frac{1}{\mu-\lambda}, \qquad
-  W_q = \frac{\lambda}{\mu(\mu-\lambda)}.
+ P_0=1-\rho,\quad L=\frac{\rho}{1-\rho},\quad
+ L_q=\frac{\rho^2}{1-\rho},\quad
+ W=\frac1{\mu-\lambda},\quad W_q=\frac{\lambda}{\mu(\mu-\lambda)}.
 \]
+\(L\) incluye clientes atendidos; \(L_q\) solo quienes esperan. La ley de
+Little proporciona \(L=\lambda W\) y \(L_q=\lambda W_q\).
+El backend declara \texttt{mm1ClosedForm}/\texttt{closedForm}. No calcula
+la distribución de un tiempo de espera individual ni percentiles.
 
-\section{Criterio de documentacion}
-Los ejemplos de colas en \qsb{} deberan registrar la notacion Kendall, la unidad
-de tiempo, las distribuciones asumidas, la tasa efectiva de llegada y las notas
-del backend cuando se use una aproximacion.
+\subsection{Ejemplo: una ventanilla}
+\path{manual/examples/prob_cola.json} especifica cuatro llegadas/hora y
+seis servicios/hora. Ejecute desde la raíz:
+\begin{lstlisting}
+.build/debug/qsb validate-queuing-json manual/examples/prob_cola.json
+.build/debug/qsb solve-queuing-json manual/examples/prob_cola.json
+\end{lstlisting}
+La utilización es \(2/3\), \(P_0=1/3\), \(L=2\), \(L_q=4/3\),
+\(W=0.5\) horas y \(W_q=1/3\) horas: treinta minutos en el sistema,
+veinte esperando y diez de servicio. Estar ocupado dos tercios del tiempo no
+significa que dos tercios de los clientes esperen veinte minutos exactamente.
+Si la llegada alcanza seis/hora, el modelo deja de tener estas medias
+estacionarias y QSB devuelve un diagnóstico de estabilidad.
+
+\section{Varios servidores y capacidad finita}
+Con \(c\) servidores y \(b\) plazas de espera, la capacidad del sistema es
+\(K=c+b\). El estado \(n\) tiene tasa de llegada \(\lambda\) si \(n<K\)
+y cero cuando está lleno; su tasa de salida es \(\min(n,c)\mu\).
+Se normalizan las probabilidades obtenidas por
+\[
+ p_n=p_0\prod_{i=1}^n\frac{\lambda}{\min(i,c)\mu}.
+\]
+La probabilidad de bloqueo es \(p_K\), la llegada efectiva
+\(\lambda_e=\lambda(1-p_K)\), y Little utiliza \(\lambda_e\), no la tasa
+ofrecida. Al ser finito, este modelo puede tener distribución estacionaria
+incluso con demanda ofrecida superior a su capacidad de servicio; ello produce
+bloqueo, no capacidad adicional.
+
+QSB requiere llegadas exponenciales en lotes de una unidad y población no
+finita. Usa el tiempo medio de servicio para la tasa por servidor; las
+etiquetas no exponenciales generan advertencias porque su variabilidad no está
+modelada. El documento conserva siempre \texttt{approximate} para esta ruta.
+No debe presentarse un caso normal como solución exacta M/G/c/K.
+
+\subsection{Ejemplo: dos ventanillas y tres plazas}
+\path{prob_cola_finita.json} conserva cuatro llegadas/hora y diez minutos
+medios de servicio, con dos servidores y tres plazas de espera. Valide y
+resuelva con los mismos comandos cambiando el archivo. Se obtiene:
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Métrica & Valor \\
+\midrule
+Capacidad total & 5 \\
+Probabilidad de bloqueo & 0.004124 \\
+Llegadas efectivas por hora & 3.983505 \\
+Utilización media por servidor & 0.331959 \\
+Número medio en el sistema & 0.738144 \\
+Número medio esperando & 0.074227 \\
+Tiempo en el sistema (horas) & 0.185300 \\
+Tiempo esperando (horas) & 0.018634 \\
+\bottomrule
+\end{tabular}
+\end{center}
+La espera media es aproximadamente \(1.118012\) minutos entre clientes
+admitidos. La utilización total de ambos servidores equivale a
+\(0.663918\) servidores ocupados, no al porcentaje individual.
+
+\section{Costos, interfaz y límites}
+Los costos opcionales distinguen servidor ocupado y ocioso, clientes esperando
+y en servicio; la cola finita añade rechazo y plazas. Los costos de estados se
+ponderan por ocupación esperada; el rechazo se multiplica por la tasa de
+clientes bloqueados. El total es un costo por unidad temporal, no por cliente.
+
+En macOS, el creador ofrece ambas variantes. Introduzca tasas para M/M/1 o
+tiempos medios, servidores y espacio de espera para cola finita; valide y
+resuelva. El panel de métricas muestra utilización, flujo efectivo, bloqueo,
+números y tiempos. La variante finita muestra además probabilidades de estado
+con el estado lleno distinguido; los costos opcionales aparecen desglosados.
+Compruebe la unidad temporal y las hipótesis junto a los resultados. El JSON
+normalizado es la alternativa de consulta y exportación.
+
+Use \path{solve-queuing-json} para recibir una entrada normalizada.
+
+Los comandos históricos
+\path{solve-mm1-json} y \path{solve-finite-queue-json} reciben un archivo
+legado, pese a su sufijo: este señala la salida JSON. Para intercambiar entradas
+normalizadas use siempre la ruta genérica. Los backends son nativo y validación;
+no hay solver externo instalado para esta familia.
+
+No se modelan prioridades, abandono por paciencia, clientes con población
+finita, llegadas por lotes generales o variación de tasas por hora del día.
+La simulación del capítulo de Markov y simulación permite explorar otra clase
+de supuestos, pero sus estimaciones no sustituyen estas fórmulas estacionarias.
+
+\section{Ejercicios}
+\begin{enumerate}
+\item Cambie \(\lambda\) a 5.5 en M/M/1 y compare utilización y espera. Explique
+por qué el crecimiento de la espera no es lineal.
+\item Elimine las plazas de espera de la cola finita. Compruebe que hay bloqueo
+sin una cola positiva y use \(\lambda_e\) para verificar Little.
+\item Compare añadir un servidor con añadir cinco plazas: \textquestiondown{}cuál cambia la
+capacidad de servicio y cuál cambia el almacenamiento de clientes?
+\end{enumerate}

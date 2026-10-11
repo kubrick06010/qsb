@@ -1,0 +1,190 @@
+\chapter{Control de calidad y muestreo de aceptación}
+\label{ch:calidad}
+
+\section{Vigilar un proceso o aceptar un lote}
+El control estadístico busca señales de cambio en un proceso; el muestreo de
+aceptación decide sobre lotes mediante muestras. Un proceso estable puede
+producir defectos, y aceptar un lote no certifica que todas sus unidades sean
+conformes. Ambos procedimientos necesitan definiciones y muestreo coherentes
+\cite{montgomery2020quality}.
+
+QSB admite cartas c, p y \(\bar X\)-R, Pareto y gráfico de probabilidad
+normal; evalúa además planes de aceptación simples y dobles binomiales.
+El backend nativo es determinista y el de validación no resuelve. No hay
+backend externo disponible para estas familias.
+
+\section{Cartas c y p}
+La carta c cuenta defectos en una unidad de inspección de tamaño constante.
+Un artículo puede tener más de un defecto. Con hipótesis de conteo Poisson,
+\[
+ CL=\bar c,\qquad LCL=\max(0,\bar c-3\sqrt{\bar c}),\quad
+ UCL=\bar c+3\sqrt{\bar c}.
+\]
+\path{manual/examples/prob_calidad.json} contiene conteos
+\((2,3,4,3,2,4,3,3,2,4)\). Desde la raíz:
+\begin{lstlisting}
+.build/debug/qsb validate-quality-json manual/examples/prob_calidad.json
+.build/debug/qsb solve-quality-json manual/examples/prob_calidad.json
+\end{lstlisting}
+La línea central es \(3\), límite inferior cero y superior \(8.196152\).
+No hay puntos fuera de límites ni señales de las reglas implementadas. Es una
+comprobación didáctica de fórmula; diez conteos no bastan para establecer un
+proceso industrial como estable. Unidades de inspección de tamaños variables
+requieren otro planteamiento; QSB no implementa una carta u en esta ruta.
+
+La carta p utiliza proporción de unidades defectuosas, con tamaño \(n_i\)
+para cada subgrupo. Su centro ponderado es
+\[
+ \bar p=\frac{\sum_i n_ip_i}{\sum_i n_i},\qquad
+ CL_i=\bar p,\quad CL_i\pm3\sqrt{\bar p(1-\bar p)/n_i},
+\]
+recortando límites a \([0,1]\).
+
+En \path{prob_p.json}, tamaños
+\((100,100,200)\) y proporciones \((0.02,0.04,0.03)\) producen
+\(\bar p=0.03\); los límites superiores son \(0.081176\) para los dos
+primeros subgrupos y \(0.066187\) para el tercero. El inferior es cero.
+La entrada usa fracciones: \(0.03\) significa \(3\%\), no \(0.03\%\).
+Los límites de tres sigmas son una aproximación estadística de la distribución
+de los datos, aunque QSB etiquete como \texttt{exact} la aplicación de fórmulas.
+
+\section{Carta de medias y rangos}
+Subgrupos racionales agrupan mediciones tomadas bajo condiciones comparables.
+Con \(\bar{\bar X}\) media de medias y \(\bar R\) media de rangos,
+\[
+ LCL_{\bar X},UCL_{\bar X}=\bar{\bar X}\mp A_2\bar R,\qquad
+ LCL_R=D_3\bar R,\quad UCL_R=D_4\bar R.
+\]
+QSB usa constantes estándar para tamaños uniformes entre dos y diez.
+Revise primero la variación en R antes de interpretar desplazamientos de medias.
+\path{prob_xr.json} contiene subgrupos \((9,10,11)\),
+\((10,11,12)\) y \((8,9,10)\). Se obtiene \(\bar{\bar X}=10\),
+\(\bar R=2\), límites de medias \([7.954,12.046]\) y de rangos
+\([0,5.148]\), sin puntos fuera de límites. Los límites de control describen
+variabilidad del proceso; no son tolerancias de diseño. QSB no calcula índices
+Cp/Cpk en este flujo.
+
+\section{Pareto y probabilidad normal}
+Pareto agrega categorías, las ordena por frecuencia descendente y publica
+participaciones y acumulados. \path{prob_pareto.json} tiene filas
+\((4,2,1)\) y \((2,1,0)\) para Rayas, Manchas y Roturas. Sus totales son
+\((6,3,1)\), total \(10\), participaciones \((0.6,0.3,0.1)\) y acumulados
+\((0.6,0.9,1)\). Los campos llamados \texttt{percentage} en JSON almacenan
+fracciones, no valores entre cero y cien. Priorizar Rayas por frecuencia no
+establece que sea la categoría de mayor costo o riesgo.
+
+El gráfico normal ordena mediciones y asigna posiciones de Blom
+\(p_i=(i-3/8)/(n+1/4)\); utiliza \(z_i=\Phi^{-1}(p_i)\), ajustando
+medición contra puntuación normal. \path{prob_normal.json} contiene
+\((8,9,10,11,12)\); media \(10\), desviación muestral \(1.581139\),
+intercepto \(10\), pendiente \(1.742919\) y correlación \(0.997902\).
+Se etiqueta \texttt{approximate} por el cuantil normal aproximado. Una
+correlación elevada con cinco puntos no demuestra normalidad; no es una prueba
+con p-valor. Estos cuatro ejemplos se ejecutan con los mismos comandos de
+calidad cambiando el archivo.
+
+\section{Señales e interfaz de calidad}
+QSB señala puntos fuera de tres sigmas y reglas fijas Western Electric:
+dos de tres más allá de dos sigmas del mismo lado, cuatro de cinco más allá
+de una sigma del mismo lado y
+ocho del mismo lado del centro. Los puntos fuera de tres sigmas ya señalados
+se excluyen del recuento de las reglas zonales de dos de tres y cuatro de cinco.
+No hay configuración de reglas ni metadatos
+normalizados de causa, acción y comentario. Los índices de señales identifican
+observaciones a investigar, no diagnósticos automáticos de causa. Los límites
+recortados de cartas de atributos afectan la escala usada por las reglas de
+esta implementación: conserve la salida y revise la señal junto al gráfico.
+
+En macOS seleccione la variante en el editor nativo y complete su tabla:
+conteos/proporciones, subgrupos, categorías o mediciones. Cambiar variante
+conserva tablas no activas durante la sesión, pero el JSON exporta solamente la
+activa. Pegue tablas completas para reemplazarlas de forma atómica; datos
+incompletos importados permanecen como celdas inválidas. Tras validar y resolver,
+las cartas muestran centros, límites y señales; Pareto muestra frecuencia y
+acumulado; el gráfico normal muestra puntos y recta. Consulte las tablas y el
+JSON para los valores exactos del cálculo y mantenga el orden de adquisición.
+
+\section{Plan simple de aceptación}
+Para tamaño de muestra \(n\) y máximo aceptable de defectuosas \(c\), se
+acepta si \(X\le c\). Bajo muestreo binomial independiente con proporción
+\(p\), la curva característica operativa es
+\[
+ P_a(p)=\sum_{x=0}^c{n\choose x}p^x(1-p)^{n-x}.
+\]
+AQL es el nivel de calidad aceptable y RQL el rechazable. El riesgo real del
+productor es \(\alpha=1-P_a(AQL)\); el del consumidor es
+\(\beta=P_a(RQL)\). Introducir riesgos nominales no modifica un plan ya
+suministrado para que los cumpla.
+
+\path{prob_muestreo.json} fija \(n=20,c=1,AQL=0.01,RQL=0.15\),
+riesgos nominales \(0.05,0.10\) y lote de \(500\).
+\begin{lstlisting}
+.build/debug/qsb validate-acceptance-json manual/examples/prob_muestreo.json
+.build/debug/qsb solve-acceptance-json manual/examples/prob_muestreo.json
+\end{lstlisting}
+QSB devuelve \(P_a(AQL)=0.983141\), riesgo del productor \(0.016859\)
+y riesgo del consumidor \(0.175558\). El plan supera el riesgo nominal del
+consumidor: no debe describirse como un plan que satisface \(\beta=0.10\).
+La salida contiene 101 puntos de curva desde \(0\) a \(100\%\) defectuoso,
+además de medidas en AQL y RQL. Esta malla no sustituye evaluación continua para
+optimizar un riesgo entre puntos.
+
+El tamaño medio de muestra ASN es \(20\). Bajo inspección rectificadora de
+lotes rechazados y eliminación de defectuosas inspeccionadas,
+\[
+ ATI=n+(N-n)(1-P_a),\qquad AOQ=pP_a(N-n)/N.
+\]
+En AQL resulta ATI \(28.092482\) y AOQ \(0.009438\), es decir
+\(0.943815\%\). Si los lotes rechazados se devuelven sin inspección total,
+estas medidas no describen el procedimiento real. QSB evalúa las probabilidades
+binomiales exactamente dentro del supuesto, pero muestrear sin reemplazo una
+fracción grande del lote requiere considerar la distribución hipergeométrica;
+el núcleo ofrece esa probabilidad, no un selector en este comando.
+
+\section{Plan doble y diseño}
+En un plan doble, se inspeccionan \(n_1\) unidades. Si las defectuosas
+\(x_1\le c_1\), se acepta; si \(x_1\ge r_1\), se rechaza; en medio se
+inspeccionan \(n_2\) \emph{adicionales}. Se acepta finalmente si
+\(x_1+x_2\le c_2\). Confundir \(n_2\) con tamaño acumulado cambia el plan.
+Su probabilidad de aceptación es
+\[
+ P_a=P(X_1\le c_1)+
+ \sum_{x=c_1+1}^{r_1-1}P(X_1=x)P(X_2\le c_2-x).
+\]
+El archivo \path{prob_doble.json} usa \(n_1=10,c_1=0,r_1=3\),
+\(n_2=10,c_2=1\) con los mismos niveles y lote anteriores. Cambiando el
+archivo en \texttt{solve-acceptance-json}, se obtiene riesgo del productor
+\(0.013001\), consumidor \(0.265274\), ASN en AQL \(10.955041\) y en RQL
+\(16.233221\). Reduce inspección media a costa de aceptar más lotes malos en
+este ejemplo; no es una mejora universal. ATI en AQL es \(17.313145\) y
+AOQ \(0.009654\), bajo la convención rectificadora del solver.
+Para planes dobles, QSB sustituye \(n\) por ASN en las fórmulas publicadas
+de ATI y AOQ. Es una convención agregada: no calcula por separado el tamaño
+inspeccionado condicionado a cada ruta de aceptación o rechazo.
+
+La CLI permite diseñar el menor plan \emph{simple} que cumple cotas binomiales:
+\begin{lstlisting}
+.build/debug/qsb design-acceptance 500 0.01 0.15 0.05 0.10
+\end{lstlisting}
+El resultado es \(n=25,c=1\), riesgo productor \(0.025759\) y consumidor
+\(0.093071\). El orden es lote, AQL, RQL, riesgo productor y riesgo consumidor. El comando
+busca un plan, a diferencia de evaluar uno ya fijado. No diseña planes dobles,
+no optimiza costo esperado, no implementa errores no nulos de clasificación
+y no afirma conformidad con una norma de muestreo específica.
+
+En macOS el formulario distingue plan simple/doble y sus límites de decisión;
+conserva los niveles, riesgos y datos económicos compartidos al cambiar tipo.
+Valide y resuelva para ver curva OC, marcadores AQL/RQL, riesgos reales frente a
+nominales y ASN/ATI/AOQ. Los campos económicos se preservan en el modelo; la
+salida del núcleo contiene las medidas de calidad e inspección, no un óptimo
+económico. El JSON permite auditar el plan exacto utilizado.
+
+\section{Ejercicios}
+\begin{enumerate}
+\item Añada un conteo de veinte al ejemplo c y observe cómo cambian centro y
+límites al incluirlo en la estimación. Discuta cuándo fijar una fase de referencia.
+\item Compare cartas p con tamaño cien y mil manteniendo proporciones.
+Explique por qué una misma desviación puede producir señales diferentes.
+\item Diseñe un plan simple con las cotas del ejemplo y compare ASN con el
+plan \(20,1\). Compruebe riesgos reales, no solo nominales.
+\end{enumerate}

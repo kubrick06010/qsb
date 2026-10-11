@@ -1,0 +1,13 @@
+{
+  "kind": "eoq",
+  "model": {
+    "title": "Reposicion de cuadernos",
+    "timeUnit": "year",
+    "demand": 1200,
+    "setupCost": 30,
+    "holdingCost": 2,
+    "acquisitionCost": 5,
+    "leadTime": 0.01,
+    "knownOrderQuantity": 100
+  }
+}

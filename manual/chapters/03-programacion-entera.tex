@@ -1,59 +1,140 @@
-\chapter{Programacion entera}
+\chapter{Programación entera y mixta}
+\label{chap:entera}
 
-\section{Motivacion}
-La programacion entera extiende la programacion lineal al exigir que algunas o
-todas las variables adopten valores enteros. Esta restriccion permite modelar
-decisiones indivisibles como abrir instalaciones, seleccionar proyectos,
-asignar turnos o producir lotes discretos \cite{nemhauser1988integer,wolsey1998integer}.
+\section{Decisiones indivisibles}
+La programación entera exige que algunas decisiones adopten valores discretos:
+proyectos seleccionados, turnos, lotes o instalaciones abiertas. Un modelo
+mixto entero lineal conserva objetivo y restricciones lineales, pero combina
+variables continuas y enteras \cite{nemhauser1988integer} y \cite{wolsey1998integer}.
+La integridad es parte del modelo, no una operación de presentación del
+resultado. Redondear un óptimo continuo puede incumplir restricciones o perder
+optimalidad.
 
-\section{Modelo general}
-Un problema mixto entero lineal puede escribirse como
-\[
-  \min \; c^\top x + d^\top y
-  \quad \text{sujeto a} \quad
-  Ax + By \geq b,\;
-  x \in \R_+^n,\;
-  y \in \Z_+^p.
-\]
-La dificultad computacional crece porque la region factible deja de ser
-convexa en el sentido continuo: la relajacion lineal puede proponer soluciones
-fraccionarias que no son implementables.
+Una variable entera representa cantidades indivisibles; una binaria representa
+una decisión sí/no. En QSB los tipos normalizados son \texttt{continuous},
+\texttt{integer} y \texttt{binary}. Todos comparten coeficientes, relaciones y
+cotas del modelo lineal. En un modelo de selección, una binaria \(y_j\) puede
+activar una cantidad continua \(x_j\) mediante \(0\leq x_j\leq M_jy_j\).
+La constante \(M_j\) debe ser una cota justificable: un número excesivamente
+grande debilita la relajación y puede perjudicar la estabilidad numérica.
 
-\section{Ejemplo QSB: requerimientos minimos discretos}
-El ejemplo \texttt{manual/examples/ilp\_sample.json} minimiza el costo de dos
-actividades enteras:
+\section{Ejemplo: cobertura mínima con actividades enteras}
+Dos actividades generan coberturas de dos requerimientos. Cada unidad de la
+primera cuesta 2.5 unidades monetarias y cada unidad de la segunda cuesta 2.
+Sus aportaciones son \((6,3)\) y \((3,5)\); se necesitan al menos 200 unidades
+del primer requerimiento y 180 del segundo. Las actividades solo pueden
+contratarse por unidades completas:
 \[
 \begin{aligned}
-  \min \quad & 2.5X_1 + 2X_2 \\
-  \text{s.a.}\quad & 6X_1 + 3X_2 \geq 200,\\
-  & 3X_1 + 5X_2 \geq 180,\\
-  & X_1, X_2 \in \Z_+.
+ \min\quad &2.5X_1+2X_2\\
+ \text{sujeto a}\quad &6X_1+3X_2\geq200,\\
+ &3X_1+5X_2\geq180,\\
+ &X_1,X_2\in\Z_+.
 \end{aligned}
 \]
+El costo es aditivo y las aportaciones se mantienen constantes: no se han
+modelado descuentos ni cambios de productividad. El caso completo se
+encuentra en \path{manual/examples/ilp_sample.json}; ambas variables tienen
+\texttt{variableTypes} igual a \texttt{integer} y cota inferior cero.
 
-Comando reproducible:
+\subsection{Ejecución en CLI y macOS}
+Desde la raíz del repositorio:
 \begin{lstlisting}
-swift run qsb solve-json-ilp manual/examples/ilp_sample.json
+swift run qsb solve-json-ilp manual/examples/ilp_sample.json --backend native
 \end{lstlisting}
+Use la ruta ILP específica para respetar los dominios enteros; resolver solo
+la relajación no responde a la decisión indivisible.
 
-\begin{table}[h]
-\centering
-\caption{Solucion del ejemplo de programacion entera}
-\begin{tabular}{lr}
-\toprule
-Cantidad & Valor \\
-\midrule
-\(X_1\) & 22 \\
-\(X_2\) & 23 \\
-Valor objetivo & 101 \\
-\bottomrule
-\end{tabular}
-\end{table}
+En macOS se utiliza el mismo editor \texttt{Linear / Integer Programming}
+del capítulo~\ref{chap:pl}. Abra el JSON o introduzca las dos variables con
+\texttt{Minimize}, coeficientes 2.5 y 2, tipo \texttt{Integer}, cota inferior
+cero y ninguna cota superior explícita. Introduzca las dos restricciones con
+relación \(\geq\), valide y pulse \texttt{Run ILP}. El nombre del botón cambia
+según los tipos de variables. La solución presenta las cantidades y las
+evaluaciones de las restricciones; conserve el JSON exportado para revisar
+los dominios originales.
 
-\section{Notas de verificacion}
-La solucion satisface las restricciones:
+\subsection{Óptimo y comprobación}
+QSB devuelve \(X_1=22\), \(X_2=23\) y costo 101. La factibilidad se verifica
+con
 \[
-6(22)+3(23)=201 \geq 200,\qquad 3(22)+5(23)=181 \geq 180.
+ 6(22)+3(23)=201\geq200,\qquad3(22)+5(23)=181\geq180.
 \]
-La cercania de ambas restricciones a sus requerimientos muestra el equilibrio
-tipico entre costo minimo e integridad de las decisiones.
+Los excesos de cobertura son de una unidad en cada requerimiento. El costo
+corresponde a \(2.5(22)+2(23)=101\), y ambas cantidades son enteras.
+
+Para comprender la diferencia con la relajación, permita temporalmente
+variables continuas. La intersección de las dos fronteras es
+\[
+ X_1=\frac{460}{21}\approx21.904762,\qquad
+ X_2=\frac{160}{7}\approx22.857143,
+\]
+con costo \(2110/21\approx100.476190\). En minimización, relajar la integridad
+solo puede reducir el costo óptimo o dejarlo igual; constituye una cota inferior
+para el problema entero. La diferencia absoluta es \(11/21\approx0.523810\).
+El redondeo hacia arriba produce en este caso la solución entera óptima, pero
+es una coincidencia del caso, no una regla general.
+
+Hay también una comprobación breve del costo entero. Para cualquier solución
+factible, el costo es al menos \(2110/21\), y pertenece a la malla de múltiplos
+de 0.5. Solo habría que descartar el costo 100.5 para probar que 101 es el
+mínimo. Si costara 100.5, entonces \(5X_1+4X_2=201\). Sustituyendo en las
+dos coberturas se obtiene simultáneamente
+\(X_1\geq197/9\) y \(X_1\leq285/13\); el estrecho intervalo
+\([21.888889,21.923077]\) no contiene ningún entero. Por tanto, el costo
+100.5 no es alcanzable y la solución de QSB certifica el siguiente valor
+posible, 101.
+
+\section{Ramificación y acotación}
+El algoritmo nativo resuelve una relajación LP en cada nodo. Si la solución es
+entera, sirve como candidata. Si una variable toma un valor fraccionario \(v\),
+se crean dos problemas, \(x_j\leq\lfloor v\rfloor\) y
+\(x_j\geq\lceil v\rceil\), que cubren sus posibilidades enteras. Una rama
+infactible se descarta; una cuya cota no mejora la mejor solución conocida
+también se descarta. Explorar todas las ramas relevantes permite establecer
+optimalidad dentro de las tolerancias numéricas.
+
+QSB usa una búsqueda determinista y un límite predeterminado de 10000 nodos.
+Si se excede, informa de un modelo no soportado por ese recorrido; no debe
+interpretarse como una solución óptima ni como una prueba de infactibilidad.
+El backend educativo carece de las técnicas de cortes y preprocesamiento de
+un motor MILP industrial. El tiempo puede crecer rápidamente aunque el
+archivo sea pequeño; proporcionar cotas físicas válidas puede mejorar la
+formulación, pero nunca debe excluir decisiones factibles.
+
+\texttt{validate} comprueba el modelo sin resolverlo.
+\texttt{external} utiliza el HiGHS descubierto en el equipo para LP/MIP y
+requiere una instalación independiente. El backend seleccionado no cambia
+el significado de las variables; si no está disponible, la petición falla.
+El comando \texttt{export-mps} admite este JSON y expresa sus dominios enteros,
+sus cotas y las filas lineales. Esta capacidad de MILP no implica que HiGHS
+admita programación cuadrática mixta entera; son clases diferentes.
+
+\section{Interpretación y errores frecuentes}
+Compare costos solo entre soluciones factibles del mismo modelo. La cota de
+la relajación mide el costo idealizado al admitir fracciones, pero no una
+alternativa implementable. En modelos binarios compruebe que cada valor
+representa la acción prevista; en modelos mixtos distinga cantidades continuas
+de decisiones de activación. Una solución fraccionaria obtenida al cambiar los
+tipos a continuos responde a otro problema.
+
+No multiplique una variable binaria por una continua dentro de una fila LP:
+es una expresión no lineal. Las reglas de activación requieren restricciones
+lineales auxiliares. Tampoco convierta una variable continua a entera solo
+para que la pantalla muestre números redondos: el dominio responde a la
+unidad de decisión.
+
+\section{Ejercicios}
+\begin{enumerate}
+ \item Duplique el JSON del ejemplo y cambie los dos tipos a
+ \texttt{continuous}. Resuelva con \texttt{solve-json} y contraste la cota
+ inferior calculada arriba con el resultado entero.
+ \item Imponga \(X_1\leq21\). Calcule el mínimo \(X_2\) que satisface ambas
+ coberturas, y compruebe el nuevo costo con QSB.
+ \item Formule una selección de tres proyectos con costos 4, 6 y 7,
+ beneficios 5, 8 y 10, presupuesto 10 y variables binarias. Determine por
+ enumeración qué combinación es óptima y después verifíquela.
+ \item Explique por qué redondear hacia abajo las dos cantidades de la
+ relajación del ejemplo incumple los requerimientos. \textquestiondown{}Qué cambiaría si
+ las restricciones fueran capacidades máximas?
+\end{enumerate}

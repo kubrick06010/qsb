@@ -1,0 +1,14 @@
+{
+  "kind": "normalProbabilityPlot",
+  "model": {
+    "values": [
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "title": "Calidad didactica",
+    "characteristic": "Medicion"
+  }
+}

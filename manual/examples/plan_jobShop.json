@@ -1,0 +1,47 @@
+{
+  "kind": "jobShop",
+  "model": {
+    "title": "jobShop",
+    "timeUnit": "hora",
+    "machines": [
+      {
+        "id": 1,
+        "name": "M1"
+      },
+      {
+        "id": 2,
+        "name": "M2"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 1,
+        "name": "J1",
+        "operations": [
+          {
+            "machineID": 1,
+            "duration": 2
+          },
+          {
+            "machineID": 2,
+            "duration": 3
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "J2",
+        "operations": [
+          {
+            "machineID": 2,
+            "duration": 2
+          },
+          {
+            "machineID": 1,
+            "duration": 1
+          }
+        ]
+      }
+    ]
+  }
+}

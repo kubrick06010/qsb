@@ -1,31 +1,73 @@
-\chapter{Preliminares metodologicos}
+\chapter{Preliminares metodológicos}
+\label{chap:preliminares}
 
 \section{Objeto del manual}
-La investigacion de operaciones estudia la construccion, analisis y solucion de
-modelos cuantitativos para apoyar decisiones bajo restricciones. Este manual
-adopta una perspectiva doble: presenta los fundamentos clasicos del campo y
-muestra como convertirlos en modelos ejecutables con \qsb.
+La investigación de operaciones construye y analiza modelos cuantitativos para
+apoyar decisiones bajo restricciones. Este manual combina fundamentos y uso
+práctico: cada ejemplo transforma un enunciado en datos de QSB y explica qué
+significa el resultado. Los problemas son didácticos originales, con entradas
+normalizadas disponibles en \texttt{manual/examples/}; no requieren manuales ni
+archivos propietarios de programas anteriores.
 
-\section{Ciclo de modelacion}
-Un estudio riguroso debe registrar, como minimo:
+Puede empezar por la guía de la aplicación y un ejemplo de programación lineal,
+o ir al capítulo de la familia que corresponde a su problema. Antes de ejecutar,
+lea sus supuestos: dos modelos que usan las mismas palabras pueden representar
+sistemas distintos. No confunda inventarios deterministas con demanda aleatoria,
+una ruta acíclica con una red general ni un óptimo local con uno global.
+
+\section{Ciclo de modelación}
+Un estudio riguroso registra:
 \begin{enumerate}
-  \item el sistema real y la decision que se desea apoyar;
-  \item las variables de decision, parametros y unidades;
-  \item los supuestos que vuelven tratable el modelo;
-  \item la funcion objetivo y las restricciones;
-  \item el procedimiento de solucion;
-  \item la interpretacion, validacion y sensibilidad del resultado.
+ \item el sistema real, el horizonte y la decisión que se desea apoyar;
+ \item variables controlables, parámetros y unidades;
+ \item supuestos, incertidumbre y alcance de los datos;
+ \item objetivo, restricciones y condiciones iniciales;
+ \item método de solución, backend y opciones de ejecución;
+ \item comprobaciones de factibilidad e interpretación;
+ \item sensibilidad, riesgos y límites de aplicación.
 \end{enumerate}
+Escriba cada parámetro con su unidad. Si la demanda se expresa por año y el plazo
+en días, convierta a una base común antes de calcular. Un número sin unidad puede
+producir una solución matemáticamente coherente y operativamente incorrecta.
 
-\section{Trazabilidad computacional en QSB}
-Los ejemplos del manual usaran archivos de entrada en
-\texttt{manual/examples/} y salidas obtenidas con comandos de \qsb. Cuando un
-ejemplo provenga de datos
-externos, debera documentarse su fuente, licencia, fecha de extraccion,
-transformaciones y unidad de analisis.
+\section{Validez y exactitud}
+La validación comprueba estructura, dimensiones, campos y reglas de la familia.
+No garantiza factibilidad ni que los supuestos sean adecuados. Un solver puede
+probar optimalidad para un modelo, devolver una heurística o detenerse dentro de
+un límite. Consulte estado, algoritmo, exactitud y notas de ejecución.
+
+En los metadatos, \texttt{exact} caracteriza el procedimiento para el problema
+admitido; no implica aritmética simbólica ni precisión infinita.
+\texttt{fixtureScale} señala un método educativo orientado a casos pequeños.
+La resolución numérica usa tolerancias; compare resultados con un margen
+coherente con la escala en lugar de exigir igualdad textual de decimales.
+La repetibilidad tampoco prueba validez: un error de formulación puede ser
+perfectamente determinista.
+
+\section{Trazabilidad computacional}
+Para reproducir un análisis, conserve entrada JSON, versión de QSB, comando,
+backend, opciones y resultado. Registre también cualquier transformación desde
+una hoja de cálculo. En datos externos, añada fuente, licencia, fecha y unidad
+de análisis. Un documento de solución no siempre contiene el modelo completo;
+guárdelo por separado.
+
+Los comandos de este manual se ejecutan desde la raíz del repositorio.
+\texttt{swift run qsb} compila si hace falta; \texttt{.build/debug/qsb} usa el
+binario construido. Los ejemplos pequeños permiten comprobar resultados a mano
+antes de estudiar casos mayores. Cambiar la entrada requiere volver a validar
+y resolver, no sólo modificar una tabla de presentación.
 
 \begin{observacion}
-Un resultado computacional no sustituye la interpretacion. El solucionador
-produce valores optimos bajo los supuestos codificados; el analista debe decidir
-si esos supuestos son defendibles para el sistema real.
+El resultado computacional expresa consecuencias de los datos y supuestos
+codificados. El analista debe justificar esos supuestos, contrastar la solución
+con el sistema real y comunicar las limitaciones a quien toma la decisión.
 \end{observacion}
+
+\section{Comparación y sensibilidad}
+Distinga verificación (el programa calcula lo especificado) y validación del
+modelo (lo especificado representa suficientemente el sistema). Compruebe
+balances y restricciones con los valores devueltos. Después varíe demanda,
+costes o probabilidades, manteniendo sus distribuciones y unidades coherentes.
+Un cambio de recomendación ante una perturbación pequeña puede revelar una
+decisión frágil; un empate puede requerir criterios secundarios fuera del modelo.
+No extrapole una conclusión más allá del intervalo analizado.

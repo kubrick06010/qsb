@@ -1,0 +1,42 @@
+{
+  "kind": "payoff",
+  "model": {
+    "title": "Lanzamiento con estudio",
+    "states": [
+      "Alta",
+      "Baja"
+    ],
+    "priorProbabilities": [
+      0.4,
+      0.6
+    ],
+    "indicators": [
+      "Positivo",
+      "Negativo"
+    ],
+    "indicatorLikelihoods": [
+      [
+        0.8,
+        0.2
+      ],
+      [
+        0.2,
+        0.8
+      ]
+    ],
+    "decisions": [
+      "Lanzar",
+      "Esperar"
+    ],
+    "payoffs": [
+      [
+        100,
+        -40
+      ],
+      [
+        20,
+        10
+      ]
+    ]
+  }
+}

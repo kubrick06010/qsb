@@ -1,0 +1,24 @@
+{
+  "kind": "zeroSumGame",
+  "model": {
+    "title": "Eleccion simultanea",
+    "rowStrategies": [
+      "A",
+      "B"
+    ],
+    "columnStrategies": [
+      "A",
+      "B"
+    ],
+    "payoffs": [
+      [
+        1,
+        -1
+      ],
+      [
+        -1,
+        1
+      ]
+    ]
+  }
+}

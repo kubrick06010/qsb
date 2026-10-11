@@ -1,0 +1,61 @@
+{
+  "title": "Ventanilla simulada",
+  "timeUnit": "hour",
+  "representation": "matrix",
+  "components": [
+    {
+      "name": "Cliente",
+      "kind": "C",
+      "routes": [
+        {
+          "target": "Espera",
+          "probability": 1,
+          "transferTime": 0
+        }
+      ],
+      "interarrivalTime": {
+        "kind": "exponential",
+        "parameters": [
+          0.25
+        ]
+      },
+      "batchSize": {
+        "kind": "constant",
+        "parameters": [
+          1
+        ]
+      },
+      "serviceRules": []
+    },
+    {
+      "name": "Espera",
+      "kind": "Q",
+      "routes": [
+        {
+          "target": "Atencion",
+          "probability": 1,
+          "transferTime": 0
+        }
+      ],
+      "queueDiscipline": "FIFO",
+      "queueCapacity": 20,
+      "serviceRules": []
+    },
+    {
+      "name": "Atencion",
+      "kind": "S",
+      "routes": [],
+      "serviceRules": [
+        {
+          "entityType": "Cliente",
+          "distribution": {
+            "kind": "exponential",
+            "parameters": [
+              0.16666666666666666
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

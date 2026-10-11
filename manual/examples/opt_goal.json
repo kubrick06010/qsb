@@ -1,0 +1,73 @@
+{
+  "title": "Production priorities",
+  "variableNames": [
+    "A",
+    "B",
+    "n1",
+    "p1"
+  ],
+  "goals": [
+    {
+      "name": "Target A deviation",
+      "sense": "minimize",
+      "coefficients": [
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "Production B",
+      "sense": "maximize",
+      "coefficients": [
+        0,
+        1,
+        0,
+        0
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "name": "Capacity",
+      "coefficients": [
+        1,
+        1,
+        0,
+        0
+      ],
+      "relation": "<=",
+      "rhs": 10
+    },
+    {
+      "name": "Target A",
+      "coefficients": [
+        1,
+        0,
+        1,
+        -1
+      ],
+      "relation": "=",
+      "rhs": 8
+    }
+  ],
+  "lowerBounds": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "upperBounds": [
+    null,
+    null,
+    null,
+    null
+  ],
+  "variableTypes": [
+    "continuous",
+    "continuous",
+    "continuous",
+    "continuous"
+  ]
+}

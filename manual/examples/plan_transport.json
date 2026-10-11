@@ -1,0 +1,32 @@
+{
+  "kind": "TP",
+  "model": {
+    "title": "transport",
+    "origins": [
+      "O1",
+      "O2"
+    ],
+    "destinations": [
+      "D1",
+      "D2"
+    ],
+    "costs": [
+      [
+        1,
+        4
+      ],
+      [
+        3,
+        2
+      ]
+    ],
+    "supply": [
+      4,
+      6
+    ],
+    "demand": [
+      5,
+      5
+    ]
+  }
+}

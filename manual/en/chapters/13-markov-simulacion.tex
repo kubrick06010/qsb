@@ -1,0 +1,146 @@
+\chapter{Markov processes and simulation}
+\label{ch:markov-simulacion}
+
+\section{Two ways to describe uncertainty}
+A Markov chain propagates probabilities among states; a simulation constructs
+realizations of events and estimates measures through repetition. The former
+can yield a stationary distribution through equations; the latter supports
+more detailed networks and rules, at the cost of sampling error. QSB maintains
+separate normalized models and results for the two procedures
+\cite{ross2019introduction,law2015simulation}.
+
+\section{Finite chains and the row convention}
+\(P_{ij}\) is the probability of moving from state \(i\) to \(j\) in one
+period. Each row sums to one. The distribution is a row vector:
+\[
+ s_{t+1}=s_tP,\qquad \pi P=\pi,\qquad \sum_i\pi_i=1.
+\]
+Transitions are assumed time homogeneous, and the next state depends on the
+current one without additional information from the past. Costs \(c_i\) are
+per state per period; their expectation is \(s_tc\). They are not transition
+costs.
+
+\subsection{Example: machine availability}
+\path{manual/examples/prob_markov.json} defines Operativa (operational) and
+Parada (stopped), costs \((0,100)\), initial distribution \((1,0)\), a
+horizon of three, and
+\[
+ P=\begin{pmatrix}0.9&0.1\\0.4&0.6\end{pmatrix}.
+\]
+From the repository root:
+\begin{lstlisting}
+.build/debug/qsb validate-markov-json manual/examples/prob_markov.json
+.build/debug/qsb solve-markov-json manual/examples/prob_markov.json
+\end{lstlisting}
+The results are:
+\begin{center}
+\begin{tabular}{rrrr}
+\toprule
+Period & Operativa & Parada & Expected cost \\
+\midrule
+0 & 1 & 0 & 0 \\
+1 & 0.9 & 0.1 & 10 \\
+2 & 0.85 & 0.15 & 15 \\
+3 & 0.825 & 0.175 & 17.5 \\
+\bottomrule
+\end{tabular}
+\end{center}
+The stationary distribution is \((0.8,0.2)\), with expected cost \(20\)
+per period. This is a long-run mean, rather than a cumulative cost over three
+periods. This chain is irreducible and aperiodic, so its transient distributions
+converge to it. In general, stationary uniqueness and convergence from every
+initial distribution are not equivalent: a periodic chain may oscillate.
+
+QSB solves a stationary linear system and propagates matrices; it reports
+\texttt{exact} as the algorithmic character, using floating-point arithmetic.
+The method requires a unique stationary distribution and returns an error if
+its system is singular. It does not choose an arbitrary mixture for chains
+with several closed classes. When no initial distribution is supplied, it
+does not invent one: transient output is empty. Validating rows and dimensions
+does not guarantee that the stationary system is solvable.
+
+In macOS, the editor supports names, costs, optional initial probabilities,
+the transition matrix, and the horizon. Check row orientation before solving;
+the result shows the stationary distribution, propagation, costs, and
+assumptions. Editing states keeps dimensions consistent; invalid text remains
+visible until corrected. JSON remains available for interchange.
+
+\section{Discrete-event simulation}
+A network contains entity sources, queues, servers, and gates. Routes include
+probabilities and transfer times; service rules may depend on entity type.
+QSB supports constant, exponential, normal, uniform, and triangular
+distributions. Negative normal samples are clipped to zero; they are not
+resampled. This clipping changes the mean and variability relative to an
+unclipped normal distribution. Parameters represent distribution times or
+values, rather than rates per time unit. For example, an exponential mean of
+\(0.25\) hours corresponds to four arrivals/hour.
+
+The educational backend models finite FIFO queues, alternative servers,
+probabilistic routing, transfers, and assembly synchronization. Its outputs
+are \texttt{approximate} estimates, even when a fixed seed makes them
+reproducible. There is no warm-up deletion, interactive event trace, or
+guarantee of steady state. No external simulation backend is available either.
+
+\subsection{Example: a simulated service counter}
+\path{prob_simulacion.json} connects source Cliente (customer), queue Espera
+(waiting) with twenty places, and server Atención (service). Each arrival
+brings one entity, interarrival time is exponential with mean \(0.25\)
+hours, and mean exponential service time is \(1/6\) hours. Transfers take
+zero time.
+\begin{lstlisting}
+.build/debug/qsb validate-simulation-json manual/examples/prob_simulacion.json
+.build/debug/qsb solve-simulation-json manual/examples/prob_simulacion.json
+.build/debug/qsb solve-simulation-json manual/examples/prob_simulacion.json --replications 3
+\end{lstlisting}
+The default run lasts \(1000\) hours, with seed \(1\), and no warm-up
+removed. It generates \(4005\) entities, completes \(4004\), rejects
+none, and estimates mean queue length \(1.202238\), maximum \(15\),
+and utilization \(0.664470\). The uncompleted customer may be in the queue
+or in service at termination: it is not necessarily rejected.
+
+With three independently seeded replications, mean queue length is
+\(1.229240\), with approximate normal \(95\%\) interval
+\([1.146668,1.311813]\); utilization is \(0.659950\), with interval
+\([0.638179,0.681722]\). Reported aggregate counters are rounded means:
+\(4006\) generated and \(4005\) completed, rather than the sum of three
+runs. Maxima, however, retain the maximum across replications. The base seed,
+horizon, and number of replications appear in the output. The CLI exposes
+replications but no options for choosing a seed or horizon in these commands;
+those values come from the core's default options.
+
+The interval formula uses \(\bar x\pm1.96s/\sqrt R\). With few
+replications, the normal approximation may be poor; increasing \(R\) reduces
+sampling error, but does not correct startup bias or an incorrect distribution.
+Do not interpret the interval as a guarantee that the model describes reality.
+The analytical M/M/1 in the queuing chapter gives \(L_q=4/3\) and
+\(\rho=2/3\). The simulation has a finite queue and finite horizon:
+closeness is useful for checking units, but does not require exact equality.
+Three replications do not justify inferring a failure because an interval does
+not contain the analytical value, either.
+
+\section{macOS workflow}
+In the simulation definition, complete \texttt{Components}, \texttt{Routes}, and \texttt{Service Rules}. Enter the parameters of each
+distribution separately. Names must match route references and entity types.
+Complete tables can be exchanged with spreadsheets; pasting checks each
+section before replacing it. In the Run panel, select between one and one
+hundred replications, validate, and run. The interface shows computation status
+and prevents duplicate runs; changing the model invalidates a pending result.
+This does not stop a calculation already started in the core.
+
+The results panel shows entities generated/completed, completion rate, horizon,
+seed, queue, and utilization, with intervals when available. Consult tables
+and JSON as well as charts. Keep the network, rules, seed, horizon, and
+replications when comparing scenarios: changing any of these may change the
+interpretation of the difference.
+
+\section{Exercises}
+\begin{enumerate}
+\item Remove the initial distribution from the Markov case and check that
+only stationary analysis remains. Then change the matrix to the identity and
+observe the singular-system error.
+\item Double the simulated mean service time and compare completions,
+rejections, and utilization. Explain why queue capacity is not equivalent to
+service capacity.
+\item Repeat the case with ten replications and compare interval widths.
+Distinguish variation between runs from differences between model assumptions.
+\end{enumerate}

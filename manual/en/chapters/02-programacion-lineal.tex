@@ -1,0 +1,178 @@
+\chapter{Linear programming}
+\label{chap:pl}
+
+\section{What a linear model represents}
+Linear programming (LP) allocates scarce resources among activities when
+both the objective and the constraints are linear
+\cite{dantzig1963linear,bertsimas1997introduction}. A variable may represent
+units produced, hours assigned, or quantities transported. Its meaning
+and unit must be established before writing coefficients.
+
+\begin{definicion}
+A continuous linear model has the form
+\[
+ \operatorname{opt}_{x\in\R^n} c^\top x,\qquad
+ a_i^\top x\ \{\leq,=,\geq\}\ b_i\quad(i=1,\ldots,m),\qquad
+ \ell_j\leq x_j\leq u_j.
+\]
+The operator denotes minimization or maximization. A bound may be absent;
+a free variable admits both positive and negative values.
+\end{definicion}
+
+Linearity assumes proportionality and additivity: doubling an activity
+doubles its resource use and contribution, and contributions add without
+interaction effects. A continuous formulation allows divisibility. The data
+are also deterministic over the modeled horizon. Discounts, start-ups,
+indivisible batches, or variable yields require a different formulation. Validating
+a file checks its structure and mathematical rules; it does not establish that
+these assumptions accurately represent the organization.
+
+\section{Example: product mix}
+A plant manufactures two divisible products, \(X_1\) and \(X_2\). Their unit
+contributions are 50 and 60 monetary units. Each unit uses two resources as
+shown in the following table; capacities cover the same period as production.
+\begin{table}[htbp]
+\centering
+\caption{Product mix data}
+\begin{tabular}{lrrr}
+\toprule
+Resource & Per unit of \(X_1\) & Per unit of \(X_2\) & Capacity \\
+\midrule
+Resource 1 & 2 & 3 & 180 \\
+Resource 2 & 3 & 2 & 150 \\
+\bottomrule
+\end{tabular}
+\end{table}
+The model is
+\[
+\begin{aligned}
+ \max\quad &50X_1+60X_2\\
+ \text{subject to}\quad &2X_1+3X_2\leq180,\\
+ &3X_1+2X_2\leq150,\\
+ &X_1,X_2\geq0.
+\end{aligned}
+\]
+Capacities are hard constraints: exceeding them is not allowed. Minimum
+demand requirements and fixed costs are not included; attributing them to this
+result would change the problem.
+
+\subsection{Reproducible input and execution}
+The complete model is in \path{manual/examples/lp_sample.json}.
+\par\noindent The keys
+\texttt{sense}, \texttt{variableNames}, \texttt{objectiveCoefficients}, and
+\texttt{constraints} define the objective and rows. Each row includes a name,
+coefficients in variable order, a relation, and \texttt{rhs}. Bounds are
+\texttt{lowerBounds} and \texttt{upperBounds}; \texttt{null} in an upper bound
+means that there is no explicit maximum. The example uses
+\texttt{continuous} types. Run from the repository root:
+\begin{lstlisting}
+swift run qsb solve-json manual/examples/lp_sample.json --backend native
+\end{lstlisting}
+This specific command returns \texttt{objectiveValue} and the
+\texttt{variableValues} dictionary. It does not include a sensitivity report.
+
+On macOS, open the normalized JSON in the
+\texttt{Linear / Integer Programming} family. The \texttt{Definition} view
+shows \texttt{Model}, \texttt{Variables and objective}, and the constraints.
+To enter it manually, select \texttt{Maximize}, create two variables with
+coefficients 50 and 60, type \texttt{Continuous}, a lower bound of zero, and no
+upper bound; then enter the two rows with relation \(\leq\). Use
+\texttt{Validate} and correct the diagnostics before pressing \texttt{Run LP}.
+The editor shortcuts are Command--Shift--V to validate and Command--R to
+solve. \texttt{Copy Table} and \texttt{Paste Table} transfer tables to and from
+a spreadsheet. Preserve the column order and headers;
+review the model after pasting. In narrow windows, the editor may require
+horizontal scrolling.
+
+\subsection{Result and interpretation}
+\begin{table}[htbp]
+\centering
+\caption{Linear optimum verified with QSB}
+\begin{tabular}{lr}
+\toprule
+Quantity & Value \\
+\midrule
+\(X_1\) & 18 \\
+\(X_2\) & 48 \\
+Total contribution & 3780 \\
+\bottomrule
+\end{tabular}
+\end{table}
+The solution view shows the objective, variables, and constraint details.
+Check feasibility numerically:
+\[
+ 2(18)+3(48)=180,\qquad3(18)+2(48)=150.
+\]
+Both resources are fully used; their slacks \(b_i-a_i^\top x\) are zero.
+An active constraint holds as an equality at the optimum; a positive slack
+indicates unused capacity. This interpretation depends on the relation:
+for \(a_i^\top x\geq b_i\), the surplus is \(a_i^\top x-b_i\).
+
+The feasible region is a polygon with vertices \((0,0)\), \((50,0)\),
+\((18,48)\), and \((0,60)\). Their objective values are 0, 2500, 3780, and 3600.
+This independent geometric check confirms the result for the two-variable
+problem. In higher dimensions, enumerating vertices by hand is impractical.
+
+\section{Duality and sensitivity: what can be inferred}
+For this maximization problem with constraints \(Ax\leq b\), \(x\geq0\), the dual is
+\[
+ \min\ 180y_1+150y_2,\qquad
+ 2y_1+3y_2\geq50,\quad3y_1+2y_2\geq60,\quad y_1,y_2\geq0.
+\]
+Since both production variables are positive at the optimum, both dual
+constraints hold as equalities. They yield
+\(y_1=16\), \(y_2=6\), and \(180(16)+150(6)=3780\). The dual values
+certify an upper bound equal to the achieved objective.
+
+As long as this basis remains optimal, one additional unit of resource 1
+is worth 16 monetary units, and one of resource 2 is worth 6. These are local
+marginal values, not prices valid for every expansion. For example, changing
+only the first capacity to \(180+\delta\) moves the intersection to
+\[
+ X_1=18-\tfrac25\delta,\qquad X_2=48+\tfrac35\delta.
+\]
+Both quantities remain nonnegative for
+\(-80\leq\delta\leq45\), the interval over which the objective is
+\(3780+16\delta\). At the endpoints the basis structure changes;
+outside the interval the problem must be solved again. This derivation is an
+academic calculation for the example: QSB currently displays neither shadow
+prices nor sensitivity ranges in the specific LP output or its native view.
+
+\section{Method, backends, and limitations}
+The \texttt{native} backend uses two-phase simplex: it first seeks a feasible
+solution and then improves the objective. It is deterministic and educational,
+using floating-point arithmetic. A mathematical optimum does not imply
+symbolic precision. Widely differing coefficient scales can impair
+calculations; use consistent units and check residuals.
+
+\texttt{validate} runs the checks without computing an optimum.
+\texttt{external} requests HiGHS, installed independently and discovered
+through \texttt{QSB\_HIGHS\_PATH} or \texttt{PATH}; if it is unavailable, the
+request fails explicitly. There is no silent fallback to the native backend.
+The educational engine does not provide the preprocessing tools or scale
+guarantees of an industrial engine. To exchange the model with another
+optimizer, you can generate MPS:
+\begin{lstlisting}
+swift run qsb export-mps manual/examples/lp_sample.json > /tmp/qsb-lp.mps
+\end{lstlisting}
+MPS preserves names through a deterministic adaptation and expresses bounds
+and domains; JSON remains QSB's normalized representation.
+
+Distinguish three situations: an invalid model contains inconsistent data;
+an infeasible model has no decision satisfying all constraints; an unbounded
+model admits unlimited improvements in the objective. Adding an arbitrary
+bound to make an error disappear changes the model's meaning. Review the
+units, signs, and limits that the case actually imposes.
+
+\section{Exercises}
+\begin{enumerate}
+ \item Increase the capacity of resource 1 to 190. Before running, predict
+ \(X_1=14\), \(X_2=54\), and objective 3940 using the sensitivity analysis above;
+ confirm the constraints with QSB.
+ \item Reduce the capacity of resource 2 to 120 and solve. Explain why a
+ marginal valuation should not be extrapolated indefinitely.
+ \item Add \(X_1\geq60\). Identify the contradiction with resource 2 and
+ compare a structurally valid model with an infeasible problem.
+ \item Change the variables to integers and study the next chapter.
+ Why does the optimum remain unchanged in the original example?
+\end{enumerate}

@@ -1,0 +1,47 @@
+{
+  "kind": "flowShop",
+  "model": {
+    "title": "flowShop",
+    "timeUnit": "hora",
+    "machines": [
+      {
+        "id": 1,
+        "name": "M1"
+      },
+      {
+        "id": 2,
+        "name": "M2"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 1,
+        "name": "J1",
+        "operations": [
+          {
+            "machineID": 1,
+            "duration": 2
+          },
+          {
+            "machineID": 2,
+            "duration": 3
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "J2",
+        "operations": [
+          {
+            "machineID": 1,
+            "duration": 3
+          },
+          {
+            "machineID": 2,
+            "duration": 1
+          }
+        ]
+      }
+    ]
+  }
+}

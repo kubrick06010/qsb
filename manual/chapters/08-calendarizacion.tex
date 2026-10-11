@@ -1,16 +1,86 @@
-\chapter{Calendarizacion y secuenciacion}
+\chapter{Calendarización y secuenciación}
+\label{chap:calendarizacion}
 
-\section{Definicion}
-La calendarizacion asigna trabajos a recursos en el tiempo. En manufactura y
-servicios, sus objetivos frecuentes son minimizar el makespan, tardanza,
-tiempos ociosos o costos por incumplimiento \cite{pinedo2016scheduling}.
+\section{Problema y supuestos}
+Calendarizar es asignar operaciones a máquinas y tiempos. QSB minimiza el
+\emph{makespan}, el instante en que termina la última operación
+\cite{pinedo2016scheduling}. Las operaciones no se interrumpen, una máquina
+atiende una operación a la vez y cada trabajo sigue su ruta. Las duraciones son
+enteras en la unidad indicada. No se incluyen tiempos de preparación,
+calendarios laborales ni fallos aleatorios.
+Los campos de fecha debida y peso se conservan, pero el objetivo nativo sigue
+siendo makespan; no optimiza tardanza ponderada.
 
-\section{Flow shop y job shop}
-En un flow shop, todos los trabajos visitan las maquinas en el mismo orden. En
-un job shop, cada trabajo puede tener una ruta propia. Esta diferencia altera
-profundamente la dificultad del problema y el tipo de representacion requerida.
+\section{Flow shop: una ruta común}
+En flow shop todos los trabajos pasan por las máquinas en el mismo orden.
+El solver nativo busca una permutación común a todas las máquinas. Para una
+secuencia dada, una operación empieza cuando están disponibles el trabajo y
+la máquina; su fin es inicio más duración. Respeta disponibilidades iniciales
+si se proporcionan.
 
-\section{Estandar para ejemplos}
-Los ejemplos del manual deberan incluir tabla de operaciones, diagrama de Gantt,
-makespan, secuencia de trabajos y salida JSON de \qsb{} con tiempos de inicio y
-fin por operacion.
+En \path{manual/examples/plan_flowShop.json} hay dos trabajos y dos
+máquinas, inicialmente disponibles en cero:
+\begin{center}
+\begin{tabular}{lrr}\toprule
+Trabajo & M1 & M2 \\
+\midrule J1 & 2 & 3 \\ J2 & 3 & 1 \\
+\bottomrule\end{tabular}
+\end{center}
+\begin{lstlisting}[language=bash]
+swift run qsb validate-scheduling-json manual/examples/plan_flowShop.json
+swift run qsb solve-scheduling-json manual/examples/plan_flowShop.json --backend native
+\end{lstlisting}
+La secuencia J1, J2 da makespan 6. En M1, J1 ocupa $[0,2]$ y J2 $[2,5]$;
+en M2, J1 ocupa $[2,5]$ y J2 $[5,6]$. La alternativa J2, J1 termina en 8.
+El ocio inicial de M2 no es una operación perdida: espera la salida de J1.
+La búsqueda es exacta dentro del modelo de permutación, con límite de ocho
+trabajos y costo factorial; no prueba optimalidad entre todas las posibles
+secuencias diferentes por máquina de un flow shop general.
+
+\section{Job shop: rutas propias}
+En job shop cada trabajo puede seguir una ruta distinta. El ejemplo
+\path{plan_jobShop.json} requiere J1: M1(2), M2(3), y J2: M2(2), M1(1).
+Las precedencias se deducen del orden de las operaciones de cada trabajo.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-scheduling-json manual/examples/plan_jobShop.json
+swift run qsb solve-scheduling-json manual/examples/plan_jobShop.json --backend native
+\end{lstlisting}
+QSB obtiene makespan 5: J1 usa M1 de 0 a 2 y M2 de 2 a 5; J2 usa M2 de 0 a 2
+y M1 de 2 a 3. La duración total de J1 es 5 y constituye una cota inferior,
+por lo que el calendario alcanza el óptimo. En este caso
+\texttt{jobSequence} refleja el orden de despacho de operaciones y puede
+repetir nombres; no debe interpretarse como una permutación de trabajos.
+La ramificación y acotación con poda de dominancia admite hasta seis trabajos
+y 36 operaciones. Son límites educativos: el tiempo de búsqueda puede crecer
+mucho antes de alcanzarlos. Native es determinista y marca ambas variantes
+\texttt{fixtureScale}; Validate no construye calendarios y External no está
+disponible.
+
+\section{Leer el Gantt y usar macOS}
+Importe el sobre JSON, cuyo \texttt{kind} es \texttt{flowShop} o
+\texttt{jobShop}. Para introducir o cambiar operaciones utilice el formulario
+estructurado de Definition o el JSON del modelo. Estas variantes no utilizan
+el editor de actividades de
+CPM/PERT. Son problemas distintos y los datos de uno no sustituyen al otro.
+Valide y ejecute con QSB Native. La solución abre Timeline: cada fila es una
+máquina, las barras son operaciones y los huecos muestran ocio.
+La escala horizontal permite revisar calendarios largos. El detalle de una
+operación identifica trabajo, máquina, inicio, fin y duración; JSON contiene
+también \texttt{idleBefore} y los calendarios por máquina.
+
+Antes de aceptar el resultado, compruebe que ninguna máquina tiene barras
+solapadas, que cada trabajo conserva su orden y que el máximo fin coincide
+con makespan. Un calendario corto no garantiza cumplimiento de fechas debidas;
+compare estas por separado si forman parte de la decisión real.
+Los algoritmos trabajan en QSBCore y el Gantt presenta los mismos tiempos
+exportados por la CLI.
+
+\section{Ejercicios}
+\begin{enumerate}
+\item Cambie la segunda operación de J2 en flow shop de 1 a 5.
+      Compare ambas permutaciones y verifique el resultado.
+\item En job shop añada una disponibilidad inicial de M2 igual a 2.
+      Dibuje las esperas y compruebe que el solver no programa antes de ella.
+\item Ponga una fecha debida de 4 a J1. Explique por qué cambiar ese campo
+      no convierte el problema en minimización de tardanza.
+\end{enumerate}

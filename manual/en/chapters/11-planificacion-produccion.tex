@@ -1,0 +1,183 @@
+\chapter{Projects and production planning}
+\label{chap:planificacion}
+
+\section{CPM: precedence and the critical path}
+CPM operates on an acyclic activity network: an activity starts only after
+all its predecessors have finished. It does not allocate limited resources.
+The forward pass calculates early starts and finishes; the backward pass
+calculates late starts and finishes. Total float is late start minus early
+start. A critical activity has zero float.
+
+In \path{manual/examples/plan_cpm.json}, A takes 3 days, B takes 2, and both
+precede C, which takes 4. Each activity has a normal cost of 10, a crash
+duration one unit shorter, and a crash cost of 15.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-project-json manual/examples/plan_cpm.json
+swift run qsb solve-project-json manual/examples/plan_cpm.json --backend native
+swift run qsb solve-cpm-crash-json manual/examples/plan_cpm.json 6 --backend native
+\end{lstlisting}
+\begin{figure}[htbp]
+\centering
+\input{figures/cpm}
+\caption{CPM activity network: the number below each name is its duration in days. Thick strokes identify critical activities and precedence; the dashed stroke shows the other precedence.}
+\label{fig:cpm}
+\end{figure}
+
+The normal project finishes in 7 days. A and C are critical; B has float 1.
+The total normal cost is 30. Crashing to a deadline of 6 reduces C from 4
+to 3, with incremental cost 5 and total cost 35. Reducing A could also
+achieve the same cost; do not assume that the plan is unique.
+
+Crash optimization assumes linear costs between normal and minimum
+durations, with slope $(C_{crash}-C_{normal})/(t_{normal}-t_{crash})$ when
+reduction is possible. It uses continuous times and an educational LP that
+considers paths; the number of paths can grow rapidly. It is not a policy
+for hiring resources and does not include indirect project costs.
+Deadlines shorter than what is achievable must be treated as infeasible,
+never as instructions to violate precedence constraints.
+
+\section{PERT: expected duration and uncertainty}
+PERT uses optimistic $a$, most likely $m$, and pessimistic $b$ estimates,
+ordered $a\leq m\leq b$. The classical approximation calculates
+\[
+ E[T]=(a+4m+b)/6,\qquad \operatorname{Var}(T)=((b-a)/6)^2.
+\]
+In \path{plan_pert.json}, the triples are A(2,3,4), B(1,2,3), and C(3,4,5),
+with the same precedence relationships as in the CPM example.
+\begin{lstlisting}[language=bash]
+swift run qsb solve-project-json manual/examples/plan_pert.json --backend native
+\end{lstlisting}
+\begin{figure}[htbp]
+\centering
+\input{figures/pert}
+\caption{PERT network: each activity shows its optimistic, most likely, and pessimistic triple and its expected duration in days. Thick strokes identify the critical path calculated using those means.}
+\label{fig:pert}
+\end{figure}
+
+Scheduling with expected durations again gives a duration of 7, with A and
+C critical. The reported variance is $2/9$ and the standard deviation is
+$0.471405$ days. In this example, there is a single critical path, and
+summing its variances assumes independence. The implementation sums the
+variances of all activities marked critical; if there are multiple critical
+paths, that total is neither the variance of a single path nor that of the
+maximum over them. The critical path may change between realizations;
+replacing random durations with their means does not calculate the expected
+maximum exactly. The \texttt{exact} label describes the calculation using
+those expected durations, not an exact probabilistic prediction of the
+completion date. QSB does not return a probability of meeting a deadline
+or simulate that uncertainty in this module.
+
+\subsection{CPM and PERT in macOS}
+Import the project envelope or create a CPM/PERT definition. The activity
+editor collects names, predecessors, and durations; CPM adds costs, and
+PERT adds the three estimates. Missing predecessors and cycles appear in
+Validation. Switching methods preserves data for both methods after
+initialization: check the estimates when returning to PERT.
+Copy Table/Paste Table lets you transfer activities from a spreadsheet.
+Run produces duration, critical activities, early/late bars, float values,
+and a timing table. Review JSON for the variance and exact values.
+The CLI crash operation is a separate workflow; the normal view does not
+imply that a deadline has been optimized. Native and Validate are
+available; External does not currently solve project models.
+
+\section{Aggregate planning}
+Aggregate planning balances demand across periods through regular
+production, overtime, subcontracting, inventory, and backorders.
+When capacity depends on workforce, it adds hiring and layoffs.
+A basic balance is
+\[
+ I_t-B_t=I_{t-1}-B_{t-1}+R_t+O_t+S_t-D_t.
+\]
+The objective sums production, idle capacity, workforce, inventory, and
+backorder costs according to the data. QSB normalizes the historical simple,
+transportation, and LP methods into a single continuous LP formulation;
+the \texttt{method} field preserves the input identity rather than selecting
+three different native algorithms.
+
+The example \path{plan_aggregate.json} has two months, demand 4 and 6,
+regular capacity 5 each month, regular cost 2 per unit, overtime capacity
+up to 2 at cost 5, inventory cost 1, and no backorders or subcontracting.
+It does not depend on workforce and starts with no inventory.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-aggregate-json manual/examples/plan_aggregate.json
+swift run qsb solve-aggregate-json manual/examples/plan_aggregate.json --backend native
+\end{lstlisting}
+The plan produces 5 in each month; it holds 1 at the end of the first and
+zero at the end of the second. It costs $10\cdot2+1=21$. Producing exactly
+the first month's demand and using one overtime unit in the second would
+cost $9\cdot2+5=23$.
+Units must be consistent: capacity per worker is not total capacity, and
+\texttt{capacityRequirementPerUnit} converts production into capacity.
+Vectors must have the same number of periods; \texttt{null} in optional
+maximum fields means no upper bound. Workforce and quantities are
+continuous, even when the business needs whole people. Do not round a
+solution without rechecking balances and capacity.
+
+In macOS, the period editor separates demand, costs, inventory/sources,
+and workforce. Copy Table transfers all 20 period columns; Paste Table
+validates the range before replacing it. Run shows stacked production and
+demand, inventory, backorders, and a plan table. A backorder appears below
+zero in the chart, but its model quantity is nonnegative. Native solves
+the educational LP; External uses HiGHS for the same formulation if
+installed. Validate does not produce a plan. The optimal objective refers
+to the costs and bounds entered, not to omitted criteria such as workforce
+stability and its social implications.
+
+\section{MRP: requirements explosion}
+MRP starts from a master production schedule (MPS), a bill of materials
+(BOM), inventory, scheduled receipts, and lead times. It processes parents
+before components: a parent's order release generates gross requirements
+for its components, multiplied by the quantity used per unit
+\cite{silver1998inventory}.
+For an item with safety stock $SS$, gross requirement $G_t$, and scheduled
+receipt $SR_t$, net requirement is
+$\max(0,G_t+SS-I_{t-1}-SR_t)$. A planned receipt covers that requirement,
+and its release is shifted backward by the lead time.
+
+\path{plan_mrp.json} has weeks S0--S3. Five units of P must be received in
+S3; P uses two units of C per unit. Both have a one-week lead time, zero
+initial inventory and safety stock, the LFL rule, and unlimited capacity.
+\begin{lstlisting}[language=bash]
+swift run qsb validate-mrp-json manual/examples/plan_mrp.json
+swift run qsb solve-mrp-json manual/examples/plan_mrp.json --backend native
+\end{lstlisting}
+P receives 5 in S3 and releases 5 in S2. C needs 10 in S2, receives 10
+then, and releases 10 in S1. Projected inventories remain zero. C's
+requirements come from P's release, not from the final demand date.
+The BOM must be acyclic, and all its identifiers must exist.
+
+The available rules are LFL, EOQ, LUC, LTC, and PPB. LFL receives the net
+requirement; EOQ starts from $\sqrt{2DS/H}$ and receives at least the
+current requirement. In EOQ, \texttt{lotSizingLookahead} is interpreted as
+a lot multiple \(m=\max(1,\text{configured value})\), not as a number of
+periods: the quantity is
+\(\max(\text{requirement},m\lceil EOQ/m\rceil)\).
+If annual holding cost is zero, it receives the net requirement.
+LUC compares unit cost; LTC and PPB currently use the same selector, which
+minimizes the absolute difference between holding cost and ordering cost
+within the configured horizon. These are forward-looking rules, not a
+global optimization of multilevel costs. QSB labels the MRP document
+\texttt{heuristic}, even when the particular case uses LFL.
+Finite capacity generates \texttt{capacityExcess}; it does not level or
+reschedule orders. If a release falls before the horizon, QSB accumulates
+it in the first bucket using $\max(0,t-L)$; that record requires operational
+review and does not prove that the lead time can be met.
+
+In macOS, Item Master collects parameters, Schedules collects quantities
+by period, and Bill of Materials collects parent/component relationships.
+Select an item to edit or read its schedule; long horizons are grouped for
+navigation. Copy/Paste Table always exchanges the complete range for its
+section. The solution shows requirements, inventory, receipts, releases,
+and capacity excesses by item, with JSON as an audit record. Native and
+Validate are available; External is not implemented for MRP.
+
+\section{Exercises}
+\begin{enumerate}
+\item In CPM, increase B from 2 to 4. Recalculate the critical path and float.
+\item In PERT, increase only A's pessimistic estimate. Compare duration and
+      variance; explain which assumptions limit a probabilistic interpretation.
+\item Raise aggregate inventory cost from 1 to 4. Compare early production
+      with overtime.
+\item Add initial inventory of 4 units of C in MRP and check its net
+      requirement. Then limit C's capacity in S2 to 5 and explain the excess.
+\end{enumerate}

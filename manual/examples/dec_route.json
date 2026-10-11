@@ -1,0 +1,34 @@
+{
+  "kind": "stagecoach",
+  "model": {
+    "title": "Ruta por etapas",
+    "nodes": [
+      "Origen",
+      "Norte",
+      "Sur",
+      "Destino"
+    ],
+    "arcs": [
+      {
+        "from": "Origen",
+        "to": "Norte",
+        "cost": 4
+      },
+      {
+        "from": "Origen",
+        "to": "Sur",
+        "cost": 2
+      },
+      {
+        "from": "Norte",
+        "to": "Destino",
+        "cost": 3
+      },
+      {
+        "from": "Sur",
+        "to": "Destino",
+        "cost": 6
+      }
+    ]
+  }
+}

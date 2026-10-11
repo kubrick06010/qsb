@@ -1,0 +1,35 @@
+{
+  "kind": "lineBalancing",
+  "model": {
+    "title": "Linea simple",
+    "timeUnit": "minuto",
+    "cycleTime": 5,
+    "tasks": [
+      {
+        "id": 1,
+        "name": "A",
+        "time": 2,
+        "isolated": false,
+        "successorIDs": [
+          3
+        ]
+      },
+      {
+        "id": 2,
+        "name": "B",
+        "time": 3,
+        "isolated": false,
+        "successorIDs": [
+          3
+        ]
+      },
+      {
+        "id": 3,
+        "name": "C",
+        "time": 4,
+        "isolated": false,
+        "successorIDs": []
+      }
+    ]
+  }
+}

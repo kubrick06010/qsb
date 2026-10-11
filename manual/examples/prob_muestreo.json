@@ -1,0 +1,19 @@
+{
+  "kind": "single",
+  "model": {
+    "title": "Inspeccion de lote",
+    "sampleSize": 20,
+    "acceptanceNumber": 1,
+    "acceptableQualityLevel": 0.01,
+    "rejectableQualityLevel": 0.15,
+    "nominalProducerRisk": 0.05,
+    "nominalConsumerRisk": 0.1,
+    "economics": {
+      "lotSize": 500,
+      "unitSamplingCost": 1,
+      "unitInspectionCost": 1,
+      "producerDefectiveCost": 10,
+      "consumerDefectiveCost": 20
+    }
+  }
+}

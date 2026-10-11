@@ -1,0 +1,19 @@
+{
+  "kind": "cChart",
+  "model": {
+    "title": "Defectos por panel",
+    "characteristic": "Defectos",
+    "counts": [
+      2,
+      3,
+      4,
+      3,
+      2,
+      4,
+      3,
+      3,
+      2,
+      4
+    ]
+  }
+}

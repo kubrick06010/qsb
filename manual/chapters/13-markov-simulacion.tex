@@ -1,0 +1,143 @@
+\chapter{Procesos de Markov y simulación}
+\label{ch:markov-simulacion}
+
+\section{Dos formas de describir la incertidumbre}
+Una cadena de Markov propaga probabilidades entre estados; una simulación
+construye realizaciones de eventos y estima medidas por repetición. La primera
+puede dar una distribución estacionaria mediante ecuaciones; la segunda admite
+redes y reglas más detalladas, a cambio de error de muestreo. QSB conserva
+modelos y resultados normalizados distintos para ambos procedimientos
+\cite{ross2019introduction,law2015simulation}.
+
+\section{Cadena finita y convención de filas}
+\(P_{ij}\) es la probabilidad de pasar del estado \(i\) al \(j\) en un
+período. Cada fila suma uno. La distribución es un vector fila:
+\[
+ s_{t+1}=s_tP,\qquad \pi P=\pi,\qquad \sum_i\pi_i=1.
+\]
+Se supone transición homogénea en el tiempo y que el próximo estado depende del
+actual, sin información adicional del pasado. Los costos \(c_i\) son por
+estado y período; su esperanza es \(s_tc\). No son costos de transición.
+
+\subsection{Ejemplo: disponibilidad de una máquina}
+\path{manual/examples/prob_markov.json} define Operativa y Parada, costos
+\((0,100)\), distribución inicial \((1,0)\), horizonte tres y
+\[
+ P=\begin{pmatrix}0.9&0.1\\0.4&0.6\end{pmatrix}.
+\]
+Desde la raíz del repositorio:
+\begin{lstlisting}
+.build/debug/qsb validate-markov-json manual/examples/prob_markov.json
+.build/debug/qsb solve-markov-json manual/examples/prob_markov.json
+\end{lstlisting}
+Los resultados son:
+\begin{center}
+\begin{tabular}{rrrr}
+\toprule
+Período & Operativa & Parada & Costo esperado \\
+\midrule
+0 & 1 & 0 & 0 \\
+1 & 0.9 & 0.1 & 10 \\
+2 & 0.85 & 0.15 & 15 \\
+3 & 0.825 & 0.175 & 17.5 \\
+\bottomrule
+\end{tabular}
+\end{center}
+La distribución estacionaria es \((0.8,0.2)\), con costo esperado \(20\)
+por período. Es una media de largo plazo, no un costo acumulado de tres períodos.
+Esta cadena es irreducible y aperiódica, por lo que las distribuciones transitorias
+convergen a ella. En general, unicidad estacionaria y convergencia desde cualquier
+inicio no son equivalentes: una cadena periódica puede oscilar.
+
+QSB resuelve un sistema lineal estacionario y propaga matrices; declara
+\texttt{exact} como carácter algorítmico, con aritmética de coma flotante.
+El método exige una distribución estacionaria única y devuelve error si su
+sistema es singular. No elige una mezcla arbitraria en cadenas con varias
+clases cerradas. Si falta distribución inicial, no inventa una: la salida
+transitoria está vacía. Validar filas y dimensiones no garantiza que el sistema
+estacionario sea resoluble.
+
+En macOS, el editor permite nombres, costos, probabilidades iniciales opcionales,
+matriz de transición y horizonte. Verifique la orientación de filas antes de
+resolver; el resultado muestra estacionario, propagación, costos e hipótesis.
+La edición de estados mantiene dimensiones coherentes; el texto inválido
+permanece visible hasta corregirse. JSON sigue disponible para intercambio.
+
+\section{Simulación de eventos discretos}
+Una red contiene fuentes de entidades, colas, servidores y compuertas. Las rutas
+incluyen probabilidades y tiempos de transferencia; las reglas de servicio pueden
+depender del tipo de entidad. QSB admite distribuciones constante, exponencial,
+normal, uniforme y triangular. Las muestras normales negativas se recortan
+a cero; no se vuelve a muestrear. Ese recorte modifica la media y la
+variabilidad respecto de una normal sin recorte. Sus parámetros representan tiempos o valores de
+la distribución, no tasas por unidad temporal. Por ejemplo, una media
+exponencial \(0.25\) horas equivale a cuatro llegadas/hora.
+
+El backend educativo modela colas FIFO finitas, servidores alternativos,
+enrutamiento probabilístico, transferencias y sincronización de ensamblaje.
+Sus salidas son estimaciones \texttt{approximate}, aunque una semilla fija
+las haga reproducibles. No hay borrado de calentamiento, traza interactiva de
+eventos ni garantía de estado estacionario. Tampoco hay backend externo de
+simulación disponible.
+
+\subsection{Ejemplo: una ventanilla simulada}
+\path{prob_simulacion.json} conecta fuente Cliente, cola Espera de veinte
+plazas y servidor Atención. Cada llegada trae una entidad, el tiempo entre
+llegadas es exponencial de media \(0.25\) horas, y el servicio exponencial
+medio es \(1/6\) horas. Las transferencias duran cero.
+\begin{lstlisting}
+.build/debug/qsb validate-simulation-json manual/examples/prob_simulacion.json
+.build/debug/qsb solve-simulation-json manual/examples/prob_simulacion.json
+.build/debug/qsb solve-simulation-json manual/examples/prob_simulacion.json --replications 3
+\end{lstlisting}
+La ejecución predeterminada dura \(1000\) horas, semilla \(1\), sin
+calentamiento eliminado. Genera \(4005\) entidades, completa \(4004\),
+no rechaza ninguna, y estima longitud media de cola \(1.202238\), máximo
+\(15\), y utilización \(0.664470\). El cliente sin completar puede estar
+en cola o servicio al terminar: no es necesariamente rechazado.
+
+Con tres réplicas independientemente sembradas, la longitud media es
+\(1.229240\), intervalo normal aproximado del \(95\%\)
+\([1.146668,1.311813]\); la utilización es \(0.659950\), intervalo
+\([0.638179,0.681722]\). Los contadores agregados publicados son medias
+redondeadas: generan \(4006\) y completan \(4005\), no la suma de tres
+corridas. Los máximos, en cambio, conservan el máximo entre réplicas.
+La semilla base, horizonte y número de réplicas figuran en la salida.
+La CLI expone réplicas, pero no opciones para elegir semilla u horizonte en
+estos comandos; esos valores proceden de las opciones predeterminadas del núcleo.
+
+La fórmula del intervalo usa \(\bar x\pm1.96s/\sqrt R\). Con pocas
+réplicas, la aproximación normal puede ser pobre; aumentar \(R\) reduce el
+error de muestreo, no corrige sesgo de arranque ni una distribución incorrecta.
+No interprete el intervalo como garantía de que el modelo describe el mundo.
+El M/M/1 analítico del capítulo de colas da \(L_q=4/3\) y \(\rho=2/3\).
+La simulación tiene cola finita y horizonte finito: la proximidad es útil para
+comprobar unidades, pero no exige igualdad exacta. Tres réplicas tampoco
+justifican deducir un fallo porque un intervalo no contenga el valor analítico.
+
+\section{Procedimiento en macOS}
+En la definición de simulación, complete Componentes, Rutas y Reglas de servicio.
+Introduzca los parámetros de cada distribución por separado. Los nombres deben
+coincidir con las referencias de rutas y tipos de entidad. Se pueden intercambiar
+tablas completas con hojas de cálculo; el pegado comprueba cada sección antes de
+reemplazarla. En el panel Run seleccione entre una y cien réplicas,
+valide y ejecute. La interfaz muestra estado de cálculo y evita ejecuciones
+duplicadas; cambiar el modelo invalida un resultado pendiente. Esto no detiene
+un cálculo ya iniciado en el núcleo.
+
+El panel de resultados muestra entidades generadas/completadas, tasa de
+completado, horizonte, semilla, cola y utilización, con intervalos cuando están
+disponibles. Consulte tablas y JSON además de gráficos. Conserve red, reglas,
+semilla, horizonte y réplicas al comparar escenarios: cambiar cualquiera puede
+cambiar la interpretación de la diferencia.
+
+\section{Ejercicios}
+\begin{enumerate}
+\item Quite la distribución inicial del caso Markov y compruebe que queda solo
+análisis estacionario. Cambie después la matriz a identidad y observe el error
+del sistema singular.
+\item Duplique la media de servicio simulada y compare terminaciones, rechazo y
+utilización. Explique por qué capacidad de cola no equivale a capacidad de servicio.
+\item Repita el caso con diez réplicas y compare amplitud de intervalos. Separe
+variabilidad entre corridas de diferencias entre los supuestos de modelos.
+\end{enumerate}

@@ -1,0 +1,196 @@
+\chapter{Quality control and acceptance sampling}
+\label{ch:calidad}
+
+\section{Monitoring a process or accepting a lot}
+Statistical control looks for signals of change in a process; acceptance
+sampling makes decisions about lots using samples. A stable process can produce
+defects, and accepting a lot does not certify that all its units conform.
+Both procedures require consistent definitions and sampling
+\cite{montgomery2020quality}.
+
+QSB supports c, p, and \(\bar X\)-R charts, Pareto charts, and normal
+probability plots; it also evaluates single and double binomial acceptance
+plans. The native backend is deterministic, and the validation backend does
+not solve. No external backend is available for these families.
+
+\section{c and p charts}
+The c chart counts defects in an inspection unit of constant size. An item
+may have more than one defect. Under a Poisson count assumption,
+\[
+ CL=\bar c,\qquad LCL=\max(0,\bar c-3\sqrt{\bar c}),\quad
+ UCL=\bar c+3\sqrt{\bar c}.
+\]
+\path{manual/examples/prob_calidad.json} contains counts
+\((2,3,4,3,2,4,3,3,2,4)\). From the root:
+\begin{lstlisting}
+.build/debug/qsb validate-quality-json manual/examples/prob_calidad.json
+.build/debug/qsb solve-quality-json manual/examples/prob_calidad.json
+\end{lstlisting}
+The center line is \(3\), the lower limit zero, and the upper limit
+\(8.196152\). There are no points outside the limits or signals from the
+implemented rules. This is an educational check of the formula; ten counts
+are insufficient to establish an industrial process as stable. Inspection
+units of varying sizes require another approach; QSB does not implement a u
+chart in this route.
+
+The p chart uses the proportion of defective units, with size \(n_i\) for
+each subgroup. Its weighted center is
+\[
+ \bar p=\frac{\sum_i n_ip_i}{\sum_i n_i},\qquad
+ CL_i=\bar p,\quad CL_i\pm3\sqrt{\bar p(1-\bar p)/n_i},
+\]
+with limits clipped to \([0,1]\).
+
+In \path{prob_p.json}, sizes
+\((100,100,200)\) and proportions \((0.02,0.04,0.03)\) produce
+\(\bar p=0.03\); upper limits are \(0.081176\) for the first two
+subgroups and \(0.066187\) for the third. The lower limit is zero.
+Input uses fractions: \(0.03\) means \(3\%\), rather than \(0.03\%\).
+Three-sigma limits are a statistical approximation to the data distribution,
+even though QSB labels the application of the formulas as \texttt{exact}.
+
+\section{Mean and range charts}
+Rational subgroups combine measurements taken under comparable conditions.
+With \(\bar{\bar X}\) as the mean of subgroup means and \(\bar R\)
+as the mean of ranges,
+\[
+ LCL_{\bar X},UCL_{\bar X}=\bar{\bar X}\mp A_2\bar R,\qquad
+ LCL_R=D_3\bar R,\quad UCL_R=D_4\bar R.
+\]
+QSB uses standard constants for uniform sizes between two and ten. Review
+variation in R before interpreting shifts in means.
+\path{prob_xr.json} contains subgroups \((9,10,11)\), \((10,11,12)\),
+and \((8,9,10)\). The results are \(\bar{\bar X}=10\), \(\bar R=2\),
+mean limits \([7.954,12.046]\), and range limits \([0,5.148]\), with no
+points outside the limits. Control limits describe process variability; they
+are not design tolerances. QSB does not calculate Cp/Cpk indices in this
+workflow.
+
+\section{Pareto and normal probability}
+Pareto aggregates categories, sorts them by descending frequency, and reports
+shares and cumulative shares. \path{prob_pareto.json} has rows \((4,2,1)\)
+and \((2,1,0)\) for Rayas (scratches), Manchas (stains), and Roturas
+(breakages). Their totals are \((6,3,1)\), the overall total is \(10\),
+shares are \((0.6,0.3,0.1)\), and cumulative shares are \((0.6,0.9,1)\).
+Fields named \texttt{percentage} in JSON store fractions, rather than values
+from zero to one hundred. Prioritizing Rayas by frequency does not establish
+that it is the category with the greatest cost or risk.
+
+The normal plot sorts measurements and assigns Blom plotting positions
+\(p_i=(i-3/8)/(n+1/4)\); it uses \(z_i=\Phi^{-1}(p_i)\), fitting
+measurement against normal score. \path{prob_normal.json} contains
+\((8,9,10,11,12)\); mean \(10\), sample standard deviation \(1.581139\),
+intercept \(10\), slope \(1.742919\), and correlation \(0.997902\).
+It is labeled \texttt{approximate} because of the approximate normal quantile.
+High correlation with five points does not demonstrate normality; this is not
+a test with a p-value. These four examples run using the same quality commands
+with the file changed.
+
+\section{Signals and the quality interface}
+QSB flags points beyond three sigma and fixed Western Electric rules: two of
+three beyond two sigma on the same side, four of five beyond one sigma on the
+same side, and eight on the same side of the center. Points already flagged
+beyond three sigma are excluded from the counts for the two-of-three and
+four-of-five zone rules. There is no rule configuration or normalized metadata
+for cause, action, and comment. Signal indices identify observations to
+investigate, rather than automatic cause diagnoses. Clipped attribute-chart
+limits affect the scale used by this implementation's rules: retain the output
+and review each signal alongside the chart.
+
+In macOS, select the variant in the native editor and complete its table:
+counts/proportions, subgroups, categories, or measurements. Changing variants
+preserves inactive tables during the session, but JSON exports only the active
+one. Paste complete tables to replace them atomically; incomplete imported
+data remain as invalid cells. After validation and solving, charts show centers,
+limits, and signals; Pareto shows frequency and cumulative share; the normal
+plot shows points and a fitted line. Consult tables and JSON for the precise
+values of the calculation, and preserve acquisition order.
+
+\section{Single acceptance plan}
+For sample size \(n\) and maximum acceptable number of defective units
+\(c\), the lot is accepted if \(X\le c\). Under independent binomial
+sampling with proportion \(p\), the operating characteristic curve is
+\[
+ P_a(p)=\sum_{x=0}^c{n\choose x}p^x(1-p)^{n-x}.
+\]
+AQL is the acceptable quality level and RQL the rejectable quality level.
+Actual producer's risk is \(\alpha=1-P_a(AQL)\); consumer's risk is
+\(\beta=P_a(RQL)\). Entering nominal risks does not alter an already
+supplied plan to satisfy them.
+
+\path{prob_muestreo.json} sets \(n=20,c=1,AQL=0.01,RQL=0.15\), nominal
+risks \(0.05,0.10\), and lot size \(500\).
+\begin{lstlisting}
+.build/debug/qsb validate-acceptance-json manual/examples/prob_muestreo.json
+.build/debug/qsb solve-acceptance-json manual/examples/prob_muestreo.json
+\end{lstlisting}
+QSB returns \(P_a(AQL)=0.983141\), producer's risk \(0.016859\), and
+consumer's risk \(0.175558\). The plan exceeds the nominal consumer's risk:
+it must not be described as satisfying \(\beta=0.10\). Output contains
+101 curve points from \(0\) to \(100\%\) defective, as well as measures
+at AQL and RQL. This grid does not replace continuous evaluation when optimizing
+a risk between points.
+
+Average sample number ASN is \(20\). Under rectifying inspection of rejected
+lots and removal of inspected defective units,
+\[
+ ATI=n+(N-n)(1-P_a),\qquad AOQ=pP_a(N-n)/N.
+\]
+At AQL, ATI is \(28.092482\) and AOQ \(0.009438\), that is
+\(0.943815\%\). If rejected lots are returned without full inspection,
+these measures do not describe the actual procedure. QSB evaluates binomial
+probabilities exactly within the assumption, but sampling a large fraction
+of the lot without replacement requires considering the hypergeometric
+distribution; the core provides that probability, rather than a selector in
+this command.
+
+\section{Double plans and design}
+In a double plan, \(n_1\) units are inspected. If the number of defective
+units is \(x_1\le c_1\), the lot is accepted; if \(x_1\ge r_1\), it is
+rejected; in between, \(n_2\) \emph{additional} units are inspected. Final
+acceptance occurs if \(x_1+x_2\le c_2\). Confusing \(n_2\) with cumulative
+sample size changes the plan. Its acceptance probability is
+\[
+ P_a=P(X_1\le c_1)+
+ \sum_{x=c_1+1}^{r_1-1}P(X_1=x)P(X_2\le c_2-x).
+\]
+The file \path{prob_doble.json} uses \(n_1=10,c_1=0,r_1=3\),
+\(n_2=10,c_2=1\), with the same quality levels and lot size as before.
+Changing the file in \texttt{solve-acceptance-json} gives producer's risk
+\(0.013001\), consumer's risk \(0.265274\), ASN at AQL \(10.955041\),
+and ASN at RQL \(16.233221\). It reduces average inspection at the cost
+of accepting more bad lots in this example; it is not a universal improvement.
+ATI at AQL is \(17.313145\) and AOQ \(0.009654\), under the solver's
+rectifying convention. For double plans, QSB replaces \(n\) with ASN in
+the reported ATI and AOQ formulas. This is an aggregate convention: it does
+not separately calculate the inspected size conditional on each acceptance
+or rejection route.
+
+The CLI can design the smallest \emph{single} plan satisfying binomial bounds:
+\begin{lstlisting}
+.build/debug/qsb design-acceptance 500 0.01 0.15 0.05 0.10
+\end{lstlisting}
+The result is \(n=25,c=1\), producer's risk \(0.025759\), and consumer's
+risk \(0.093071\). Argument order is lot size, AQL, RQL, producer's risk,
+and consumer's risk. The command searches for a plan, rather than evaluating
+one already fixed. It does not design double plans, optimize expected cost,
+implement nonzero classification errors, or claim conformity with a specific
+sampling standard.
+
+In macOS, the form distinguishes single/double plans and their decision
+thresholds; it preserves shared quality levels, risks, and economic data when
+the type changes. Validate and solve to see the OC curve, AQL/RQL markers,
+actual versus nominal risks, and ASN/ATI/AOQ. Economic fields are preserved
+in the model; core output contains quality and inspection measures, rather
+than an economic optimum. JSON allows the exact plan used to be audited.
+
+\section{Exercises}
+\begin{enumerate}
+\item Add a count of twenty to the c example and observe how the center and
+limits change when it is included in estimation. Discuss when to establish a
+reference phase.
+\item Compare p charts with sizes of one hundred and one thousand, keeping
+proportions fixed. Explain why the same deviation can produce different signals.
+\item Design a single plan using the example's bounds and compare ASN with
+the \(20,1\) plan. Check actual risks, rather than only nominal ones.
+\end{enumerate}

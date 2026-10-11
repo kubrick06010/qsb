@@ -1,59 +1,179 @@
-\chapter{Programacion lineal}
+\chapter{Programación lineal}
+\label{chap:pl}
 
-\section{Modelo canonico}
-Un problema de programacion lineal (PL) optimiza una funcion lineal sobre una
-region factible descrita por igualdades o desigualdades lineales
-\cite{dantzig1963linear,bertsimas1997introduction}.
+\section{Qué representa un modelo lineal}
+La programación lineal (PL) asigna recursos escasos entre actividades cuando
+el objetivo y las restricciones son lineales
+\cite{dantzig1963linear,bertsimas1997introduction}. Una variable puede representar
+unidades producidas, horas asignadas o cantidades transportadas. Su significado
+y unidad deben fijarse antes de escribir coeficientes.
 
 \begin{definicion}
-Sea \(x \in \R^n\) el vector de variables de decision, \(c \in \R^n\), \(A \in
-\R^{m \times n}\) y \(b \in \R^m\). Una forma estandar de maximizacion es
+Un modelo lineal continuo tiene la forma
 \[
-  \max \; c^\top x
-  \quad \text{sujeto a} \quad
-  Ax \leq b,\; x \geq 0.
+ \operatorname{opt}_{x\in\R^n} c^\top x,\qquad
+ a_i^\top x\ \{\leq,=,\geq\}\ b_i\quad(i=1,\ldots,m),\qquad
+ \ell_j\leq x_j\leq u_j.
 \]
+El operador indica minimizar o maximizar. Una cota puede ser inexistente;
+una variable libre admite valores positivos y negativos.
 \end{definicion}
 
-\section{Ejemplo QSB: mezcla de produccion}
-Considere dos productos \(X_1\) y \(X_2\). Cada unidad de \(X_1\) aporta 50
-unidades monetarias y cada unidad de \(X_2\) aporta 60. Dos recursos limitan la
-produccion:
+La linealidad presupone proporcionalidad y aditividad: duplicar una actividad
+duplica su consumo y su contribución, y las contribuciones se suman sin efectos
+cruzados. La formulación continua admite divisibilidad. Además, los datos son
+deterministas durante el horizonte modelado. Descuentos, arranques, lotes
+indivisibles o rendimientos variables requieren otra formulación. Validar un
+archivo verifica su estructura y reglas matemáticas; no demuestra que esos
+supuestos representen bien la organización.
+
+\section{Ejemplo: mezcla de producción}
+Una planta fabrica dos productos divisibles, \(X_1\) y \(X_2\). Su contribución
+unitaria es 50 y 60 unidades monetarias. Cada unidad utiliza dos recursos según
+la tabla siguiente; las capacidades corresponden al mismo período que la
+producción.
+\begin{table}[htbp]
+\centering
+\caption{Datos de la mezcla de producción}
+\begin{tabular}{lrrr}
+\toprule
+Recurso & Por unidad de \(X_1\) & Por unidad de \(X_2\) & Capacidad \\
+\midrule
+Recurso 1 & 2 & 3 & 180 \\
+Recurso 2 & 3 & 2 & 150 \\
+\bottomrule
+\end{tabular}
+\end{table}
+El modelo es
 \[
 \begin{aligned}
-  \max \quad & 50X_1 + 60X_2 \\
-  \text{s.a.}\quad & 2X_1 + 3X_2 \leq 180,\\
-  & 3X_1 + 2X_2 \leq 150,\\
-  & X_1, X_2 \geq 0.
+ \max\quad &50X_1+60X_2\\
+ \text{sujeto a}\quad &2X_1+3X_2\leq180,\\
+ &3X_1+2X_2\leq150,\\
+ &X_1,X_2\geq0.
 \end{aligned}
 \]
+Las capacidades son restricciones duras: no se autoriza excederlas. No se han
+incluido mínimos de demanda ni costos fijos; atribuirlos a este resultado
+alteraría el problema.
 
-El archivo normalizado usado por \qsb{} esta en
-\texttt{manual/examples/lp\_sample.json}. La solucion fue obtenida con:
-
+\subsection{Entrada y ejecución reproducibles}
+El modelo completo está en \path{manual/examples/lp_sample.json}. Las claves
+\texttt{sense}, \texttt{variableNames}, \texttt{objectiveCoefficients} y
+\texttt{constraints} definen el objetivo y las filas. Cada fila incluye nombre,
+coeficientes en el orden de variables, relación y \texttt{rhs}. Las cotas son
+\texttt{lowerBounds} y \texttt{upperBounds}; \texttt{null} en una cota superior
+significa que no existe un máximo explícito. Los tipos del ejemplo son
+\texttt{continuous}. Ejecute desde la raíz del repositorio:
 \begin{lstlisting}
-swift run qsb solve-json manual/examples/lp_sample.json
+swift run qsb solve-json manual/examples/lp_sample.json --backend native
 \end{lstlisting}
+Esta ruta específica devuelve \texttt{objectiveValue} y el diccionario
+\texttt{variableValues}. No incluye un informe de sensibilidad.
 
-\begin{table}[h]
+En macOS, abra el JSON normalizado en la familia
+\texttt{Linear / Integer Programming}. La vista \texttt{Definition} presenta
+\texttt{Model}, \texttt{Variables and objective} y las restricciones. Para
+introducirlo manualmente, seleccione \texttt{Maximize}, cree dos variables con
+coeficientes 50 y 60, tipo \texttt{Continuous}, cota inferior cero y sin cota
+superior; después introduzca las dos filas con relación \(\leq\). Use
+\texttt{Validate} y corrija los diagnósticos antes de pulsar \texttt{Run LP}.
+Los atajos del editor son Comando--Mayúsculas--V para validar y Comando--R para
+resolver. \texttt{Copy Table} y \texttt{Paste Table} permiten trasladar tablas
+con una hoja de cálculo. Conserve el orden y los encabezados de las columnas;
+revise el modelo después de pegar. En ventanas estrechas, el editor puede
+requerir desplazamiento horizontal.
+
+\subsection{Resultado e interpretación}
+\begin{table}[htbp]
 \centering
-\caption{Solucion del ejemplo de programacion lineal}
+\caption{Óptimo lineal verificado con QSB}
 \begin{tabular}{lr}
 \toprule
 Cantidad & Valor \\
 \midrule
 \(X_1\) & 18 \\
 \(X_2\) & 48 \\
-Valor objetivo & 3780 \\
+Contribución total & 3780 \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-\section{Interpretacion}
-La solucion usa completamente ambos recursos:
+La vista de solución muestra el objetivo, las variables y el detalle de las
+restricciones. Compruebe numéricamente la factibilidad:
 \[
-2(18)+3(48)=180,\qquad 3(18)+2(48)=150.
+ 2(18)+3(48)=180,\qquad3(18)+2(48)=150.
 \]
-Por tanto, las dos restricciones son activas. En una version ampliada del
-manual, este ejemplo deberia complementarse con precios sombra, rangos de
-sensibilidad y una explicacion geometrica de los vertices factibles.
+Ambos recursos quedan agotados; sus holguras \(b_i-a_i^\top x\) son cero.
+Una restricción activa es una igualdad en el óptimo; una holgura positiva
+indica capacidad no utilizada. Esta interpretación depende de la relación:
+para \(a_i^\top x\geq b_i\), el exceso es \(a_i^\top x-b_i\).
+
+La región factible es un polígono con vértices \((0,0)\), \((50,0)\),
+\((18,48)\) y \((0,60)\). Sus objetivos son 0, 2500, 3780 y 3600.
+Esta comprobación geométrica independiente confirma el resultado para el
+problema de dos variables. En dimensiones mayores, enumerar vértices a mano
+no resulta práctico.
+
+\section{Dualidad y sensibilidad: qué puede deducirse}
+Para este máximo con restricciones \(Ax\leq b\), \(x\geq0\), el dual es
+\[
+ \min\ 180y_1+150y_2,\qquad
+ 2y_1+3y_2\geq50,\quad3y_1+2y_2\geq60,\quad y_1,y_2\geq0.
+\]
+Como las dos variables de producción son positivas en el óptimo, las dos
+restricciones duales se satisfacen como igualdades. De ellas se obtiene
+\(y_1=16\), \(y_2=6\) y \(180(16)+150(6)=3780\). Los valores duales
+certifican una cota superior igual al objetivo alcanzado.
+
+Mientras siga siendo óptima esta base, una unidad adicional del recurso 1
+vale 16 unidades monetarias y una del recurso 2 vale 6. Son valores marginales
+locales, no precios válidos para cualquier ampliación. Por ejemplo, al cambiar
+solo la primera capacidad a \(180+\delta\), la intersección pasa a
+\[
+ X_1=18-\tfrac25\delta,\qquad X_2=48+\tfrac35\delta.
+\]
+Ambas cantidades siguen siendo no negativas para
+\(-80\leq\delta\leq45\), intervalo en el que el objetivo es
+\(3780+16\delta\). En los extremos cambia la estructura de la base;
+fuera del intervalo hay que resolver de nuevo. Esta derivación es un cálculo
+académico del ejemplo: QSB no presenta actualmente precios sombra ni rangos
+de sensibilidad en la salida LP específica ni en su vista nativa.
+
+\section{Método, backends y límites}
+El backend \texttt{native} utiliza simplex de dos fases: busca primero una
+solución factible y después mejora el objetivo. Es determinista y educativo,
+con aritmética de punto flotante. Un óptimo matemático no implica precisión
+simbólica. Escalas muy diferentes entre coeficientes pueden deteriorar los
+cálculos; use unidades coherentes y compruebe residuos.
+
+\texttt{validate} ejecuta las comprobaciones sin calcular un óptimo.
+\texttt{external} solicita HiGHS, instalado independientemente y descubierto
+mediante \texttt{QSB\_HIGHS\_PATH} o \texttt{PATH}; si no está disponible, la
+petición falla explícitamente. No hay sustitución silenciosa por el backend
+nativo. El motor educativo no ofrece las herramientas de preprocesamiento ni
+las garantías de escala de un motor industrial. Para intercambiar el modelo
+con otro optimizador se puede generar MPS:
+\begin{lstlisting}
+swift run qsb export-mps manual/examples/lp_sample.json > /tmp/qsb-lp.mps
+\end{lstlisting}
+El MPS conserva nombres mediante una adaptación determinista y expresa cotas
+y dominios; el JSON sigue siendo la representación normalizada de QSB.
+
+Distinga tres situaciones: un modelo inválido contiene datos incoherentes;
+uno infactible no tiene ninguna decisión que satisfaga las restricciones; uno
+no acotado admite mejoras ilimitadas del objetivo. Agregar una cota arbitraria
+para hacer desaparecer un error cambia el significado del modelo. Revise las
+unidades, los signos y los límites que realmente impone el caso.
+
+\section{Ejercicios}
+\begin{enumerate}
+ \item Aumente la capacidad del recurso 1 a 190. Antes de ejecutar, prediga
+ \(X_1=14\), \(X_2=54\) y objetivo 3940 mediante la sensibilidad anterior;
+ confirme las restricciones con QSB.
+ \item Reduzca la capacidad del recurso 2 a 120 y resuelva. Explique por qué
+ ya no debe extrapolarse indefinidamente una valoración marginal.
+ \item Añada \(X_1\geq60\). Identifique la contradicción con el recurso 2 y
+ compare un modelo estructuralmente válido con un problema infactible.
+ \item Cambie las variables a enteras y estudie el capítulo siguiente.
+ \textquestiondown{}Por qué en el ejemplo original no cambia el óptimo?
+\end{enumerate}

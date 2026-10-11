@@ -14,7 +14,10 @@ APP_MACOS="$APP_CONTENTS/MacOS"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 
-pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+# Verification opens an isolated instance without discarding an existing editor.
+if [[ "$MODE" != "--verify" && "$MODE" != "verify" ]]; then
+  pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+fi
 
 swift build --product "$APP_NAME"
 BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"
@@ -65,9 +68,20 @@ case "$MODE" in
     /usr/bin/log stream --info --style compact --predicate "subsystem == \"$BUNDLE_ID\""
     ;;
   --verify|verify)
+    existing_pids="$(pgrep -x "$APP_NAME" | tr '\n' ' ' || true)"
     open_app
     sleep 1
-    pgrep -x "$APP_NAME" >/dev/null
+    verified=false
+    for app_pid in $(pgrep -x "$APP_NAME"); do
+      case " $existing_pids" in
+        *" $app_pid "*) ;;
+        *) verified=true ;;
+      esac
+    done
+    if [[ "$verified" != true ]]; then
+      echo "verification failed: no new $APP_NAME process survived launch" >&2
+      exit 1
+    fi
     ;;
   *)
     echo "usage: $0 [run|--debug|--logs|--telemetry|--verify]" >&2

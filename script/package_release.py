@@ -63,7 +63,7 @@ def main():
     subprocess.run(['codesign', '--force', '--deep', '--sign', '-', str(app)], check=True)
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
     for binary in [macos / 'QSBMacApp', cli_root / 'qsb']:
-        subprocess.run(['lipo', '-verify_arch', 'arm64', str(binary)], check=True)
+        subprocess.run(['lipo', str(binary), '-verify_arch', 'arm64'], check=True)
     if args.verify_launch:
         subprocess.run(['open', '-n', str(app)], check=True)
         time.sleep(3)

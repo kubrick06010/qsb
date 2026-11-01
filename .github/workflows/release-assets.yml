@@ -1,0 +1,43 @@
+name: Release assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Numeric release version (major.minor.patch)
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: read
+
+jobs:
+  macos-arm64:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 16.2 SDK
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+      - uses: swift-actions/setup-swift@7ca6abe6b3b0e8b5421b88be48feee39cbf52c6a
+        with:
+          swift-version: '6.0'
+      - name: Confirm Apple Silicon runner
+        run: test "$(uname -m)" = arm64
+      - name: Build optimized products
+        run: swift build -c release
+      - name: Verify examples with the release CLI
+        run: python3 manual/verify_examples.py --qsb "$(swift build -c release --show-bin-path)/qsb"
+      - name: Verify bilingual parity
+        run: python3 manual/verify_translation.py
+      - name: Package and verify application launch
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: python3 script/package_release.py --build-dir "$(swift build -c release --show-bin-path)" --output-dir dist/release-assets --version "$RELEASE_VERSION" --verify-launch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-binaries
+          if-no-files-found: error
+          path: |
+            dist/release-assets/*.zip
+            dist/release-assets/*.tar.gz
+            dist/release-assets/BINARY-SHA256SUMS.txt
